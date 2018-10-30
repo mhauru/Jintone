@@ -1,0 +1,19 @@
+1/1     unison
+16/15   minor second
+9/8     major second
+5/4     minor third
+6/5     major third
+4/3     perfect fourth
+3/2     perfect fifth
+5/3     minor sixth
+8/5     major sixth
+16/9    minor seventh
+15/8    major seventh
+2/1     octave
+
+Next:
+- Make the interval lines have gradients with changing alpha
+- Should harmonic work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
+- Arc the interval lines?
+- Clean up
+- Make interactive using javascript?
