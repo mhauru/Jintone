@@ -25,40 +25,4 @@ d="M 0,-250 V 500"
 id="pitchLine"
 />
 
-<path
-style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="M 0,0 {:f},{:f}"
-id="octaveUp"
-/>
-
-<path
-style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="M 0,0 {:f},{:f}"
-id="octaveDown"
-/>
-
-<path
-style="fill:none;stroke:#001bac;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="m 0,0 {:f},{:f}"
-id="threeUp"
-/>
-
-<path
-style="fill:none;stroke:#001bac;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="m 0,0 {:f},{:f}"
-id="threeDown"
-/>
-
-<path
-style="fill:none;stroke:#ac5f00;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="m 0,0 {:f},{:f}"
-id="fiveUp"
-/>
-
-<path
-style="fill:none;stroke:#ac5f00;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-d="m 0,0 {:f},{:f}"
-id="fiveDown"
-/>
-
 </defs>

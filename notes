@@ -12,8 +12,8 @@
 2/1     octave
 
 Next:
-- Make the interval lines have gradients with changing alpha
 - Should harmonic work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
+- Mark the base notes.
 - Arc the interval lines?
 - Make the interval lines disappear under the circles.
 - Clean up
