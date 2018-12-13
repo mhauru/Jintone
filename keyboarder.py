@@ -85,7 +85,8 @@ class ScaleFigure:
 
     stepline_template = """
     <path
-        style="fill:none;stroke:url(#{});
+        style="fill:none;
+        stroke:url(#{});
         stroke-width:2.5;
         stroke-linecap:butt;
         stroke-linejoin:miter;
@@ -114,14 +115,30 @@ class ScaleFigure:
         y2="{:f}"
         gradientUnits="userSpaceOnUse" />
     """
-    note_template = '<use href="#noteCircle" x="{:f}" y="{:f}" opacity="{:f}"/>\n'
+    note_template = """
+    <circle
+        r="{r}"
+        cx="{cx:f}"
+        cy="{cy:f}"
+        style="fill:{color};fill-opacity:{opacity:f}"
+    />
+    """
+    base_note_template = """
+    <circle
+        r="{r}"
+        cx="{cx:f}"
+        cy="{cy:f}"
+        style="fill:{color};fill-opacity:{opacity:f};
+        stroke:{border_color};stroke-width:{border_size}"
+    />
+    """
     pitchline_template = '<use href="#pitchLine" x="{:f}" opacity="{:f}"/>\n'
 
-    def __init__(self, scale, horizontal_zoom, y_shifts, colors):
+    def __init__(self, scale, horizontal_zoom, y_shifts, style):
         self.scale = scale
         self.horizontal_zoom = horizontal_zoom
         self.y_shifts = y_shifts
-        self.colors = colors
+        self.style = style
         with open("svg_pre.svg-part", "r") as f:
             self.svg_pre = f.read()
         self.svg_defs = ""
@@ -142,14 +159,29 @@ class ScaleFigure:
                 pass
         return x, y
 
-    def draw_note(self, note):
+    def draw_note(self, note, is_base=False):
         hn = self.scale.harm_norm(note)
         rel_hn = max(1 - hn/self.scale.max_harm_norm, 0)
         x, y = self.note_position(note)
-        note_line = self.note_template.format(x,y, rel_hn)
+        style = self.style
+        note_radius = style["note_radius"]
+        note_color = style["note_color"]
+        if is_base:
+            border_color = style["base_note_border_color"]
+            border_size = style["base_note_border_size"]
+            note_radius += border_size/2
+            note_line = self.base_note_template.format(
+                cx=x, cy=y, opacity=rel_hn, r=note_radius, color=note_color,
+                border_color=border_color, border_size=border_size
+            )
+        else:
+            note_line = self.note_template.format(
+                cx=x, cy=y, opacity=rel_hn, r=note_radius, color=note_color
+            )
         pitchline_line = self.pitchline_template.format(x, rel_hn)
         self.svg_notes += note_line
-        self.svg_pitchlines += pitchline_line
+        if self.style["draw_pitchlines"]:
+            self.svg_pitchlines += pitchline_line
 
     def draw_step(self, step):
         note1, note2 = step
@@ -160,18 +192,25 @@ class ScaleFigure:
         rel_hn2 = max(1 - hn2/self.scale.max_harm_norm, 0)
         x1, y1 = self.note_position(note1)
         x2, y2 = self.note_position(note2)
-        grad_name_in = "linGrad{}".format(random.randint(1, 1000000))  # TODO This is awful. I already had collisions.
-        grad_name_out = "linGrad{}".format(random.randint(1, 1000000))  # TODO This is awful. I already had collisions.
-        if interval in self.colors:
-            color = self.colors[interval]
+        grad_name_in = "linGrad{}".format(random.randint(1, 10000000))  # TODO This is awful. I already had collisions.
+        grad_name_out = "linGrad{}".format(random.randint(1, 10000000))  # TODO This is awful. I already had collisions.
+        colors = style["colors"]
+        if interval in colors:
+            color = colors[interval]
         else:
-            color = self.colors[neg_note(interval)]
+            color = colors[neg_note(interval)]
         def_line = self.grad_template.format(
             grad_name_in, color, rel_hn1, color, rel_hn2, grad_name_in,
             grad_name_out, x1, y1, x2, y2
         )
+        r = self.style["note_radius"]
+        step_length = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+        x1_edge = x1 - r*(x1-x2)/step_length
+        y1_edge = y1 - r*(y1-y2)/step_length
+        x2_edge = x2 + r*(x1-x2)/step_length
+        y2_edge = y2 + r*(y1-y2)/step_length
         svg_line = self.stepline_template.format(
-            grad_name_out, x1, y1, x2-x1, y2-y1
+            grad_name_out, x1_edge, y1_edge, x2_edge-x1_edge, y2_edge-y1_edge
         )
         self.svg_defs += def_line
         self.svg_intervals += svg_line
@@ -183,7 +222,8 @@ class ScaleFigure:
         self.svg_pitchlines = ""
         self.svg_defs = "<defs>\n"
         for note in self.scale.notes:
-            self.draw_note(note)
+            is_base = note in self.scale.base_notes
+            self.draw_note(note, is_base=is_base)
         for step in self.scale.steps:
             self.draw_step(step)
         self.svg_post = "\n</svg>"
@@ -194,27 +234,63 @@ class ScaleFigure:
 if __name__ == "__main__":
     max_harm_norm = 8
     max_pitch_norm = 8
-    harm_dist_steps = {2:0, 3:2, 5:3}
-    base_notes = ((0,0,0,0),)
-    gen_intervals = ((1,0,0,0), (-1,1,0,0), (-2,0,1,0))
+    harm_dist_steps = {
+        2:0,
+        3:2,
+        5:3}
+    base_notes = (
+        (0,0,0,0),
+        #(-1,1,0,0),
+        #(-2,0,1,0),
+    )
+    gen_intervals = (
+        (1,0,0,0),
+        (-1,1,0,0),
+        (-2,0,1,0),
+        #(2,-1,0,0),
+        #(3,0,-1,0),
+    )
 
     horizontal_zoom = 250
-    y_shifts = {2:0,
-                3:horizontal_zoom*np.log2(3/2)-130,
-                5:-horizontal_zoom*np.log2(5/4)-110}
-    colors = {(1,0,0,0): "#000000",
-              (-1,1,0,0): "#001bac",
-              (-2,0,1,0): "#ac5f00"}
+    #horizontal_zoom = 550
+    vertical_zoom = 250
+    #y_shifts = {
+    #2:0,
+    #3:horizontal_zoom*np.log2(4/3),
+    #5:horizontal_zoom*np.log2(5/4)}
+    #3:horizontal_zoom*np.sqrt(np.log2(4/3)*np.log2(3/2)),
+    #5:horizontal_zoom*np.sqrt(np.log2(5/4)*np.log2(8/5))}
+    #3:vertical_zoom*np.log2(3/2)-125,
+    #5:vertical_zoom*np.log2(5/4)+100
+    #}
+    # Rectilinear projection of 3D lattice
+    phi = 2*np.pi*0.5
+    k = 100
+    y_shifts = {
+        2:np.log(2) * k * np.cos(phi),
+        3:np.log(3/2) * k * np.cos(phi+2*np.pi/3),
+        5:np.log(5/4) * k * np.cos(phi+4*np.pi/3)
+    }
+    colors = {
+        (1,0,0,0): "#000000",
+        (-1,1,0,0): "#001bac",
+        (-2,0,1,0): "#ac5f00",
+        #(2,-1,0,0): "#001bac",
+        #(3,0,-1,0): "#ac5f00"
+    }
+    style = {
+        "draw_pitchlines": False,
+        "colors": colors,
+        "note_color": "#ac0006",
+        "note_radius": 8.0,
+        "base_note_border_size": 4.0,
+        "base_note_border_color": "#000000"
+    }
 
 
     s = Scale(base_notes, gen_intervals, harm_dist_steps, max_harm_norm,
               max_pitch_norm)
-    for n in sorted(s.notes):
-        print(n)
-    print()
-    for st in sorted(s.steps):
-        print(st)
-    sf = ScaleFigure(s, horizontal_zoom, y_shifts, colors)
+    sf = ScaleFigure(s, horizontal_zoom, y_shifts, style)
     
     with open("keyboard_generated.svg", "w") as f:
         f.write(sf.svg)
