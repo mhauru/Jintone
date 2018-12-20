@@ -1,4 +1,4 @@
-var primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
+const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
 
 function notes_equal(note1, note2) {
     // Ensure that if there's a length difference, note1 is longer.
@@ -61,8 +61,9 @@ function harm_dist(scale, note1, note2) {
     for (i = 0; i < interval.length; i += 1) {
         p = primes[i];
         c = interval[i];
-        if (scale.harm_dist_steps.hasOwnProperty(p.toString())) {
-            d += scale.harm_dist_steps[p.toString()] * Math.abs(c);
+        p_str = p.toString()
+        if (scale.harm_dist_steps.hasOwnProperty(p_str)) {
+            d += scale.harm_dist_steps[p_str] * Math.abs(c);
         } else {
             if (c != 0) {
                 d = +Infinity;
@@ -91,24 +92,26 @@ function gen_scale(scale) {
     var all_gens = scale.gen_intervals.concat(neg_gens);
     var note, next_note;
     while (notes_to_add.length > 0 && scale.notes.length < scale.max_notes) {
-        note = notes_to_add.pop();
+        note = notes_to_add.shift();
         scale.notes.push(note);
         all_gens.forEach(function(intrvl) {
             next_note = add_note(note, intrvl)
-            // Note that, even if a note is outside the max distance, we
-            // still add the step to it, to allow drawing step lines that
-            // fade to nothing.
-            scale.steps.push([note, next_note]);
-            if (scale.notes.some(note => notes_equal(note, next_note))) {
-                return;
+            if (!scale.notes.some(note => notes_equal(note, next_note))) {
+                // Note that, even if a note is outside the max distance, we
+                // still add the step to it, to allow drawing step lines that
+                // fade to nothing.
+                scale.steps.push([note, next_note]);
+                // Figure out whether next_note should be included in this
+                // scale.
+                hn = harm_norm(scale, next_note);
+                pf = pitch_factor(next_note);
+                is_harm_close = (hn <= max_harm_norm);
+                is_pitch_close = (pf <= max_pitch_norm
+                    && 1/pf <= max_pitch_norm);
+                if (is_harm_close && is_pitch_close) {
+                    notes_to_add.push(next_note); 
+                }
             }
-            // Figure out whether next_note should be included in this
-            // scale.
-            hn = harm_norm(scale, next_note);
-            pf = pitch_factor(next_note);
-            is_harm_close = (hn <= max_harm_norm);
-            is_pitch_close = (pf <= max_pitch_norm && 1/pf <= max_pitch_norm);
-            if (is_harm_close && is_pitch_close) notes_to_add.push(next_note); 
         });
     }
 }
@@ -143,7 +146,7 @@ function draw_note(scale_fig, note, is_base=false) {
         var border_color = style["base_note_border_color"];
         var border_size = style["base_note_border_size"];
         note_radius += border_size/2
-        scale_fig.canvas.circle(r=note_radius).attr({
+        scale_fig.canvas.circle(2*note_radius).attr({
             "cx": x,
             "cy": y,
             "fill": note_color,
@@ -152,7 +155,7 @@ function draw_note(scale_fig, note, is_base=false) {
             "stroke-width": border_size,
         });
     } else {
-        scale_fig.canvas.circle(note_radius).attr({
+        scale_fig.canvas.circle(2*note_radius).attr({
             "cx": x,
             "cy": y,
             "fill": note_color,
@@ -220,7 +223,6 @@ function draw_step(scale_fig, step) {
         "stroke-miterlimit": 4,
         "stroke-opacity": 1,
     })
-    debugger;
 }
 
 function redraw(scale_fig) {
@@ -241,20 +243,20 @@ var max_pitch_norm = 16;
 var max_notes = 1000
 var harm_dist_steps = {
     '2': 0.0,
-    '3': 2.0,
+    '3': 0.2,
     '5': 4.0,
 };
 var base_notes = [
-    [0,0,0,0],
-    //[-1,1,0,0],
-    //[-2,0,1,0],
+    [0,0,0],
+    //[-1,1,0],
+    //[-2,0,1],
 ];
 var gen_intervals = [
-    [1,0,0,0],
-    [-1,1,0,0],
-    [-2,0,1,0],
-    //[2,-1,0,0],
-    //[3,0,-1,0],
+    [1,0,0],
+    [-1,1,0],
+    [-2,0,1],
+    //[2,-1,0],
+    //[3,0,-1],
 ];
 
 var scale = {
@@ -313,9 +315,9 @@ var y_shifts = {
 //}
 
 var colors = {
-    [[1,0,0,0].toString()]: "#000000",
-    [[-1,1,0,0].toString()]: "#001bac",
-    [[-2,0,1,0].toString()]: "#ac5f00",
+    [[1,0,0].toString()]: "#000000",
+    [[-1,1,0].toString()]: "#001bac",
+    [[-2,0,1].toString()]: "#ac5f00",
     //[[2,-1,0,0].toString()]: "#001bac",
     //[[3,0,-1,0].toString()]: "#ac5f00",
 }
