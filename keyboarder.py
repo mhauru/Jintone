@@ -162,6 +162,8 @@ class ScaleFigure:
     def draw_note(self, note, is_base=False):
         hn = self.scale.harm_norm(note)
         rel_hn = max(1 - hn/self.scale.max_harm_norm, 0)
+        if not self.style["opacity_harm_norm"] and rel_hn > 0:
+            rel_hn = 1
         x, y = self.note_position(note)
         style = self.style
         note_radius = style["note_radius"]
@@ -190,10 +192,16 @@ class ScaleFigure:
         hn2 = self.scale.harm_norm(note2)
         rel_hn1 = max(1 - hn1/self.scale.max_harm_norm, 0)
         rel_hn2 = max(1 - hn2/self.scale.max_harm_norm, 0)
+        if not self.style["opacity_harm_norm"]:
+            if rel_hn1 > 0:
+                rel_hn1 = 1
+            if rel_hn2 > 0:
+                rel_hn2 = 1
         x1, y1 = self.note_position(note1)
         x2, y2 = self.note_position(note2)
-        grad_name_in = "linGrad{}".format(random.randint(1, 10000000))  # TODO This is awful. I already had collisions.
-        grad_name_out = "linGrad{}".format(random.randint(1, 10000000))  # TODO This is awful. I already had collisions.
+        # TODO This is awful. I already had collisions.
+        grad_name_in = "linGrad{}".format(random.randint(1, 10000000))
+        grad_name_out = "linGrad{}".format(random.randint(1, 10000000))
         colors = style["colors"]
         if interval in colors:
             color = colors[interval]
@@ -233,11 +241,17 @@ class ScaleFigure:
 
 if __name__ == "__main__":
     max_harm_norm = 8
-    max_pitch_norm = 8
+    max_pitch_norm = 16
     harm_dist_steps = {
-        2:0,
-        3:2,
-        5:3}
+        #2:0.0,
+        #3:3.0,
+        #5:4.0
+    }
+    harm_dist_steps = {
+        2:0.0,
+        3:0.2,
+        5:4.0
+    }
     base_notes = (
         (0,0,0,0),
         #(-1,1,0,0),
@@ -251,9 +265,11 @@ if __name__ == "__main__":
         #(3,0,-1,0),
     )
 
-    horizontal_zoom = 250
+    horizontal_zoom = 200
     #horizontal_zoom = 550
-    vertical_zoom = 250
+
+    # Manually chosen y_shifts for nice spacing.
+    #vertical_zoom = 250
     #y_shifts = {
     #2:0,
     #3:horizontal_zoom*np.log2(4/3),
@@ -263,14 +279,26 @@ if __name__ == "__main__":
     #3:vertical_zoom*np.log2(3/2)-125,
     #5:vertical_zoom*np.log2(5/4)+100
     #}
-    # Rectilinear projection of 3D lattice
-    phi = 2*np.pi*0.5
-    k = 100
+
+    # Rectilinear projection of 3D lattice.
+    phi = 2*np.pi*0.75  # Angle of the lattice against the projection
+    spios = np.sin(np.pi/6)
+    k = 1/(1 + spios)
+    s = horizontal_zoom*(1+1/spios)  # Scale
     y_shifts = {
-        2:np.log(2) * k * np.cos(phi),
-        3:np.log(3/2) * k * np.cos(phi+2*np.pi/3),
-        5:np.log(5/4) * k * np.cos(phi+4*np.pi/3)
+        2:np.log(2) * s*k * np.cos(phi),
+        3:np.log(3/2) * s*k * np.cos(phi+2*np.pi/3),
+        5:np.log(5/4) * s*k * np.cos(phi+4*np.pi/3)
     }
+
+    # Make y-distance match harmonic distance
+    #s = 30  # Scale
+    #y_shifts = {
+    #    2: s*harm_dist_steps[2],
+    #    3: s*harm_dist_steps[3],
+    #    5: s*harm_dist_steps[5],
+    #}
+
     colors = {
         (1,0,0,0): "#000000",
         (-1,1,0,0): "#001bac",
@@ -280,6 +308,7 @@ if __name__ == "__main__":
     }
     style = {
         "draw_pitchlines": False,
+        "opacity_harm_norm": True,
         "colors": colors,
         "note_color": "#ac0006",
         "note_radius": 8.0,
