@@ -176,6 +176,16 @@ function draw_note(scale_fig, note, is_base=false) {
             "fill-opacity": rel_hn,
         })
     }
+}
+
+function draw_pitchline(scale_fig, note) {
+    var hn = harm_norm(scale_fig.scale, note);
+    var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
+    if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
+        rel_hn = 1.0;
+    }
+    var [x, y] = note_position(scale_fig, note);
+    var style = scale_fig.style;
     if (scale_fig.style["draw_pitchlines"]) {
         scale_fig.canvas.path('M 0,-1000 V 2000').attr({
             "stroke": "#c7c7c7",
@@ -240,14 +250,19 @@ function draw_step(scale_fig, step) {
 }
 
 function redraw(scale_fig) {
+    // Note that the order of these three parts determines which one is
+    // above/below which.
+    scale_fig.scale.notes.forEach(function(note) {
+        draw_pitchline(scale_fig, note);
+    });
+    scale_fig.scale.steps.forEach(function(step) {
+        draw_step(scale_fig, step);
+    });
     scale_fig.scale.notes.forEach(function(note) {
         is_base = scale_fig.scale.base_notes.some(
             base => notes_equal(base, note)
         )
         draw_note(scale_fig, note, is_base=is_base);
-    });
-    scale_fig.scale.steps.forEach(function(step) {
-        draw_step(scale_fig, step);
     });
 }
 
