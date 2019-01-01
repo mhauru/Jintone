@@ -85,22 +85,32 @@ function harm_norm(scale, note) {
 }
 
 function gen_scale(scale) {
-    scale.notes = [];
-    scale.steps = [];
-    var notes_to_add = [...scale.base_notes];
+    // We disgustingly turn everything into strings with JSON, temporarily.  I
+    // blame Javascript's lack of useful things, such as user-defined value
+    // types.
+    // TODO
+    // Or alternatively, we go math-smart on the generation, instead of just
+    // hopping along in a graph.
+    var j_notes = new Set();
+    var steps = new Set();
+    var j_notes_to_add = new Set(scale.base_notes.map(JSON.stringify));
+    var itr = j_notes_to_add.values();
     var neg_gens = scale.gen_intervals.map(neg_note);
     var all_gens = scale.gen_intervals.concat(neg_gens);
-    var note, next_note;
-    while (notes_to_add.length > 0 && scale.notes.length < scale.max_notes) {
-        note = notes_to_add.shift();
-        scale.notes.push(note);
+    var j_note, j_next_note;
+    while (j_notes_to_add.size > 0 && j_notes.size < scale.max_notes) {
+        j_note = itr.next().value;
+        j_notes_to_add.delete(j_note);
+        j_notes.add(j_note);
+        note = JSON.parse(j_note);
         all_gens.forEach(function(intrvl) {
             next_note = add_note(note, intrvl)
-            if (!scale.notes.some(note => notes_equal(note, next_note))) {
+            j_next_note = JSON.stringify(next_note);
+            if (!j_notes.has(j_next_note)) {
                 // Note that, even if a note is outside the max distance, we
                 // still add the step to it, to allow drawing step lines that
                 // fade to nothing.
-                scale.steps.push([note, next_note]);
+                steps.add([note, next_note]);
                 // Figure out whether next_note should be included in this
                 // scale.
                 hn = harm_norm(scale, next_note);
@@ -109,11 +119,15 @@ function gen_scale(scale) {
                 is_pitch_close = (pf <= max_pitch_norm
                     && 1/pf <= max_pitch_norm);
                 if (is_harm_close && is_pitch_close) {
-                    notes_to_add.push(next_note); 
+                    j_notes_to_add.add(j_next_note); 
                 }
             }
         });
     }
+    scale.notes = [...j_notes].map(JSON.parse);
+    scale.steps = [...steps];
+    console.log(j_notes);
+    console.log(scale.steps);
 }
 
 
