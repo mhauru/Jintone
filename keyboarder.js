@@ -19,7 +19,8 @@ function neg_note(note) {
 
 function subtract_note(note1, note2) {
     // Ensure that if there's a length difference, note1 is longer.
-    if (note1.length < note2.length) [note1, note2] = [note2, note1];
+    if (note1.length < note2.length) var flip = true;
+    if (flip) [note1, note2] = [note2, note1];
     var res = new Array(note1.length);
     var c1, c2;
     for (var i = 0; i < res.length; i++) {
@@ -27,6 +28,7 @@ function subtract_note(note1, note2) {
         // If note2 has less values, assume it's padded with zeros at the end.
         c2 = (i < note2.length ? note2[i] : 0.0)
         res[i] = c2 - c1
+        if (flip) res[i] = -res[i];
     }
     return res;
 }
@@ -126,8 +128,6 @@ function gen_scale(scale) {
     }
     scale.notes = [...j_notes].map(JSON.parse);
     scale.steps = [...steps];
-    console.log(j_notes);
-    console.log(scale.steps);
 }
 
 
@@ -146,21 +146,35 @@ function note_position(scale_fig, note) {
     return [x, y];
 }
 
+function is_in_viewbox(scale_fig, x, y) {
+    var viewbox_left = scale_fig.canvas.viewbox().x;
+    var viewbox_right = viewbox_left + scale_fig.canvas.viewbox().width;
+    var viewbox_top = scale_fig.canvas.viewbox().y;
+    var viewbox_bottom = viewbox_top + scale_fig.canvas.viewbox().height;
+    var in_box_hor = (viewbox_left < x && x < viewbox_right);
+    var in_box_ver = (viewbox_top < y && y < viewbox_bottom);
+    var in_box = in_box_hor && in_box_ver;
+    return in_box;
+}
+
 function draw_note(scale_fig, note, is_base=false) {
+    var [x, y] = note_position(scale_fig, note);
+    var in_box = is_in_viewbox(scale_fig, x, y);
+    if (!in_box) return;
     var hn = harm_norm(scale_fig.scale, note);
     var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
     if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
         rel_hn = 1.0;
     }
-    var [x, y] = note_position(scale_fig, note);
     var style = scale_fig.style;
     var note_radius = style["note_radius"];
     var note_color = style["note_color"];
+    var svg_note;
     if (is_base) {
         var border_color = style["base_note_border_color"];
         var border_size = style["base_note_border_size"];
         note_radius += border_size/2
-        scale_fig.canvas.circle(2*note_radius).attr({
+        svg_note = scale_fig.canvas.circle(2*note_radius).attr({
             "cx": x,
             "cy": y,
             "fill": note_color,
@@ -169,13 +183,14 @@ function draw_note(scale_fig, note, is_base=false) {
             "stroke-width": border_size,
         });
     } else {
-        scale_fig.canvas.circle(2*note_radius).attr({
+        svg_note = scale_fig.canvas.circle(2*note_radius).attr({
             "cx": x,
             "cy": y,
             "fill": note_color,
             "fill-opacity": rel_hn,
         })
     }
+    note.svg_note = svg_note;
 }
 
 function draw_pitchline(scale_fig, note) {
@@ -185,39 +200,46 @@ function draw_pitchline(scale_fig, note) {
         rel_hn = 1.0;
     }
     var [x, y] = note_position(scale_fig, note);
+    var in_box = is_in_viewbox(scale_fig, x, y);
+    if (!in_box) return;
     var style = scale_fig.style;
     if (scale_fig.style["draw_pitchlines"]) {
-        scale_fig.canvas.path('M 0,-1000 V 2000').attr({
+        var svg_pitchline = scale_fig.canvas.path('M 0,-1000 V 2000').attr({
             "stroke": "#c7c7c7",
             "stroke-width": "1.0",
             "stroke-miterlimit": 4,
             "stroke-dasharray": "0.5, 0.5",
             "stroke-dashoffset": 0,
             "stroke-opacity": rel_hn,
-        }).x(x)
+        })
+        svg_pitchline.x(x)
+        note.svg_pitchline = svg_pitchline
     }
 }
 
 function draw_step(scale_fig, step) {
-    var [note1, note2] = step
-    var interval = subtract_note(note2, note1)
-    var hn1 = harm_norm(scale_fig.scale, note1)
-    var hn2 = harm_norm(scale_fig.scale, note2)
-    var max_harm_norm = scale_fig.scale.max_harm_norm
-    var rel_hn1 = Math.max(1 - hn1/max_harm_norm, 0)
-    var rel_hn2 = Math.max(1 - hn2/max_harm_norm, 0)
+    var [note1, note2] = step;
+    var interval = subtract_note(note2, note1);
+    var hn1 = harm_norm(scale_fig.scale, note1);
+    var hn2 = harm_norm(scale_fig.scale, note2);
+    var max_harm_norm = scale_fig.scale.max_harm_norm;
+    var rel_hn1 = Math.max(1 - hn1/max_harm_norm, 0);
+    var rel_hn2 = Math.max(1 - hn2/max_harm_norm, 0);
     if (!scale_fig.style["opacity_harm_norm"]) {
         if (rel_hn1 > 0) rel_hn1 = 1;
         if (rel_hn2 > 0) rel_hn2 = 1;
     }
-    var [x1, y1] = note_position(scale_fig, note1)
-    var [x2, y2] = note_position(scale_fig, note2)
-    var colors = style["colors"]
+    var [x1, y1] = note_position(scale_fig, note1);
+    var [x2, y2] = note_position(scale_fig, note2);
+    var in_box1 = is_in_viewbox(scale_fig, x1, y1);
+    var in_box2 = is_in_viewbox(scale_fig, x2, y2);
+    if (!in_box1 && !in_box2) return;
+    var colors = style["colors"];
     var color;
     if (colors.hasOwnProperty(interval.toString())) {
-        color = colors[interval.toString()]
+        color = colors[interval.toString()];
     } else {
-        color = colors[neg_note(interval).toString()]
+        color = colors[neg_note(interval).toString()];
     }
 
     var grad = scale_fig.canvas.gradient('linear', function(stop) {
@@ -231,22 +253,26 @@ function draw_step(scale_fig, step) {
         y2: y2,
         gradientUnits: "userSpaceOnUse",
     });
-    var r = scale_fig.style["note_radius"]
-    var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2)
-    var x1_edge = x1 - r*(x1-x2)/step_length
-    var y1_edge = y1 - r*(y1-y2)/step_length
-    var x2_edge = x2 + r*(x1-x2)/step_length
-    var y2_edge = y2 + r*(y1-y2)/step_length
-    //path_str = `m ${x1_edge} ${y1_edge} ${x2_edge-x1_edge} ${y2_edge-y1_edge}`
-    scale_fig.canvas.line(x1_edge, y1_edge, x2_edge, y2_edge).attr({
+    var r = scale_fig.style["note_radius"];
+    var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+    var x1_edge = x1 - r*(x1-x2)/step_length;
+    var y1_edge = y1 - r*(y1-y2)/step_length;
+    var x2_edge = x2 + r*(x1-x2)/step_length;
+    var y2_edge = y2 + r*(y1-y2)/step_length;
+    var svg_step = scale_fig.canvas.line(
+        x1_edge, y1_edge, x2_edge, y2_edge
+    ).attr({
         "stroke": grad,
-        //"stroke": color,  // DEBUG
         "stroke-width": 2.5,
         "stroke-linecap": "butt",
         "stroke-linejoin": "miter",
         "stroke-miterlimit": 4,
         "stroke-opacity": 1,
-    })
+    });
+    // We store r and length with the object, to allow recomputing the
+    // positions later, if necessary.
+    svg_step.r = r
+    step.svg_step = svg_step
 }
 
 function redraw(scale_fig) {
@@ -268,7 +294,7 @@ function redraw(scale_fig) {
 
 
 var max_harm_norm = 8;
-var max_pitch_norm = 16;
+var max_pitch_norm = 64;
 var max_notes = 1000
 var harm_dist_steps = {
     '2': 0.0,
@@ -371,5 +397,53 @@ var scale_fig = {
     "style": style,
 }
 
-console.log(scale.notes)  // DEBUG
 redraw(scale_fig)
+
+var zoomrange = document.getElementById("zoomrange");
+zoomrange.value = horizontal_zoom
+zoomrange.oninput = function() {
+    scale_fig.horizontal_zoom = this.value;
+    scale_fig.scale.notes.forEach(function(note) {
+        [x, y] = note_position(scale_fig, note)
+        // TODO Remove notes if they go outside the viewbox.
+        if (note.hasOwnProperty("svg_note")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_note.attr("cx", x)
+            note.svg_note.attr("cy", y)
+        }
+        else {
+            draw_note(scale_fig, note)
+        }
+        if (note.hasOwnProperty("svg_pitchline")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_pitchline.x(x)
+        }
+        else {
+            draw_pitchline(scale_fig, note)
+        }
+    })
+    scale_fig.scale.steps.forEach(function(step) {
+        var [note1, note2] = step;
+        var [x1, y1] = note_position(scale_fig, note1);
+        var [x2, y2] = note_position(scale_fig, note2);
+        if (step.hasOwnProperty("svg_step")) {
+            svg_step = step.svg_step
+            var r = svg_step.r
+            var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            var x1_edge = x1 - r*(x1-x2)/step_length;
+            var y1_edge = y1 - r*(y1-y2)/step_length;
+            var x2_edge = x2 + r*(x1-x2)/step_length;
+            var y2_edge = y2 + r*(y1-y2)/step_length;
+            svg_step.attr("x1", x1_edge)
+            svg_step.attr("x2", x2_edge)
+            svg_step.attr("y1", y1_edge)
+            svg_step.attr("y2", y2_edge)
+        }
+        else {
+            draw_step(scale_fig, step)
+        }
+    })
+}
+
