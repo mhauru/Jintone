@@ -47,9 +47,46 @@ function add_note(note1, note2) {
     return res;
 }
 
+function fraction(interval) {
+    var num = 1.0, denom = 1.0;
+    for (var i = 0; i < interval.length; i += 1) {
+        p = primes[i];
+        c = interval[i];
+        if (c > 0) num *= Math.pow(p, c);
+        else denom *= Math.pow(p,-c);
+    }
+    return [num, denom];
+}
+
+function prime_decompose(num, denom) {
+    var note = [0];
+    var i = 0;
+    while (i < primes.length) {
+        p = primes[i];
+        num_divisible = (num % p == 0);
+        denom_divisible = (denom % p == 0);
+        if (num_divisible) {
+            num = num / p;
+            note[note.length-1] += 1;
+        }
+        if (denom_divisible) {
+            denom = denom / p;
+            note[note.length-1] -= 1;
+        }
+        if (num == 1 && denom == 1) return note;
+        if (!num_divisible && !denom_divisible) {
+            i += 1;
+            note.push(0);
+        }
+    }
+    // TODO We should actually raise an error or something, because too large
+    // primes were involved.
+    return note;
+}
+
 function pitch_factor(interval) {
     pf = 1.0;
-    for (i = 0; i < interval.length; i += 1) {
+    for (var i = 0; i < interval.length; i += 1) {
         p = primes[i];
         c = interval[i];
         pf *= Math.pow(p, c);
@@ -121,7 +158,7 @@ function gen_scale(scale) {
                 is_pitch_close = (pf <= max_pitch_norm
                     && 1/pf <= max_pitch_norm);
                 if (is_harm_close && is_pitch_close) {
-                    j_notes_to_add.add(j_next_note); 
+                    j_notes_to_add.add(j_next_note);
                 }
             }
         });
@@ -269,8 +306,8 @@ function draw_step(scale_fig, step) {
         "stroke-miterlimit": 4,
         "stroke-opacity": 1,
     });
-    // We store r and length with the object, to allow recomputing the
-    // positions later, if necessary.
+    // We store r with the object, to allow recomputing the positions later, if
+    // necessary.
     svg_step.r = r
     step.svg_step = svg_step
 }
@@ -446,4 +483,134 @@ zoomrange.oninput = function() {
         }
     })
 }
+
+var zoomrange = document.getElementById("zoomrange");
+zoomrange.value = horizontal_zoom
+zoomrange.oninput = function() {
+    scale_fig.horizontal_zoom = this.value;
+    scale_fig.scale.notes.forEach(function(note) {
+        [x, y] = note_position(scale_fig, note)
+        // TODO Remove notes if they go outside the viewbox.
+        if (note.hasOwnProperty("svg_note")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_note.attr("cx", x)
+            note.svg_note.attr("cy", y)
+        }
+        else {
+            draw_note(scale_fig, note)
+        }
+        if (note.hasOwnProperty("svg_pitchline")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_pitchline.x(x)
+        }
+        else {
+            draw_pitchline(scale_fig, note)
+        }
+    })
+    scale_fig.scale.steps.forEach(function(step) {
+        var [note1, note2] = step;
+        var [x1, y1] = note_position(scale_fig, note1);
+        var [x2, y2] = note_position(scale_fig, note2);
+        if (step.hasOwnProperty("svg_step")) {
+            svg_step = step.svg_step
+            var r = svg_step.r
+            var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            var x1_edge = x1 - r*(x1-x2)/step_length;
+            var y1_edge = y1 - r*(y1-y2)/step_length;
+            var x2_edge = x2 + r*(x1-x2)/step_length;
+            var y2_edge = y2 + r*(y1-y2)/step_length;
+            svg_step.attr("x1", x1_edge)
+            svg_step.attr("x2", x2_edge)
+            svg_step.attr("y1", y1_edge)
+            svg_step.attr("y2", y2_edge)
+        }
+        else {
+            draw_step(scale_fig, step)
+        }
+    })
+}
+
+function add_generating_interval(scale) {
+    var div_gi = document.createElement("div");
+    // TODO Make it "Generating interval #N"
+    div_gi.innerHTML = "Generating interval<br>";
+    var in_fraction_rep = document.createElement("input");
+    in_fraction_rep.type = "text";
+    in_fraction_rep.size = "3";
+    var in_coordinate_rep = document.createElement("input");
+    in_coordinate_rep.type = "text";
+    in_coordinate_rep.size = "7";
+    var span_decimal_rep = document.createElement("span");
+    var span_name_rep = document.createElement("span");
+    var in_color = document.createElement("input");
+    in_color.type = "color";
+    var in_text_yshift = document.createElement("input");
+    in_text_yshift.type = "text";
+    in_text_yshift.size = "2"
+    var in_range_yshift = document.createElement("input");
+    in_range_yshift.type = "range";
+    var in_text_harmdiststep = document.createElement("input");
+    in_text_harmdiststep.type = "text";
+    in_text_harmdiststep.size = "2"
+    var in_range_harmdiststep = document.createElement("input");
+    in_range_harmdiststep.type = "range"
+    var par_reps = document.createElement("p");
+    var par_color = document.createElement("p");
+    var par_y_shift = document.createElement("p");
+    var par_harm_dist_step = document.createElement("p");
+    par_reps.innerHTML = "Interval: "
+    par_color.innerHTML = "Color: "
+    par_y_shift.innerHTML = "y-shift: "
+    par_harm_dist_step.innerHTML = "Harmonic distance: "
+    par_reps.appendChild(in_fraction_rep);
+    par_reps.appendChild(in_coordinate_rep);
+    par_reps.appendChild(span_decimal_rep);
+    par_reps.appendChild(span_name_rep);
+    par_color.appendChild(in_color);
+    par_y_shift.appendChild(in_text_yshift);
+    par_y_shift.appendChild(in_range_yshift);
+    par_harm_dist_step.appendChild(in_text_harmdiststep);
+    par_harm_dist_step.appendChild(in_range_harmdiststep);
+    div_gi.appendChild(par_reps);
+    div_gi.appendChild(par_color);
+    div_gi.appendChild(par_y_shift);
+    div_gi.appendChild(par_harm_dist_step);
+    document.body.appendChild(div_gi);
+    in_coordinate_rep.onchange = function() {
+        var note = JSON.parse(this.value );
+        var [num, denom] = fraction(note);
+        in_fraction_rep.value = num.toString() + "/" + denom.toString();
+        var pf = pitch_factor(note);
+        span_decimal_rep.innerHTML = pf.toString();
+        // TODO Check name, set name_rep
+    }
+    in_fraction_rep.onchange = function() {
+        var [num, denom] = this.value.split("/")
+        if (denom == undefined) denom = "1";
+        num = Number(num); denom = Number(denom);
+        note = prime_decompose(num, denom)
+        in_coordinate_rep.value = JSON.stringify(note)
+        var pf = pitch_factor(note);
+        span_decimal_rep.innerHTML = pf.toString();
+        // TODO Check name, set name_rep
+    }
+    in_text_yshift.onchange = function() {
+        // TODO Check input to be a number
+        in_range_yshift.value = this.value
+    }
+    in_range_yshift.oninput = function() {
+        in_text_yshift.value = this.value
+    }
+    in_text_harmdiststep.onchange = function() {
+        // TODO Check input to be a number
+        in_range_harmdiststep.value = this.value
+    }
+    in_range_harmdiststep.oninput = function() {
+        in_text_harmdiststep.value = this.value
+    }
+}
+
+add_generating_interval(scale)
 
