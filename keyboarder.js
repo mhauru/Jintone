@@ -134,34 +134,39 @@ function gen_scale(scale) {
     var steps = new Set();
     var j_notes_to_add = new Set(scale.base_notes.map(JSON.stringify));
     var itr = j_notes_to_add.values();
-    var neg_gens = scale.gen_intervals.map(neg_note);
-    var all_gens = scale.gen_intervals.concat(neg_gens);
+    var gens = scale.gen_intervals;
     var j_note, j_next_note;
     while (j_notes_to_add.size > 0 && j_notes.size < scale.max_notes) {
         j_note = itr.next().value;
         j_notes_to_add.delete(j_note);
         j_notes.add(j_note);
         note = JSON.parse(j_note);
-        all_gens.forEach(function(intrvl) {
-            next_note = add_note(note, intrvl)
-            j_next_note = JSON.stringify(next_note);
-            if (!j_notes.has(j_next_note)) {
-                // Note that, even if a note is outside the max distance, we
-                // still add the step to it, to allow drawing step lines that
-                // fade to nothing.
-                steps.add([note, next_note]);
-                // Figure out whether next_note should be included in this
-                // scale.
-                hn = harm_norm(scale, next_note);
-                pf = pitch_factor(next_note);
-                is_harm_close = (hn <= max_harm_norm);
-                is_pitch_close = (pf <= max_pitch_norm
-                    && 1/pf <= max_pitch_norm);
-                if (is_harm_close && is_pitch_close) {
-                    j_notes_to_add.add(j_next_note);
+        for (var i = 0; i < gens.length; i += 1) {
+            pos_gen = gens[i];
+            neg_gen = neg_note(pos_gen);
+            for (let gen of [pos_gen, neg_gen]) {
+                next_note = add_note(note, gen);
+                j_next_note = JSON.stringify(next_note);
+                if (!j_notes.has(j_next_note)) {
+                    // Note that, even if a note is outside the max distance,
+                    // we still add the step to it, to allow drawing step lines
+                    // that fade to nothing.
+                    var step = [note, next_note];
+                    step.gen_interval = pos_gen;
+                    steps.add(step);
+                    // Figure out whether next_note should be included in this
+                    // scale.
+                    hn = harm_norm(scale, next_note);
+                    pf = pitch_factor(next_note);
+                    is_harm_close = (hn <= max_harm_norm);
+                    is_pitch_close = (pf <= max_pitch_norm
+                        && 1/pf <= max_pitch_norm);
+                    if (is_harm_close && is_pitch_close) {
+                        j_notes_to_add.add(j_next_note);
+                    }
                 }
             }
-        });
+        }
     }
     scale.notes = [...j_notes].map(JSON.parse);
     scale.steps = [...steps];
@@ -227,10 +232,13 @@ function draw_note(scale_fig, note, is_base=false) {
             "fill-opacity": rel_hn,
         })
     }
+    svg_note.note = note;
+    svg_note.scale_fig = scale_fig;
     note.svg_note = svg_note;
 }
 
 function draw_pitchline(scale_fig, note) {
+    if (!scale_fig.style["draw_pitchlines"]) return;
     var hn = harm_norm(scale_fig.scale, note);
     var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
     if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
@@ -240,18 +248,18 @@ function draw_pitchline(scale_fig, note) {
     var in_box = is_in_viewbox(scale_fig, x, y);
     if (!in_box) return;
     var style = scale_fig.style;
-    if (scale_fig.style["draw_pitchlines"]) {
-        var svg_pitchline = scale_fig.canvas.path('M 0,-1000 V 2000').attr({
-            "stroke": "#c7c7c7",
-            "stroke-width": "1.0",
-            "stroke-miterlimit": 4,
-            "stroke-dasharray": "0.5, 0.5",
-            "stroke-dashoffset": 0,
-            "stroke-opacity": rel_hn,
-        })
-        svg_pitchline.x(x)
-        note.svg_pitchline = svg_pitchline
-    }
+    var svg_pitchline = scale_fig.canvas.path('M 0,-1000 V 2000').attr({
+        "stroke": "#c7c7c7",
+        "stroke-width": "1.0",
+        "stroke-miterlimit": 4,
+        "stroke-dasharray": "0.5, 0.5",
+        "stroke-dashoffset": 0,
+        "stroke-opacity": rel_hn,
+    })
+    svg_pitchline.x(x)
+    svg_pitchline.note = note;
+    svg_pitchline.scale_fig = scale_fig;
+    note.svg_pitchline = svg_pitchline;
 }
 
 function draw_step(scale_fig, step) {
@@ -271,13 +279,7 @@ function draw_step(scale_fig, step) {
     var in_box1 = is_in_viewbox(scale_fig, x1, y1);
     var in_box2 = is_in_viewbox(scale_fig, x2, y2);
     if (!in_box1 && !in_box2) return;
-    var colors = style["colors"];
-    var color;
-    if (colors.hasOwnProperty(interval.toString())) {
-        color = colors[interval.toString()];
-    } else {
-        color = colors[neg_note(interval).toString()];
-    }
+    var color = step.gen_interval.color;
 
     var grad = scale_fig.canvas.gradient('linear', function(stop) {
         stop.at({ offset: 0, color: color, opacity: rel_hn1 });
@@ -306,13 +308,14 @@ function draw_step(scale_fig, step) {
         "stroke-miterlimit": 4,
         "stroke-opacity": 1,
     });
-    // We store r with the object, to allow recomputing the positions later, if
-    // necessary.
-    svg_step.r = r
+    svg_step.grad = grad
+    svg_step.scale_fig = scale_fig
+    svg_step.step = step
     step.svg_step = svg_step
 }
 
 function redraw(scale_fig) {
+    scale_fig.canvas.clear()
     // Note that the order of these three parts determines which one is
     // above/below which.
     scale_fig.scale.notes.forEach(function(note) {
@@ -343,13 +346,6 @@ var base_notes = [
     //[-1,1,0],
     //[-2,0,1],
 ];
-var gen_intervals = [
-    [1,0,0],
-    [-1,1,0],
-    [-2,0,1],
-    //[2,-1,0],
-    //[3,0,-1],
-];
 
 var scale = {
     base_notes: [],
@@ -364,13 +360,10 @@ var scale = {
 };
 
 scale.base_notes = base_notes;
-scale.gen_intervals = gen_intervals;
 scale.harm_dist_steps = harm_dist_steps;
 scale.max_harm_norm = max_harm_norm;
 scale.max_pitch_norm = max_pitch_norm;
 scale.max_notes = max_notes;
-
-gen_scale(scale);
 
 var horizontal_zoom = 200
 // var horizontal_zoom = 550
@@ -406,17 +399,9 @@ var y_shifts = {
 //    '5': s*harm_dist_steps[5],
 //}
 
-var colors = {
-    [[1,0,0].toString()]: "#000000",
-    [[-1,1,0].toString()]: "#001bac",
-    [[-2,0,1].toString()]: "#ac5f00",
-    //[[2,-1,0,0].toString()]: "#001bac",
-    //[[3,0,-1,0].toString()]: "#ac5f00",
-}
 var style = {
     "draw_pitchlines": true,
     "opacity_harm_norm": true,
-    "colors": colors,
     "note_color": "#ac0006",
     "note_radius": 8.0,
     "base_note_border_size": 4.0,
@@ -434,128 +419,70 @@ var scale_fig = {
     "style": style,
 }
 
-redraw(scale_fig)
-
 var zoomrange = document.getElementById("zoomrange");
 zoomrange.value = horizontal_zoom
+zoomrange.min = 100
+zoomrange.max = 700
+zoomrange.scale_fig = scale_fig
 zoomrange.oninput = function() {
+    scale_fig = this.scale_fig
     scale_fig.horizontal_zoom = this.value;
-    scale_fig.scale.notes.forEach(function(note) {
-        [x, y] = note_position(scale_fig, note)
-        // TODO Remove notes if they go outside the viewbox.
-        if (note.hasOwnProperty("svg_note")) {
-            // If we had the old value of the slider, we could do this faster.
-            // This is safer though.
-            note.svg_note.attr("cx", x)
-            note.svg_note.attr("cy", y)
-        }
-        else {
-            draw_note(scale_fig, note)
-        }
-        if (note.hasOwnProperty("svg_pitchline")) {
-            // If we had the old value of the slider, we could do this faster.
-            // This is safer though.
-            note.svg_pitchline.x(x)
-        }
-        else {
-            draw_pitchline(scale_fig, note)
-        }
-    })
-    scale_fig.scale.steps.forEach(function(step) {
-        var [note1, note2] = step;
-        var [x1, y1] = note_position(scale_fig, note1);
-        var [x2, y2] = note_position(scale_fig, note2);
-        if (step.hasOwnProperty("svg_step")) {
-            svg_step = step.svg_step
-            var r = svg_step.r
-            var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-            var x1_edge = x1 - r*(x1-x2)/step_length;
-            var y1_edge = y1 - r*(y1-y2)/step_length;
-            var x2_edge = x2 + r*(x1-x2)/step_length;
-            var y2_edge = y2 + r*(y1-y2)/step_length;
-            svg_step.attr("x1", x1_edge)
-            svg_step.attr("x2", x2_edge)
-            svg_step.attr("y1", y1_edge)
-            svg_step.attr("y2", y2_edge)
-        }
-        else {
-            draw_step(scale_fig, step)
-        }
-    })
+    reposition_all(scale_fig)
 }
 
-var zoomrange = document.getElementById("zoomrange");
-zoomrange.value = horizontal_zoom
-zoomrange.oninput = function() {
-    scale_fig.horizontal_zoom = this.value;
-    scale_fig.scale.notes.forEach(function(note) {
-        [x, y] = note_position(scale_fig, note)
-        // TODO Remove notes if they go outside the viewbox.
-        if (note.hasOwnProperty("svg_note")) {
-            // If we had the old value of the slider, we could do this faster.
-            // This is safer though.
-            note.svg_note.attr("cx", x)
-            note.svg_note.attr("cy", y)
-        }
-        else {
-            draw_note(scale_fig, note)
-        }
-        if (note.hasOwnProperty("svg_pitchline")) {
-            // If we had the old value of the slider, we could do this faster.
-            // This is safer though.
-            note.svg_pitchline.x(x)
-        }
-        else {
-            draw_pitchline(scale_fig, note)
-        }
-    })
-    scale_fig.scale.steps.forEach(function(step) {
-        var [note1, note2] = step;
-        var [x1, y1] = note_position(scale_fig, note1);
-        var [x2, y2] = note_position(scale_fig, note2);
-        if (step.hasOwnProperty("svg_step")) {
-            svg_step = step.svg_step
-            var r = svg_step.r
-            var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-            var x1_edge = x1 - r*(x1-x2)/step_length;
-            var y1_edge = y1 - r*(y1-y2)/step_length;
-            var x2_edge = x2 + r*(x1-x2)/step_length;
-            var y2_edge = y2 + r*(y1-y2)/step_length;
-            svg_step.attr("x1", x1_edge)
-            svg_step.attr("x2", x2_edge)
-            svg_step.attr("y1", y1_edge)
-            svg_step.attr("y2", y2_edge)
-        }
-        else {
-            draw_step(scale_fig, step)
-        }
-    })
+function set_fraction_rep_value(rep, note) {
+    var [num, denom] = fraction(note);
+    rep.value = num.toString() + "/" + denom.toString();
 }
 
-function add_generating_interval(scale) {
+function set_decimal_rep_value(rep, note) {
+    var pf = pitch_factor(note);
+    rep.innerHTML = pf.toString();
+}
+
+function set_coordinate_rep_value(rep, note) {
+    rep.value = JSON.stringify(note)
+}
+
+function read_in_fraction_rep_value(rep) {
+    var [num, denom] = rep.value.split("/")
+    if (denom == undefined) denom = "1";
+    num = Number(num); denom = Number(denom);
+    note = prime_decompose(num, denom)
+    return note
+}
+
+function read_in_coordinate_rep_value(rep) {
+    return JSON.parse(rep.value);
+}
+
+function overwrite_gen_interval(gen_interval, note) {
+    gen_interval.splice(0, gen_interval.length);
+    gen_interval.splice(0, note.length, ...note);
+}
+
+function add_generating_interval(scale_fig, interval=[0], color="#000000") {
+    var gen_interval = interval;
+    gen_interval.color = color;
+    scale_fig.scale.gen_intervals.push(gen_interval);
     var div_gi = document.createElement("div");
     // TODO Make it "Generating interval #N"
     div_gi.innerHTML = "Generating interval<br>";
+    div_gi.gen_interval = gen_interval;
     var in_fraction_rep = document.createElement("input");
     in_fraction_rep.type = "text";
     in_fraction_rep.size = "3";
+    set_fraction_rep_value(in_fraction_rep, gen_interval)
     var in_coordinate_rep = document.createElement("input");
     in_coordinate_rep.type = "text";
     in_coordinate_rep.size = "7";
+    set_coordinate_rep_value(in_coordinate_rep, gen_interval)
     var span_decimal_rep = document.createElement("span");
+    set_decimal_rep_value(span_decimal_rep, gen_interval)
     var span_name_rep = document.createElement("span");
     var in_color = document.createElement("input");
     in_color.type = "color";
-    var in_text_yshift = document.createElement("input");
-    in_text_yshift.type = "text";
-    in_text_yshift.size = "2"
-    var in_range_yshift = document.createElement("input");
-    in_range_yshift.type = "range";
-    var in_text_harmdiststep = document.createElement("input");
-    in_text_harmdiststep.type = "text";
-    in_text_harmdiststep.size = "2"
-    var in_range_harmdiststep = document.createElement("input");
-    in_range_harmdiststep.type = "range"
+    in_color.value = color;
     var par_reps = document.createElement("p");
     var par_color = document.createElement("p");
     var par_y_shift = document.createElement("p");
@@ -569,48 +496,135 @@ function add_generating_interval(scale) {
     par_reps.appendChild(span_decimal_rep);
     par_reps.appendChild(span_name_rep);
     par_color.appendChild(in_color);
-    par_y_shift.appendChild(in_text_yshift);
-    par_y_shift.appendChild(in_range_yshift);
-    par_harm_dist_step.appendChild(in_text_harmdiststep);
-    par_harm_dist_step.appendChild(in_range_harmdiststep);
     div_gi.appendChild(par_reps);
     div_gi.appendChild(par_color);
-    div_gi.appendChild(par_y_shift);
-    div_gi.appendChild(par_harm_dist_step);
     document.body.appendChild(div_gi);
+    // TODO Add buttons for de(activating), and for mirroring (including also
+    // the negative of the same interval).
+    in_color.oninput = function() {
+        gen_interval.color = this.value;
+        recolor_all(scale_fig);
+    }
     in_coordinate_rep.onchange = function() {
-        var note = JSON.parse(this.value );
-        var [num, denom] = fraction(note);
-        in_fraction_rep.value = num.toString() + "/" + denom.toString();
-        var pf = pitch_factor(note);
-        span_decimal_rep.innerHTML = pf.toString();
+        // TODO Sanitize and check input format.
+        // TODO Check that this interval doesn't exist already. Same in the other setter functions.
+        var note = read_in_coordinate_rep_value(this);
+        set_fraction_rep_value(in_fraction_rep, note);
+        set_decimal_rep_value(span_decimal_rep, note);
+        overwrite_gen_interval(gen_interval, note);
         // TODO Check name, set name_rep
+        gen_scale(scale_fig.scale);
+        redraw(scale_fig);
     }
     in_fraction_rep.onchange = function() {
-        var [num, denom] = this.value.split("/")
-        if (denom == undefined) denom = "1";
-        num = Number(num); denom = Number(denom);
-        note = prime_decompose(num, denom)
-        in_coordinate_rep.value = JSON.stringify(note)
-        var pf = pitch_factor(note);
-        span_decimal_rep.innerHTML = pf.toString();
+        var note = read_in_fraction_rep_value(this);
+        set_coordinate_rep_value(in_coordinate_rep, note);
+        set_decimal_rep_value(span_decimal_rep, note);
         // TODO Check name, set name_rep
+        overwrite_gen_interval(gen_interval, note);
+        gen_scale(scale_fig.scale);
+        redraw(scale_fig);
     }
-    in_text_yshift.onchange = function() {
-        // TODO Check input to be a number
-        in_range_yshift.value = this.value
-    }
-    in_range_yshift.oninput = function() {
-        in_text_yshift.value = this.value
-    }
-    in_text_harmdiststep.onchange = function() {
-        // TODO Check input to be a number
-        in_range_harmdiststep.value = this.value
-    }
-    in_range_harmdiststep.oninput = function() {
-        in_text_harmdiststep.value = this.value
-    }
+    // TODO All this is actually based on primes and not intervals.
+    //var in_text_yshift = document.createElement("input");
+    //in_text_yshift.type = "text";
+    //in_text_yshift.size = "2"
+    //var in_range_yshift = document.createElement("input");
+    //in_range_yshift.type = "range";
+    //var in_text_harmdiststep = document.createElement("input");
+    //in_text_harmdiststep.type = "text";
+    //in_text_harmdiststep.size = "2"
+    //var in_range_harmdiststep = document.createElement("input");
+    //in_range_harmdiststep.type = "range"
+    //par_y_shift.appendChild(in_text_yshift);
+    //par_y_shift.appendChild(in_range_yshift);
+    //par_harm_dist_step.appendChild(in_text_harmdiststep);
+    //par_harm_dist_step.appendChild(in_range_harmdiststep);
+    //in_text_yshift.onchange = function() {
+    //    // TODO Check input to be a number
+    //    in_range_yshift.value = this.value
+    //    reposition_all(scale_fig)
+    //}
+    //in_range_yshift.oninput = function() {
+    //    in_text_yshift.value = this.value
+    //    reposition_all(scale_fig)
+    //}
+    //in_text_harmdiststep.onchange = function() {
+    //    // TODO Check input to be a number
+    //    in_range_harmdiststep.value = this.value
+    //}
+    //in_range_harmdiststep.oninput = function() {
+    //    in_text_harmdiststep.value = this.value
+    //}
 }
 
-add_generating_interval(scale)
+function reposition_all(scale_fig) {
+    scale_fig.scale.notes.forEach(function(note) {
+        [x, y] = note_position(scale_fig, note)
+        // TODO Remove notes if they go outside the viewbox.
+        if (note.hasOwnProperty("svg_note")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_note.attr("cx", x)
+            note.svg_note.attr("cy", y)
+        }
+        else {
+            draw_note(scale_fig, note)
+        }
+        if (note.hasOwnProperty("svg_pitchline")) {
+            // If we had the old value of the slider, we could do this faster.
+            // This is safer though.
+            note.svg_pitchline.x(x)
+        }
+        else {
+            draw_pitchline(scale_fig, note)
+        }
+    })
+    scale_fig.scale.steps.forEach(function(step) {
+        if (step.hasOwnProperty("svg_step")) {
+            var [note1, note2] = step;
+            var [x1, y1] = note_position(scale_fig, note1);
+            var [x2, y2] = note_position(scale_fig, note2);
+            var svg_step = step.svg_step;
+            var r = svg_step.scale_fig.style["note_radius"]
+            var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            var x1_edge = x1 - r*(x1-x2)/step_length;
+            var y1_edge = y1 - r*(y1-y2)/step_length;
+            var x2_edge = x2 + r*(x1-x2)/step_length;
+            var y2_edge = y2 + r*(y1-y2)/step_length;
+            svg_step.attr("x1", x1_edge);
+            svg_step.attr("x2", x2_edge);
+            svg_step.attr("y1", y1_edge);
+            svg_step.attr("y2", y2_edge);
+            var grad = svg_step.grad;
+            grad.attr("x1", x1);
+            grad.attr("x2", x2);
+            grad.attr("y1", y1);
+            grad.attr("y2", y2);
+        }
+        else {
+            draw_step(scale_fig, step);
+        }
+    })
+}
 
+function recolor_all(scale_fig) {
+    scale_fig.scale.steps.forEach(function(step) {
+        if (step.hasOwnProperty("svg_step")) {
+            var color = step.gen_interval.color;
+            var svg_step = step.svg_step
+            var grad = svg_step.grad
+            grad.get(0).attr("stop-color", color)
+            grad.get(1).attr("stop-color", color)
+        }
+        else {
+            draw_step(scale_fig, step)
+        }
+    })
+}
+
+add_generating_interval(scale_fig, interval=[1,0,0], color="#000000")
+add_generating_interval(scale_fig, interval=[-1,1,0], color="#001bac")
+add_generating_interval(scale_fig, interval=[-2,0,1], color="#ac5f00")
+gen_scale(scale);
+redraw(scale_fig)
