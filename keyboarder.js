@@ -341,14 +341,10 @@ function redraw(scale_fig) {
 }
 
 
+// TODO Make all these adjustable.
 var max_harm_norm = 8;
 var max_pitch_norm = 64;
 var max_notes = 1000
-var harm_dist_steps = {
-    '2': 0.0,
-    '3': 0.2,
-    '5': 4.0,
-};
 var base_notes = [
     [0,0,0],
     //[-1,1,0],
@@ -368,47 +364,11 @@ var scale = {
 };
 
 scale.base_notes = base_notes;
-scale.harm_dist_steps = harm_dist_steps;
 scale.max_harm_norm = max_harm_norm;
 scale.max_pitch_norm = max_pitch_norm;
 scale.max_notes = max_notes;
 
-var horizontal_zoom = 200
-// var horizontal_zoom = 550
-
-// Manually chosen y_shifts for nice spacing.
-//var vertical_zoom = 250
-//var y_shifts = {
-//'2': 0,
-//'3': horizontal_zoom*Math.log2(4/3),
-//'5': horizontal_zoom*Math.log2(5/4)},
-//'3': horizontal_zoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
-//'5': horizontal_zoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
-//'3': vertical_zoom*Math.log2(3/2)-125,
-//'5': vertical_zoom*Math.log2(5/4)+100,
-//}
-
-// Rectilinear projection of 3D lattice.
-//var phi = 2.0*Math.PI*0.75  // Angle of the lattice against the projection
-//var spios = Math.sin(Math.PI/6.0)
-//var k = 1.0/(1.0 + spios)
-//var s = horizontal_zoom*(1.0+1.0/spios)  // Scale
-//var y_shifts = {
-    //'2': Math.log2(2.0) * s*k * Math.cos(phi),
-    //'3': Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0),
-    //'5': Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0)
-//}
-
-// Make y-distance match harmonic distance
-//var s = 30  // Scale
-//var y_shifts = {
-//    '2': s*harm_dist_steps[2],
-//    '3': s*harm_dist_steps[3],
-//    '5': s*harm_dist_steps[5],
-//}
-
-var y_shifts = {};
-
+// TODO Make all these adjustable.
 var style = {
     "draw_pitchlines": true,
     "opacity_harm_norm": true,
@@ -418,39 +378,36 @@ var style = {
     "base_note_border_color": "#000000",
 }
 
-var canvas = SVG('canvas');
-canvas.size(1500, 700).viewbox(-750, -350, 1500, 700);
-
-var div_settings = document.createElement("div");
-var div_gis = document.createElement("div");
-var div_axes = document.createElement("div");
-div_settings.appendChild(div_axes);
-div_settings.appendChild(div_gis);
-div_settings.div_axes = div_axes;
-div_settings.div_gis = div_gis;
-document.body.appendChild(div_settings)
+var canvas = SVG("div_canvas");
 
 var scale_fig = {
     "canvas": canvas,
     "scale": scale,
-    "horizontal_zoom": horizontal_zoom,
-    "y_shifts": y_shifts,
+    "horizontal_zoom": 1,
+    "y_shifts": {},
     "style": style,
-    "div_settings": div_settings,
 }
 
-var zoomrange = document.getElementById("zoomrange");
-zoomrange.value = horizontal_zoom
-zoomrange.min = 100
-zoomrange.max = 700
-zoomrange.step = 0.01;
-zoomrange.scale_fig = scale_fig
-zoomrange.oninput = function() {
-    scale_fig = this.scale_fig
-    scale_fig.horizontal_zoom = this.value;
-    reposition_all(scale_fig)
+function resize_canvas(scale_fig) {
+    var w = window.innerWidth*0.7;
+    var h = window.innerHeight;
+    var c = scale_fig.canvas;
+    c.size(w,h).viewbox(-w/2, -h/2, w, h);
 }
-div_settings.appendChild(zoomrange);
+
+resize_canvas(scale_fig);
+
+var zoomrange = document.getElementById("zoomrange");
+function zoomrange_oninput(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.horizontal_zoom = value;
+    zoomrange.value = value;
+    reposition_all(scale_fig);
+}
+zoomrange.oninput = function() {
+    zoomrange_oninput(this.value)
+}
+zoomrange_oninput(200)
 
 function set_fraction_rep_value(rep, note) {
     var [num, denom] = fraction(note);
@@ -484,19 +441,46 @@ function overwrite_gen_interval(gen_interval, interval) {
     gen_interval.splice(0, interval.length, ...interval);
 }
 
+function yshift_onchange(prime, shift) {
+    var in_text = document.getElementById(`in_text_yshift_${prime}`);
+    var in_range = document.getElementById(`in_range_yshift_${prime}`);
+    if (in_text != null) in_text.value = shift.toString();
+    if (in_range != null) in_range.value = shift.toString();
+    // TODO Reading scale_fig from global scope?
+    scale_fig.y_shifts[prime.toString()] = shift;
+    reposition_all(scale_fig);
+}
+
+function harm_dist_step_onchange(prime, dist) {
+    scale_fig.scale.harm_dist_steps[prime.toString()] = dist;
+    var in_range = document.getElementById(`in_range_harmdiststep_${prime}`);
+    var in_text = document.getElementById(`in_text_harmdiststep_${prime}`);
+    if (in_range != null) in_range.value = dist;
+    if (in_text != null) in_text.value = dist.toString();
+    // TODO reopacitate is what I would like to do here, but requires
+    // rethinking adding notes to the scale, so later.
+    //reopacitate_all(scale_fig);
+    gen_scale(scale_fig.scale);
+    redraw(scale_fig);
+}
+
 function add_axis(scale_fig, prime) {
     var in_text_yshift = document.createElement("input");
+    in_text_yshift.id = `in_text_yshift_${prime}`
     in_text_yshift.type = "text";
     in_text_yshift.size = "2";
     var in_range_yshift = document.createElement("input");
+    in_range_yshift.id = `in_range_yshift_${prime}`
     in_range_yshift.type = "range";
     in_range_yshift.step = 0.01;
     in_range_yshift.max = 500.0;
     in_range_yshift.min = -500.0;
     var in_text_harmdiststep = document.createElement("input");
+    in_text_harmdiststep.id = `in_text_harmdiststep_${prime}`
     in_text_harmdiststep.type = "text";
     in_text_harmdiststep.size = "2";
     var in_range_harmdiststep = document.createElement("input");
+    in_range_harmdiststep.id = `in_range_harmdiststep_${prime}`
     in_range_harmdiststep.type = "range";
     in_range_harmdiststep.step = 0.01;
     in_range_harmdiststep.max = 10.0;
@@ -509,49 +493,31 @@ function add_axis(scale_fig, prime) {
     par_y_shift.appendChild(in_range_yshift);
     par_harm_dist_step.appendChild(in_text_harmdiststep);
     par_harm_dist_step.appendChild(in_range_harmdiststep);
+
     var div_axis = document.createElement("div");
+    div_axis.id = `div_axis_${prime}`
+    div_axis.innerHTML = `Axis: ${prime}`;
     div_axis.appendChild(par_y_shift);
     div_axis.appendChild(par_harm_dist_step);
-    div_axis.prime = prime;
-    div_axes = scale_fig.div_settings.div_axes;
-    div_axes.appendChild(div_axis);
-
-    function yshift_onchange(shift) {
-        in_text_yshift.value = shift.toString()
-        in_range_yshift.value = shift;
-        scale_fig.y_shifts[ps] = shift;
-        reposition_all(scale_fig);
-    }
-
-    function harm_dist_step_onchange(dist) {
-        scale_fig.scale.harm_dist_steps[ps] = dist;
-        in_range_harmdiststep.value = dist;
-        in_text_harmdiststep.value = dist.toString();
-        // TODO reopacitate is what I would like to do here, but requires
-        // rethinking adding notes to the scale, so later.
-        //reopacitate_all(scale_fig);
-        gen_scale(scale_fig.scale);
-        redraw(scale_fig);
-    }
+    document.getElementById("div_axes").appendChild(div_axis);;
 
     in_text_yshift.onchange = function() {
         // TODO Check input to be a number
-        yshift_onchange(parseFloat(this.value));
+        yshift_onchange(prime, parseFloat(this.value));
     }
     in_range_yshift.oninput = function() {
-        yshift_onchange(this.value);
+        yshift_onchange(prime, this.value);
     }
     in_text_harmdiststep.onchange = function() {
         // TODO Check input to be a number
-        harm_dist_step_onchange(parseFloat(this.value));
+        harm_dist_step_onchange(prime, parseFloat(this.value));
     }
     in_range_harmdiststep.oninput = function() {
-        harm_dist_step_onchange(this.value);
+        harm_dist_step_onchange(prime, this.value);
     }
 
-    var ps = prime.toString();
-    yshift_onchange(0.0);
-    harm_dist_step_onchange(Infinity);
+    yshift_onchange(prime, 0.0);
+    harm_dist_step_onchange(prime, Infinity);
 }
 
 function adjust_axes(scale_fig) {
@@ -654,7 +620,7 @@ function add_generating_interval(scale_fig, interval=[0], color="#000000") {
     par_color.appendChild(in_color);
     div_gi.appendChild(par_reps);
     div_gi.appendChild(par_color);
-    var div_gis = scale_fig.div_settings.div_gis;
+    var div_gis = document.getElementById("div_gis");
     div_gis.appendChild(div_gi);
     // TODO Add buttons for de(activating), and for mirroring (including also
     // the negative of the same interval).
@@ -765,3 +731,39 @@ add_generating_interval(scale_fig, [-1,1,0], "#001bac")
 add_generating_interval(scale_fig, [-2,0,1], "#ac5f00")
 gen_scale(scale);
 redraw(scale_fig)
+
+// Rectilinear projection of 3D lattice.
+var phi = 2.0*Math.PI*0.75  // Angle of the lattice against the projection
+var spios = Math.sin(Math.PI/6.0)
+var k = 1.0/(1.0 + spios)
+var s = scale_fig.horizontal_zoom*(1.0+1.0/spios)  // Scale
+var shift_2 =  Math.log2(2.0) * s*k * Math.cos(phi);
+var shift_3 =  Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
+var shift_5 =  Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
+yshift_onchange(2, shift_2);
+yshift_onchange(3, shift_3);
+yshift_onchange(5, shift_5);
+
+// Manually chosen y_shifts for nice spacing.
+//var vertical_zoom = 250
+//var y_shifts = {
+//'2': 0,
+//'3': horizontal_zoom*Math.log2(4/3),
+//'5': horizontal_zoom*Math.log2(5/4)},
+//'3': horizontal_zoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
+//'5': horizontal_zoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
+//'3': vertical_zoom*Math.log2(3/2)-125,
+//'5': vertical_zoom*Math.log2(5/4)+100,
+//}
+
+// Make y-distance match harmonic distance
+//var s = 30  // Scale
+//var y_shifts = {
+//    '2': s*harm_dist_steps[2],
+//    '3': s*harm_dist_steps[3],
+//    '5': s*harm_dist_steps[5],
+//}
+
+harm_dist_step_onchange(2, 0.0);
+harm_dist_step_onchange(3, 0.2);
+harm_dist_step_onchange(5, 4.0);
