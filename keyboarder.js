@@ -1,5 +1,6 @@
 "use strict";
 const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
+const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
 
 function notes_equal(note1, note2) {
     // Ensure that if there's a length difference, note1 is longer.
@@ -63,6 +64,7 @@ function fraction(interval) {
 function prime_decompose(num, denom) {
     var note = [0];
     var i = 0;
+    var p, num_divisible, denom_divisible, num;
     while (i < primes.length) {
         p = primes[i];
         num_divisible = (num % p == 0);
@@ -206,6 +208,14 @@ function is_in_viewbox(scale_fig, x, y) {
     return in_box;
 }
 
+function start_tone(tone) {
+    synth.triggerAttack(tone);
+}
+
+function stop_tone(tone) {
+    synth.triggerRelease(tone);
+}
+
 function draw_note(scale_fig, note, is_base=false) {
     var [x, y] = note_position(scale_fig, note);
     var in_box = is_in_viewbox(scale_fig, x, y);
@@ -242,6 +252,26 @@ function draw_note(scale_fig, note, is_base=false) {
     svg_note.note = note;
     svg_note.scale_fig = scale_fig;
     note.svg_note = svg_note;
+
+    var pf = pitch_factor(note);
+    var freq = scale_fig.scale.origin_tone * pf
+    var note_on = function(ev) {
+        // Prevent a touch event from also generating a mouse event.
+        ev.preventDefault();
+        start_tone(freq);
+    }
+    var note_off = function(ev) {
+        // Prevent a touch event from also generating a mouse event.
+        ev.preventDefault();
+        stop_tone(freq);
+    }
+    svg_note.mousedown(note_on);
+    svg_note.mouseup(note_off);
+    svg_note.mouseleave(note_off);
+    svg_note.touchstart(note_on);
+    svg_note.touchend(note_off);
+    svg_note.touchleave(note_off);
+    svg_note.touchcancel(note_off);
 }
 
 function draw_pitchline(scale_fig, note) {
@@ -352,6 +382,7 @@ var base_notes = [
 ];
 
 var scale = {
+    origin_tone: 440,
     base_notes: [],
     gen_intervals: [],
     harm_dist_steps: {},
@@ -373,7 +404,7 @@ var style = {
     "draw_pitchlines": true,
     "opacity_harm_norm": true,
     "note_color": "#ac0006",
-    "note_radius": 8.0,
+    "note_radius": 13.0,
     "base_note_border_size": 4.0,
     "base_note_border_color": "#000000",
 }
@@ -427,7 +458,7 @@ function read_in_fraction_rep_value(rep) {
     var [num, denom] = rep.value.split("/")
     if (denom == undefined) denom = "1";
     num = Number(num); denom = Number(denom);
-    note = prime_decompose(num, denom)
+    var note = prime_decompose(num, denom)
     return note
 }
 
@@ -624,7 +655,7 @@ function add_generating_interval(scale_fig, interval=[0], color="#000000") {
     div_gis.appendChild(div_gi);
     // TODO Add buttons for de(activating), and for mirroring (including also
     // the negative of the same interval).
-    
+
     function color_onchange(color) {
         gen_interval.color = color;
         in_color.value = color;
