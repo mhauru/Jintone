@@ -2,48 +2,48 @@
 const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
 const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
 
-function notes_equal(note1, note2) {
-    // Ensure that if there's a length difference, note1 is longer.
-    if (note1.length < note2.length) [note1, note2] = [note2, note1];
+function tones_equal(tone1, tone2) {
+    // Ensure that if there's a length difference, tone1 is longer.
+    if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
     var c1, c2;
-    for (var i = 0; i < note1.length; i++) {
-        c1 = note1[i]
-        // If note2 has less values, assume it's padded with zeros at the end.
-        c2 = (i < note2.length ? note2[i] : 0.0)
+    for (var i = 0; i < tone1.length; i++) {
+        c1 = tone1[i]
+        // If tone2 has less values, assume it's padded with zeros at the end.
+        c2 = (i < tone2.length ? tone2[i] : 0.0)
         if (c1 !== c2) return false;
     }
     return true;
 }
 
-function neg_note(note) {
-    return note.map(a => -a);
+function neg_tone(tone) {
+    return tone.map(a => -a);
 }
 
-function subtract_note(note1, note2) {
-    // Ensure that if there's a length difference, note1 is longer.
-    if (note1.length < note2.length) var flip = true;
-    if (flip) [note1, note2] = [note2, note1];
-    var res = new Array(note1.length);
+function subtract_tone(tone1, tone2) {
+    // Ensure that if there's a length difference, tone1 is longer.
+    if (tone1.length < tone2.length) var flip = true;
+    if (flip) [tone1, tone2] = [tone2, tone1];
+    var res = new Array(tone1.length);
     var c1, c2;
     for (var i = 0; i < res.length; i++) {
-        c1 = note1[i]
-        // If note2 has less values, assume it's padded with zeros at the end.
-        c2 = (i < note2.length ? note2[i] : 0.0)
+        c1 = tone1[i]
+        // If tone2 has less values, assume it's padded with zeros at the end.
+        c2 = (i < tone2.length ? tone2[i] : 0.0)
         res[i] = c2 - c1
         if (flip) res[i] = -res[i];
     }
     return res;
 }
 
-function add_note(note1, note2) {
-    // Ensure that if there's a length difference, note1 is longer.
-    if (note1.length < note2.length) [note1, note2] = [note2, note1];
-    var res = new Array(note1.length);
+function add_tone(tone1, tone2) {
+    // Ensure that if there's a length difference, tone1 is longer.
+    if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
+    var res = new Array(tone1.length);
     var c1, c2;
     for (var i = 0; i < res.length; i++) {
-        c1 = note1[i]
-        // If note2 has less values, assume it's padded with zeros at the end.
-        c2 = (i < note2.length ? note2[i] : 0.0)
+        c1 = tone1[i]
+        // If tone2 has less values, assume it's padded with zeros at the end.
+        c2 = (i < tone2.length ? tone2[i] : 0.0)
         res[i] = c1 + c2
     }
     return res;
@@ -62,7 +62,7 @@ function fraction(interval) {
 }
 
 function prime_decompose(num, denom) {
-    var note = [0];
+    var tone = [0];
     var i = 0;
     var p, num_divisible, denom_divisible, num;
     while (i < primes.length) {
@@ -71,21 +71,21 @@ function prime_decompose(num, denom) {
         denom_divisible = (denom % p == 0);
         if (num_divisible) {
             num = num / p;
-            note[note.length-1] += 1;
+            tone[tone.length-1] += 1;
         }
         if (denom_divisible) {
             denom = denom / p;
-            note[note.length-1] -= 1;
+            tone[tone.length-1] -= 1;
         }
-        if (num == 1 && denom == 1) return note;
+        if (num == 1 && denom == 1) return tone;
         if (!num_divisible && !denom_divisible) {
             i += 1;
-            note.push(0);
+            tone.push(0);
         }
     }
     // TODO We should actually raise an error or something, because too large
     // primes were involved.
-    return note;
+    return tone;
 }
 
 function pitch_factor(interval) {
@@ -99,8 +99,8 @@ function pitch_factor(interval) {
     return pf;
 }
 
-function harm_dist(scale, note1, note2) {
-    var interval = subtract_note(note1, note2);
+function harm_dist(scale, tone1, tone2) {
+    var interval = subtract_tone(tone1, tone2);
     var d = 0.0;
     var p, c, p_str, step;
     for (var i = 0; i < interval.length; i++) {
@@ -117,12 +117,12 @@ function harm_dist(scale, note1, note2) {
     return d;
 }
 
-function harm_norm(scale, note) {
+function harm_norm(scale, tone) {
     var min_d = +Infinity;
     var d, base;
-    for (var i = 0; i < scale.base_notes.length; i += 1) {
-        base = scale.base_notes[i];
-        d = harm_dist(scale, base, note);
+    for (var i = 0; i < scale.base_tones.length; i += 1) {
+        base = scale.base_tones[i];
+        d = harm_dist(scale, base, tone);
         if (d < min_d) min_d = d;
     }
     return d;
@@ -135,60 +135,60 @@ function gen_scale(scale) {
     // TODO
     // Or alternatively, we go math-smart on the generation, instead of just
     // hopping along in a graph.
-    var j_notes = new Set();
+    var j_tones = new Set();
     var steps = new Set();
-    var j_notes_to_add = new Set(scale.base_notes.map(JSON.stringify));
-    var itr = j_notes_to_add.values();
+    var j_tones_to_add = new Set(scale.base_tones.map(JSON.stringify));
+    var itr = j_tones_to_add.values();
     var gens = scale.gen_intervals;
-    var j_note, j_next_note;
+    var j_tone, j_next_tone;
     var pos_gen, neg_gen;
-    var note, next_note;
+    var tone, next_tone;
     var step;
     var hn, pf, is_harm_close, is_pitch_close;
-    while (j_notes_to_add.size > 0 && j_notes.size < scale.max_notes) {
-        j_note = itr.next().value;
-        j_notes_to_add.delete(j_note);
-        j_notes.add(j_note);
-        note = JSON.parse(j_note);
+    while (j_tones_to_add.size > 0 && j_tones.size < scale.max_tones) {
+        j_tone = itr.next().value;
+        j_tones_to_add.delete(j_tone);
+        j_tones.add(j_tone);
+        tone = JSON.parse(j_tone);
         for (var i = 0; i < gens.length; i += 1) {
             pos_gen = gens[i];
-            neg_gen = neg_note(pos_gen);
+            neg_gen = neg_tone(pos_gen);
             for (let gen of [pos_gen, neg_gen]) {
-                next_note = add_note(note, gen);
-                j_next_note = JSON.stringify(next_note);
-                if (!j_notes.has(j_next_note)) {
-                    // Note that, even if a note is outside the max distance,
+                next_tone = add_tone(tone, gen);
+                j_next_tone = JSON.stringify(next_tone);
+                if (!j_tones.has(j_next_tone)) {
+                    // Note that, even if a tone is outside the max distance,
                     // we still add the step to it, to allow drawing step lines
                     // that fade to nothing.
-                    step = [note, next_note];
+                    step = [tone, next_tone];
                     step.gen_interval = pos_gen;
                     steps.add(step);
-                    // Figure out whether next_note should be included in this
+                    // Figure out whether next_tone should be included in this
                     // scale.
-                    hn = harm_norm(scale, next_note);
-                    pf = pitch_factor(next_note);
+                    hn = harm_norm(scale, next_tone);
+                    pf = pitch_factor(next_tone);
                     is_harm_close = (hn <= max_harm_norm);
                     is_pitch_close = (pf <= max_pitch_norm
                         && 1/pf <= max_pitch_norm);
                     if (is_harm_close && is_pitch_close) {
-                        j_notes_to_add.add(j_next_note);
+                        j_tones_to_add.add(j_next_tone);
                     }
                 }
             }
         }
     }
-    scale.notes = [...j_notes].map(JSON.parse);
+    scale.tones = [...j_tones].map(JSON.parse);
     scale.steps = [...steps];
 }
 
 
-function note_position(scale_fig, note) {
-    var x = scale_fig.horizontal_zoom * Math.log2(pitch_factor(note));
+function tone_position(scale_fig, tone) {
+    var x = scale_fig.horizontal_zoom * Math.log2(pitch_factor(tone));
     var y = 0.0;
     var p, c, p_str;
-    for (var i=0; i<note.length; i++) {
+    for (var i=0; i<tone.length; i++) {
         p = primes[i];
-        c = note[i];
+        c = tone[i];
         p_str = p.toString();
         if (scale_fig.y_shifts.hasOwnProperty(p_str)) {
             y += -scale_fig.y_shifts[p_str] * c;
@@ -216,75 +216,75 @@ function stop_tone(tone) {
     synth.triggerRelease(tone);
 }
 
-function draw_note(scale_fig, note, is_base=false) {
-    var [x, y] = note_position(scale_fig, note);
+function draw_tone(scale_fig, tone, is_base=false) {
+    var [x, y] = tone_position(scale_fig, tone);
     var in_box = is_in_viewbox(scale_fig, x, y);
     if (!in_box) return;
-    var hn = harm_norm(scale_fig.scale, note);
+    var hn = harm_norm(scale_fig.scale, tone);
     var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
     if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
         rel_hn = 1.0;
     }
     var style = scale_fig.style;
-    var note_radius = style["note_radius"];
-    var note_color = style["note_color"];
-    var svg_note;
+    var tone_radius = style["tone_radius"];
+    var tone_color = style["tone_color"];
+    var svg_tone;
     if (is_base) {
-        var border_color = style["base_note_border_color"];
-        var border_size = style["base_note_border_size"];
-        note_radius += border_size/2
-        svg_note = scale_fig.canvas.circle(2*note_radius).attr({
+        var border_color = style["base_tone_border_color"];
+        var border_size = style["base_tone_border_size"];
+        tone_radius += border_size/2
+        svg_tone = scale_fig.canvas.circle(2*tone_radius).attr({
             "cx": x,
             "cy": y,
-            "fill": note_color,
+            "fill": tone_color,
             "fill-opacity": rel_hn,
             "stroke": border_color,
             "stroke-width": border_size,
         });
     } else {
-        svg_note = scale_fig.canvas.circle(2*note_radius).attr({
+        svg_tone = scale_fig.canvas.circle(2*tone_radius).attr({
             "cx": x,
             "cy": y,
-            "fill": note_color,
+            "fill": tone_color,
             "fill-opacity": rel_hn,
         })
     }
-    svg_note.note = note;
-    svg_note.scale_fig = scale_fig;
-    note.svg_note = svg_note;
+    svg_tone.tone = tone;
+    svg_tone.scale_fig = scale_fig;
+    tone.svg_tone = svg_tone;
 
-    var pf = pitch_factor(note);
-    var note_on = function(ev) {
+    var pf = pitch_factor(tone);
+    var tone_on = function(ev) {
         // Prevent a touch event from also generating a mouse event.
         ev.preventDefault();
         // We recompute this every time, since origin_tone may have changed.
         var freq = scale_fig.scale.origin_tone * pf
         start_tone(freq);
     }
-    var note_off = function(ev) {
+    var tone_off = function(ev) {
         // Prevent a touch event from also generating a mouse event.
         ev.preventDefault();
         // We recompute this every time, since origin_tone may have changed.
         var freq = scale_fig.scale.origin_tone * pf
         stop_tone(freq);
     }
-    svg_note.mousedown(note_on);
-    svg_note.mouseup(note_off);
-    svg_note.mouseleave(note_off);
-    svg_note.touchstart(note_on);
-    svg_note.touchend(note_off);
-    svg_note.touchleave(note_off);
-    svg_note.touchcancel(note_off);
+    svg_tone.mousedown(tone_on);
+    svg_tone.mouseup(tone_off);
+    svg_tone.mouseleave(tone_off);
+    svg_tone.touchstart(tone_on);
+    svg_tone.touchend(tone_off);
+    svg_tone.touchleave(tone_off);
+    svg_tone.touchcancel(tone_off);
 }
 
-function draw_pitchline(scale_fig, note) {
+function draw_pitchline(scale_fig, tone) {
     if (!scale_fig.style["draw_pitchlines"]) return;
-    var hn = harm_norm(scale_fig.scale, note);
+    var hn = harm_norm(scale_fig.scale, tone);
     var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
     if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
         rel_hn = 1.0;
     }
-    var [x, y] = note_position(scale_fig, note);
+    var [x, y] = tone_position(scale_fig, tone);
     var in_box = is_in_viewbox(scale_fig, x, y);
     if (!in_box) return;
     var style = scale_fig.style;
@@ -298,16 +298,16 @@ function draw_pitchline(scale_fig, note) {
         "stroke-opacity": rel_hn,
     })
     svg_pitchline.x(x)
-    svg_pitchline.note = note;
+    svg_pitchline.tone = tone;
     svg_pitchline.scale_fig = scale_fig;
-    note.svg_pitchline = svg_pitchline;
+    tone.svg_pitchline = svg_pitchline;
 }
 
 function draw_step(scale_fig, step) {
-    var [note1, note2] = step;
-    var interval = subtract_note(note2, note1);
-    var hn1 = harm_norm(scale_fig.scale, note1);
-    var hn2 = harm_norm(scale_fig.scale, note2);
+    var [tone1, tone2] = step;
+    var interval = subtract_tone(tone2, tone1);
+    var hn1 = harm_norm(scale_fig.scale, tone1);
+    var hn2 = harm_norm(scale_fig.scale, tone2);
     var max_harm_norm = scale_fig.scale.max_harm_norm;
     var rel_hn1 = Math.max(1 - hn1/max_harm_norm, 0);
     var rel_hn2 = Math.max(1 - hn2/max_harm_norm, 0);
@@ -315,8 +315,8 @@ function draw_step(scale_fig, step) {
         if (rel_hn1 > 0) rel_hn1 = 1;
         if (rel_hn2 > 0) rel_hn2 = 1;
     }
-    var [x1, y1] = note_position(scale_fig, note1);
-    var [x2, y2] = note_position(scale_fig, note2);
+    var [x1, y1] = tone_position(scale_fig, tone1);
+    var [x2, y2] = tone_position(scale_fig, tone2);
     var in_box1 = is_in_viewbox(scale_fig, x1, y1);
     var in_box2 = is_in_viewbox(scale_fig, x2, y2);
     if (!in_box1 && !in_box2) return;
@@ -333,7 +333,7 @@ function draw_step(scale_fig, step) {
         y2: y2,
         gradientUnits: "userSpaceOnUse",
     });
-    var r = scale_fig.style["note_radius"];
+    var r = scale_fig.style["tone_radius"];
     var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
     var x1_edge = x1 - r*(x1-x2)/step_length;
     var y1_edge = y1 - r*(y1-y2)/step_length;
@@ -359,18 +359,18 @@ function redraw(scale_fig) {
     scale_fig.canvas.clear()
     // Note that the order of these three parts determines which one is
     // above/below which.
-    scale_fig.scale.notes.forEach(function(note) {
-        draw_pitchline(scale_fig, note);
+    scale_fig.scale.tones.forEach(function(tone) {
+        draw_pitchline(scale_fig, tone);
     });
     scale_fig.scale.steps.forEach(function(step) {
         draw_step(scale_fig, step);
     });
     var is_base;
-    scale_fig.scale.notes.forEach(function(note) {
-        is_base = scale_fig.scale.base_notes.some(
-            base => notes_equal(base, note)
+    scale_fig.scale.tones.forEach(function(tone) {
+        is_base = scale_fig.scale.base_tones.some(
+            base => tones_equal(base, tone)
         )
-        draw_note(scale_fig, note, is_base=is_base);
+        draw_tone(scale_fig, tone, is_base=is_base);
     });
 }
 
@@ -378,8 +378,8 @@ function redraw(scale_fig) {
 // TODO Make all these adjustable.
 var max_harm_norm = 8;
 var max_pitch_norm = 64;
-var max_notes = 1000
-var base_notes = [
+var max_tones = 1000
+var base_tones = [
     [0,0,0],
     //[-1,1,0],
     //[-2,0,1],
@@ -387,27 +387,27 @@ var base_notes = [
 
 var scale = {
     origin_tone: 440,
-    base_notes: [],
+    base_tones: [],
     gen_intervals: [],
     harm_dist_steps: {},
 
     max_harm_norm: 0,
     max_pitch_norm: 0,
 
-    notes: [],
+    tones: [],
     steps: [],
 };
 
-scale.base_notes = base_notes;
+scale.base_tones = base_tones;
 scale.max_harm_norm = max_harm_norm;
 scale.max_pitch_norm = max_pitch_norm;
-scale.max_notes = max_notes;
+scale.max_tones = max_tones;
 
 // TODO Make all these adjustable.
 var style = {
     "opacity_harm_norm": true,
-    "base_note_border_size": 4.0,
-    "base_note_border_color": "#000000",
+    "base_tone_border_size": 4.0,
+    "base_tone_border_color": "#000000",
 }
 
 var canvas = SVG("div_canvas");
@@ -450,33 +450,33 @@ num_origin_freq.oninput = function() {
     num_origin_freq_oninput(this.value);
 }
 
-var num_note_radius = document.getElementById("num_note_radius");
-function num_note_radius_oninput(value) {
+var num_tone_radius = document.getElementById("num_tone_radius");
+function num_tone_radius_oninput(value) {
     // TODO Refer to global scope scale_fig like this?
-    scale_fig.style["note_radius"] = value;
-    num_note_radius.value = value;
-    rescale_notes(scale_fig);
+    scale_fig.style["tone_radius"] = value;
+    num_tone_radius.value = value;
+    rescale_tones(scale_fig);
 }
-num_note_radius.oninput = function() {
-    num_note_radius_oninput(this.value)
+num_tone_radius.oninput = function() {
+    num_tone_radius_oninput(this.value)
 }
 
-var note_color = document.getElementById("note_color");
-function note_color_oninput(value) {
+var tone_color = document.getElementById("tone_color");
+function tone_color_oninput(value) {
     // TODO Refer to global scope scale_fig like this?
-    scale_fig.style["note_color"] = value;
-    note_color.value = value;
-    recolor_notes(scale_fig);
+    scale_fig.style["tone_color"] = value;
+    tone_color.value = value;
+    recolor_tones(scale_fig);
 }
-note_color.oninput = function() {
-    note_color_oninput(this.value);
+tone_color.oninput = function() {
+    tone_color_oninput(this.value);
 }
 
-function recolor_notes(scale_fig) {
+function recolor_tones(scale_fig) {
     // TODO
 }
 
-function rescale_notes(scale_fig) {
+function rescale_tones(scale_fig) {
     // TODO
 }
 
@@ -506,26 +506,26 @@ color_pitchlines.oninput = function() {
     color_pitchlines_oninput(this.value);
 }
 
-function set_fraction_rep_value(rep, note) {
-    var [num, denom] = fraction(note);
+function set_fraction_rep_value(rep, tone) {
+    var [num, denom] = fraction(tone);
     rep.value = num.toString() + "/" + denom.toString();
 }
 
-function set_decimal_rep_value(rep, note) {
-    var pf = pitch_factor(note);
+function set_decimal_rep_value(rep, tone) {
+    var pf = pitch_factor(tone);
     rep.innerHTML = pf.toString();
 }
 
-function set_coordinate_rep_value(rep, note) {
-    rep.value = JSON.stringify(note)
+function set_coordinate_rep_value(rep, tone) {
+    rep.value = JSON.stringify(tone)
 }
 
 function read_in_fraction_rep_value(rep) {
     var [num, denom] = rep.value.split("/")
     if (denom == undefined) denom = "1";
     num = Number(num); denom = Number(denom);
-    var note = prime_decompose(num, denom)
-    return note
+    var tone = prime_decompose(num, denom)
+    return tone
 }
 
 function read_in_coordinate_rep_value(rep) {
@@ -555,7 +555,7 @@ function harm_dist_step_onchange(prime, dist) {
     if (in_range != null) in_range.value = dist;
     if (in_text != null) in_text.value = dist.toString();
     // TODO reopacitate is what I would like to do here, but requires
-    // rethinking adding notes to the scale, so later.
+    // rethinking adding tones to the scale, so later.
     //reopacitate_all(scale_fig);
     gen_scale(scale_fig.scale);
     redraw(scale_fig);
@@ -633,30 +633,30 @@ function adjust_axes(scale_fig) {
 }
 
 function reopacitate_all(scale_fig) {
-    scale_fig.scale.notes.forEach(function(note) {
-        var hn = harm_norm(scale_fig.scale, note);
+    scale_fig.scale.tones.forEach(function(tone) {
+        var hn = harm_norm(scale_fig.scale, tone);
         var rel_hn = Math.max(1.0 - hn/scale_fig.scale.max_harm_norm, 0.0)
         if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
             rel_hn = 1.0;
         }
-        if (note.hasOwnProperty("svg_note")) {
-            note.svg_note.attr("fill-opacity", rel_hn);
+        if (tone.hasOwnProperty("svg_tone")) {
+            tone.svg_tone.attr("fill-opacity", rel_hn);
         }
         else {
-            draw_note(scale_fig, note);
+            draw_tone(scale_fig, tone);
         }
-        if (note.hasOwnProperty("svg_pitchline")) {
-            note.svg_pitchline.attr("stroke-opacity", rel_hn);
+        if (tone.hasOwnProperty("svg_pitchline")) {
+            tone.svg_pitchline.attr("stroke-opacity", rel_hn);
         }
         else {
-            draw_pitchline(scale_fig, note);
+            draw_pitchline(scale_fig, tone);
         }
     })
     scale_fig.scale.steps.forEach(function(step) {
         if (step.hasOwnProperty("svg_step")) {
-            var [note1, note2] = step;
-            var hn1 = harm_norm(scale_fig.scale, note1);
-            var hn2 = harm_norm(scale_fig.scale, note2);
+            var [tone1, tone2] = step;
+            var hn1 = harm_norm(scale_fig.scale, tone1);
+            var hn2 = harm_norm(scale_fig.scale, tone2);
             var max_harm_norm = scale_fig.scale.max_harm_norm;
             var rel_hn1 = Math.max(1 - hn1/max_harm_norm, 0);
             var rel_hn2 = Math.max(1 - hn2/max_harm_norm, 0);
@@ -759,34 +759,34 @@ function add_generating_interval(scale_fig, interval=[0], color="#000000") {
 
 function reposition_all(scale_fig) {
     var x, y;
-    scale_fig.scale.notes.forEach(function(note) {
-        [x, y] = note_position(scale_fig, note)
-        // TODO Remove notes if they go outside the viewbox.
-        if (note.hasOwnProperty("svg_note")) {
+    scale_fig.scale.tones.forEach(function(tone) {
+        [x, y] = tone_position(scale_fig, tone)
+        // TODO Remove tones if they go outside the viewbox.
+        if (tone.hasOwnProperty("svg_tone")) {
             // If we had the old value of the slider, we could do this faster.
             // This is safer though.
-            note.svg_note.attr("cx", x)
-            note.svg_note.attr("cy", y)
+            tone.svg_tone.attr("cx", x)
+            tone.svg_tone.attr("cy", y)
         }
         else {
-            draw_note(scale_fig, note)
+            draw_tone(scale_fig, tone)
         }
-        if (note.hasOwnProperty("svg_pitchline")) {
+        if (tone.hasOwnProperty("svg_pitchline")) {
             // If we had the old value of the slider, we could do this faster.
             // This is safer though.
-            note.svg_pitchline.x(x)
+            tone.svg_pitchline.x(x)
         }
         else {
-            draw_pitchline(scale_fig, note)
+            draw_pitchline(scale_fig, tone)
         }
     })
     scale_fig.scale.steps.forEach(function(step) {
         if (step.hasOwnProperty("svg_step")) {
-            var [note1, note2] = step;
-            var [x1, y1] = note_position(scale_fig, note1);
-            var [x2, y2] = note_position(scale_fig, note2);
+            var [tone1, tone2] = step;
+            var [x1, y1] = tone_position(scale_fig, tone1);
+            var [x2, y2] = tone_position(scale_fig, tone2);
             var svg_step = step.svg_step;
-            var r = svg_step.scale_fig.style["note_radius"]
+            var r = svg_step.scale_fig.style["tone_radius"]
             var step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
             var x1_edge = x1 - r*(x1-x2)/step_length;
             var y1_edge = y1 - r*(y1-y2)/step_length;
@@ -827,8 +827,8 @@ function recolor_all(scale_fig) {
 
 range_zoom_oninput(200);
 num_origin_freq_oninput(440);
-note_color_oninput("#ac0006");
-num_note_radius_oninput(13.0);
+tone_color_oninput("#ac0006");
+num_tone_radius_oninput(13.0);
 checkbox_pitchlines_onclick(true);
 color_pitchlines_oninput("#c7c7c7");
 
