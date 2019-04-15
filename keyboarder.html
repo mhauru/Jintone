@@ -5,11 +5,18 @@
     <title>Keyboarder</title>
 </head>
 <body style="padding:0;margin:0;">
-    <div id="div_canvas" style="float:left;width=80%;height=100%;border: 1px solid black;"></div>
-    <div id="div_settings" style="float:right;width=10%;border: 1px solid black;;padding:10px;">
+    <div id="div_canvas" style="float:left;width=80%;height=100%;border: 1px solid black;position: absolute;top: 0;left: 0;"></div>
+    <div id="div_settings" style="float:right;width=10%;border: 1px solid black;;padding:10px;position: absolute;top: 0;right: 0;background: white;">
         <h2>Settings</h2>
-        <input id="zoomrange" type="range" min="100" max="700" step="0.01" class="slider">
+        <p> Horizontal zoom: <input id="range_zoom" type="range" min="100" max="700" step="0.01"> </p>
+        <p> Origin frequency: <input id="num_origin_freq" style="width: 80px" type="number" min="1" max="20000" step="0.01"></p>
+        <p> Note radius: <input id="num_note_radius" type="number" style="width: 80px" min="0.01" max="100" step="0.01"><br>
+        Note color: <input id="note_color" type="color"></p>
+        <p> Pitchlines? <input id="checkbox_pitchlines" type="checkbox"><br>
+        Pitchline color: <input id="color_pitchlines" type="color"></p>
+
         <div id="div_axes" style="border: 1px solid black;"></div>
+
         <div id="div_gis" style="border: 1px solid black;"></div>
     </div>
 

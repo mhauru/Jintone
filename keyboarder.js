@@ -254,15 +254,18 @@ function draw_note(scale_fig, note, is_base=false) {
     note.svg_note = svg_note;
 
     var pf = pitch_factor(note);
-    var freq = scale_fig.scale.origin_tone * pf
     var note_on = function(ev) {
         // Prevent a touch event from also generating a mouse event.
         ev.preventDefault();
+        // We recompute this every time, since origin_tone may have changed.
+        var freq = scale_fig.scale.origin_tone * pf
         start_tone(freq);
     }
     var note_off = function(ev) {
         // Prevent a touch event from also generating a mouse event.
         ev.preventDefault();
+        // We recompute this every time, since origin_tone may have changed.
+        var freq = scale_fig.scale.origin_tone * pf
         stop_tone(freq);
     }
     svg_note.mousedown(note_on);
@@ -285,8 +288,9 @@ function draw_pitchline(scale_fig, note) {
     var in_box = is_in_viewbox(scale_fig, x, y);
     if (!in_box) return;
     var style = scale_fig.style;
+    var pitchline_color = style["pitchline_color"];
     var svg_pitchline = scale_fig.canvas.path('M 0,-1000 V 2000').attr({
-        "stroke": "#c7c7c7",
+        "stroke": pitchline_color,
         "stroke-width": "1.0",
         "stroke-miterlimit": 4,
         "stroke-dasharray": "0.5, 0.5",
@@ -401,10 +405,7 @@ scale.max_notes = max_notes;
 
 // TODO Make all these adjustable.
 var style = {
-    "draw_pitchlines": true,
     "opacity_harm_norm": true,
-    "note_color": "#ac0006",
-    "note_radius": 13.0,
     "base_note_border_size": 4.0,
     "base_note_border_color": "#000000",
 }
@@ -420,7 +421,7 @@ var scale_fig = {
 }
 
 function resize_canvas(scale_fig) {
-    var w = window.innerWidth*0.7;
+    var w = window.innerWidth;
     var h = window.innerHeight;
     var c = scale_fig.canvas;
     c.size(w,h).viewbox(-w/2, -h/2, w, h);
@@ -428,17 +429,82 @@ function resize_canvas(scale_fig) {
 
 resize_canvas(scale_fig);
 
-var zoomrange = document.getElementById("zoomrange");
-function zoomrange_oninput(value) {
+var range_zoom = document.getElementById("range_zoom");
+function range_zoom_oninput(value) {
     // TODO Refer to global scope scale_fig like this?
     scale_fig.horizontal_zoom = value;
-    zoomrange.value = value;
+    range_zoom.value = value;
     reposition_all(scale_fig);
 }
-zoomrange.oninput = function() {
-    zoomrange_oninput(this.value)
+range_zoom.oninput = function() {
+    range_zoom_oninput(this.value);
 }
-zoomrange_oninput(200)
+
+var num_origin_freq = document.getElementById("num_origin_freq");
+function num_origin_freq_oninput(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.scale.origin_tone = value;
+    num_origin_freq.value = value;
+}
+num_origin_freq.oninput = function() {
+    num_origin_freq_oninput(this.value);
+}
+
+var num_note_radius = document.getElementById("num_note_radius");
+function num_note_radius_oninput(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.style["note_radius"] = value;
+    num_note_radius.value = value;
+    rescale_notes(scale_fig);
+}
+num_note_radius.oninput = function() {
+    num_note_radius_oninput(this.value)
+}
+
+var note_color = document.getElementById("note_color");
+function note_color_oninput(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.style["note_color"] = value;
+    note_color.value = value;
+    recolor_notes(scale_fig);
+}
+note_color.oninput = function() {
+    note_color_oninput(this.value);
+}
+
+function recolor_notes(scale_fig) {
+    // TODO
+}
+
+function rescale_notes(scale_fig) {
+    // TODO
+}
+
+function redraw_pitchlines(scale_fig) {
+    // TODO
+}
+
+var checkbox_pitchlines = document.getElementById("checkbox_pitchlines");
+function checkbox_pitchlines_onclick(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.style["draw_pitchlines"] = value;
+    checkbox_pitchlines.checked = value;
+    redraw_pitchlines(scale_fig);
+}
+checkbox_pitchlines.onclick = function() {
+    checkbox_pitchlines_onclick(this.checked);
+}
+
+var color_pitchlines = document.getElementById("color_pitchlines");
+function color_pitchlines_oninput(value) {
+    // TODO Refer to global scope scale_fig like this?
+    scale_fig.style["pitchlines_color"] = value;
+    color_pitchlines.value = value;
+    redraw_pitchlines(scale_fig);
+}
+color_pitchlines.oninput = function() {
+    color_pitchlines_oninput(this.value);
+}
 
 function set_fraction_rep_value(rep, note) {
     var [num, denom] = fraction(note);
@@ -757,11 +823,18 @@ function recolor_all(scale_fig) {
     })
 }
 
+// Generate default starting state.
+
+range_zoom_oninput(200);
+num_origin_freq_oninput(440);
+note_color_oninput("#ac0006");
+num_note_radius_oninput(13.0);
+checkbox_pitchlines_onclick(true);
+color_pitchlines_oninput("#c7c7c7");
+
 add_generating_interval(scale_fig, [1,0,0], "#000000")
 add_generating_interval(scale_fig, [-1,1,0], "#001bac")
 add_generating_interval(scale_fig, [-2,0,1], "#ac5f00")
-gen_scale(scale);
-redraw(scale_fig)
 
 // Rectilinear projection of 3D lattice.
 var phi = 2.0*Math.PI*0.75  // Angle of the lattice against the projection
@@ -798,3 +871,4 @@ yshift_onchange(5, shift_5);
 harm_dist_step_onchange(2, 0.0);
 harm_dist_step_onchange(3, 0.2);
 harm_dist_step_onchange(5, 4.0);
+
