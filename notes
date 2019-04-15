@@ -17,6 +17,74 @@ Possibilities:
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 Next:
-- Make interactive using javascript
+- Add buttons for adding and removing axes and generating intervals.
+- Visualize the vertical gap being adjusted when changing y-shifts?
+- Make all reasonable settings part of Settings.
+- Make Settings collapsible.
+- Add tick-boxes for including inverse generating intervals.
+- Rethink generation of scale, and it's datastructure.
+- Style Settings with nice fonts etc.
+- Make resizing the window make the canvas scale.
+- Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
 - Add a dial with three options: No names; note names (A, F#, etc.); intervals (fractions). Have them float next to the buttons, maybe directly above.
 - Make all settings be part of the URL.
+- Before the first note is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info."
+
+scale_fig = {
+    canvas
+    primes
+    base_tones
+    tones
+    steps
+    y_shifts
+    harm_steps
+    max_harm_norm
+    intervals
+    style
+}
+
+canvas = SVG.canvas
+primes = [2,3,5,...]  // I think being allowed to skip primes is a bad idea: Makes coordinates confusing.
+base_tones = [[0,0,0]]
+tones = {
+    "[0,0,0]": tone_object,
+    "[1,0,0]": tone_object,
+}
+steps = [step_object, step_object, step_object,...] 
+y_shifts = [0, -100, 250...]
+harm_steps = [0, 1.0, 3.2...]
+max_harm_norm = 8
+intervals = {
+    "0": interval_object,
+    "1": interval_object,
+    "2": interval_object,
+}
+style = {
+    "blah": blah
+}
+
+tone_object = {
+    coordinates
+    pitch_factor
+    frequency
+    harm_dists = []
+    harm_norm
+    drawn
+    svg
+    steps = [step_object, step_object, ...]
+}
+
+step_object = {
+    drawn
+    svg
+    end_points [tone_object, tone_object]
+    parent_interval = interval_object
+}
+
+interval_object = {
+    interval
+    pitch_factor
+    fraction
+    style
+}
+
