@@ -130,10 +130,21 @@ let style = {
 }
 
 let canvas = SVG("div_canvas");
+// Note that the order in which we create these groups sets their draw order,
+// i.e. z-index.
+let g_pitchlines = canvas.group()
+let g_steps = canvas.group()
+let g_tones = canvas.group()
+let svg_groups = {
+    "pitchlines": g_pitchlines,
+    "steps": g_steps,
+    "tones": g_tones,
+}
 
 // TODO Make all these adjustable.
 let scale_fig = {
     "canvas": canvas,
+    "svg_groups": svg_groups,
     "horizontal_zoom": 1,
     "y_shifts": {},
     "style": style,
@@ -524,7 +535,7 @@ class Step {
             stop.at({"offset": 1});
         });
         grad.attr("gradientUnits", "userSpaceOnUse");
-        let svg_step = scale_fig.canvas.line(0,0,0,0).attr({
+        let svg_step = scale_fig.svg_groups["steps"].line(0,0,0,0).attr({
             "visibility": "hidden",
             "stroke": grad,
             "stroke-width": 2.5,
@@ -610,9 +621,9 @@ class ToneObject {
         this._is_base_ = is_base;
         this.steps = {};
 
-        this.svg_tone = scale_fig.canvas.circle(1.0);
+        this.svg_tone = scale_fig.svg_groups["tones"].circle(1.0);
         // TODO Where do these numbers come from?
-        this.svg_pitchline = scale_fig.canvas.path('M 0,-1000 V 2000')
+        this.svg_pitchline = scale_fig.svg_groups["pitchlines"].path('M 0,-1000 V 2000')
         this.position_svg();
         this.color_svg();
         this.scale_svg_tone();
