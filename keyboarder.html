@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <title>Keyboarder</title>
 </head>
-<body style="padding:0;margin:0;">
-    <div id="div_canvas" style="float:left;width=80%;height=100%;border: 1px solid black;position: absolute;top: 0;left: 0;"></div>
-    <div id="div_settings" style="float:right;width=10%;border: 1px solid black;;padding:10px;position: absolute;top: 0;right: 0;background: white;">
+<body>
+    <div id="div_canvas" style="box-sizing: border-box;overflow: hidden;width: 80%;height: 100%;border: 0px;position: absolute;top: 0;left: 0; margin: 0;padding: 0;"></div>
+    <div id="div_settings" style="box-sizing: border-box;overflow: auto;width: 20%;height: 100%;border: 1px solid black;margin: 0;padding: 10px;position: absolute;top: 0;right: 0;background: white;">
         <h2>Settings</h2>
         <p> Horizontal zoom: <input id="range_zoom" type="range" min="100" max="700" step="0.01"> </p>
         <p> Origin frequency: <input id="num_origin_freq" style="width: 80px" type="number" min="1" max="20000" step="0.01"></p>

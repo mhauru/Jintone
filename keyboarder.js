@@ -150,6 +150,20 @@ let scale_fig = {
     "steps": [],
 }
 
+function resize_canvas() {
+    let div = document.getElementById("div_canvas");
+    let h = div.clientHeight
+    let w = div.clientWidth
+    let c = scale_fig.canvas;
+    c.viewbox(-w/2, -h/2, w, h);
+}
+
+window.onresize = function(evt) {
+    resize_canvas()
+}
+
+resize_canvas();
+
 
 function is_in_viewbox(scale_fig, x, y) {
     let viewbox_left = scale_fig.canvas.viewbox().x;
@@ -186,13 +200,6 @@ function start_tone(tone) {
 
 function stop_tone(tone) {
     synth.triggerRelease(tone);
-}
-
-function resize_canvas(scale_fig) {
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-    let c = scale_fig.canvas;
-    c.size(w,h).viewbox(-w/2, -h/2, w, h);
 }
 
 let range_zoom = document.getElementById("range_zoom");
@@ -367,8 +374,6 @@ color_pitchlines_oninput("#c7c7c7");
 //    '3': s*harm_dist_steps[3],
 //    '5': s*harm_dist_steps[5],
 //}
-
-resize_canvas(scale_fig);
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
