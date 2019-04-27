@@ -216,9 +216,16 @@ function stop_tone(tone) {
 let range_zoom = document.getElementById("range_zoom");
 function range_zoom_oninput(value) {
     // TODO Refer to global scope scale_fig like this?
+    let old_value = scale_fig.horizontal_zoom
     scale_fig.horizontal_zoom = value;
     range_zoom.value = value;
     reposition_all(scale_fig);
+    // TODO We assume here that the viewbox is always centered at the origin.
+    if (Math.abs(old_value) > Math.abs(value)) {
+        generate_tones();
+    } else {
+        delete_tones();
+    }
 }
 range_zoom.oninput = function() {
     range_zoom_oninput(this.value);
@@ -290,9 +297,9 @@ color_pitchlines.oninput = function() {
 
 function yshift_onchange(prime, shift) {
     let p_str = prime.toString();
-    let in_text = document.getElementById(`in_text_yshift_${prime}`);
+    let in_num = document.getElementById(`in_num_yshift_${prime}`);
     let in_range = document.getElementById(`in_range_yshift_${prime}`);
-    if (in_text != null) in_text.value = shift.toString();
+    if (in_num != null) in_num.value = shift;
     if (in_range != null) in_range.value = shift.toString();
     // TODO Reading scale_fig from global scope?
     let old_shift = scale_fig.y_shifts[p_str];
@@ -311,9 +318,9 @@ function harm_dist_step_onchange(prime, dist) {
     let old_dist = scale_fig.harm_dist_steps[p_str];
     scale_fig.harm_dist_steps[p_str] = dist;
     let in_range = document.getElementById(`in_range_harmdiststep_${prime}`);
-    let in_text = document.getElementById(`in_text_harmdiststep_${prime}`);
+    let in_num = document.getElementById(`in_num_harmdiststep_${prime}`);
     if (in_range != null) in_range.value = dist;
-    if (in_text != null) in_text.value = dist.toString();
+    if (in_num != null) in_num.value = dist;
     recolor_tones();
     reopacitate_steps();
     if (old_dist > dist) {
@@ -347,7 +354,7 @@ function reopacitate_steps() {
 
 function recolor_tones() {
     Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.color_svg_tone();
+        tone.color_svg();
     });
 }
 
@@ -458,11 +465,11 @@ class StepInterval {
             t.interval = interval;
         }
     }
-    
+
     get pitch_factor() {
         return pitch_factor(this.interval);
     }
-    
+
     get fraction() {
         return fraction(this.interval);
     }
@@ -554,6 +561,9 @@ class Step {
         let endpoint_coords = sum_tones(origin_coords, interval);
         let endpoint = scale_fig.tones[endpoint_coords]
         this.endpoint = endpoint;
+        if (!(endpoint === undefined)) {
+            endpoint.incoming_steps[this.label] = this;
+        }
     }
 
     get has_endpoint() {
@@ -608,6 +618,14 @@ class Step {
         grad.attr("y1", y1);
         grad.attr("y2", y2);
     }
+
+    destroy() {
+        this.svg_step.remove()
+        delete this.origin.steps[this.label]
+        if (this.has_endpoint) {
+            delete this.endpoint.incoming_steps[this.label]
+        }
+    }
 }
 
 // TODO The "Object" part of the name is to avoid a name collission with
@@ -620,6 +638,7 @@ class ToneObject {
         this.coords = coordinates;
         this._is_base_ = is_base;
         this.steps = {};
+        this.incoming_steps = {};
 
         this.svg_tone = scale_fig.svg_groups["tones"].circle(1.0);
         // TODO Where do these numbers come from?
@@ -662,7 +681,7 @@ class ToneObject {
     get is_base() {
         return this._is_base_;
     }
-    
+
     get pitch_factor() {
         let pf = 1.0;
         for (let i = 0; i < this.coords.length; i += 1) {
@@ -829,6 +848,21 @@ class ToneObject {
         });
     }
 
+    destroy() {
+        this.svg_tone.remove()
+        this.svg_pitchline.remove()
+        Object.entries(this.steps).forEach(([label, step]) => {
+            step.destroy()
+            delete this.steps[label];
+        });
+        Object.entries(this.incoming_steps).forEach(([label, step]) => {
+            step.endpoint = undefined
+            step.position();
+            step.color();
+            step.opacitate();
+        });
+    }
+
 }
 
 function add_base_tone(base_tone) {
@@ -873,6 +907,14 @@ function generate_tones() {
             roots = roots.concat(added);
             delete scale_fig.boundary_tones[root_str]
         }
+        // Create steps, since root may now have new neighbors.
+        Object.entries(root_tone.steps).forEach(([label, step]) => {
+            if (step.has_endpoint) return;
+            step.update_endpoint()
+            step.position();
+            step.color();
+            step.opacitate();
+        });
     }
 }
 
@@ -899,6 +941,7 @@ function delete_tones() {
             [still_boundary, marked] = mark_neighbors(leaf_tone);
             leaves = leaves.concat(marked);
             if (!still_boundary) {
+                leaf_tone.destroy()
                 delete scale_fig.boundary_tones[leaf_str];
                 // TODO Should probably do something else too.
                 //leaf_tone.destroy();
@@ -926,7 +969,7 @@ function mark_neighbors(tone) {
                 still_boundary = true;
             } else if (!(neigh_str in scale_fig.boundary_tones)) {
                 scale_fig.boundary_tones[neigh_str] = neigh_tone;
-                marked.push([neigh_str, neigh_tone]); 
+                marked.push([neigh_str, neigh_tone]);
             }
         });
     }
@@ -946,7 +989,7 @@ function add_neighbors(tone) {
                 return;
             }
             neigh_tone = add_tone(neigh_coords, false);
-            added.push([neigh_str, neigh_tone]); 
+            added.push([neigh_str, neigh_tone]);
             scale_fig.boundary_tones[neigh_str] = neigh_tone;
         });
     }
@@ -978,10 +1021,13 @@ function add_step_interval(interval, color) {
 function add_axis() {
     let prime = all_primes[scale_fig.primes.length];
 
-    let in_text_yshift = document.createElement("input");
-    in_text_yshift.id = `in_text_yshift_${prime}`
-    in_text_yshift.type = "text";
-    in_text_yshift.size = "2";
+    let in_num_yshift = document.createElement("input");
+    in_num_yshift.id = `in_num_yshift_${prime}`
+    in_num_yshift.type = "number";
+    in_num_yshift.min = -500;
+    in_num_yshift.max = 500;
+    in_num_yshift.step = 0.01;
+    in_num_yshift.style.width = "80px"
 
     let in_range_yshift = document.createElement("input");
     in_range_yshift.id = `in_range_yshift_${prime}`
@@ -990,10 +1036,13 @@ function add_axis() {
     in_range_yshift.max = 500.0;
     in_range_yshift.min = -500.0;
 
-    let in_text_harmdiststep = document.createElement("input");
-    in_text_harmdiststep.id = `in_text_harmdiststep_${prime}`
-    in_text_harmdiststep.type = "text";
-    in_text_harmdiststep.size = "2";
+    let in_num_harmdiststep = document.createElement("input");
+    in_num_harmdiststep.id = `in_num_harmdiststep_${prime}`
+    in_num_harmdiststep.type = "number";
+    in_num_harmdiststep.min = -500;
+    in_num_harmdiststep.max = 500;
+    in_num_harmdiststep.step = 0.01;
+    in_num_harmdiststep.style.width = "80px"
 
     let in_range_harmdiststep = document.createElement("input");
     in_range_harmdiststep.id = `in_range_harmdiststep_${prime}`
@@ -1004,12 +1053,12 @@ function add_axis() {
 
     let par_y_shift = document.createElement("p");
     par_y_shift.innerHTML = "y-shift: ";
-    par_y_shift.appendChild(in_text_yshift);
+    par_y_shift.appendChild(in_num_yshift);
     par_y_shift.appendChild(in_range_yshift);
 
     let par_harm_dist_step = document.createElement("p");
     par_harm_dist_step.innerHTML = "Harmonic distance: ";
-    par_harm_dist_step.appendChild(in_text_harmdiststep);
+    par_harm_dist_step.appendChild(in_num_harmdiststep);
     par_harm_dist_step.appendChild(in_range_harmdiststep);
 
     let div_axis = document.createElement("div");
@@ -1020,16 +1069,16 @@ function add_axis() {
 
     document.getElementById("div_axes").appendChild(div_axis);;
 
-    in_text_yshift.onchange = function() {
+    in_num_yshift.onchange = function() {
         // TODO Check input to be a number
-        yshift_onchange(prime, parseFloat(this.value));
+        yshift_onchange(prime, this.value);
     }
     in_range_yshift.oninput = function() {
         yshift_onchange(prime, this.value);
     }
-    in_text_harmdiststep.onchange = function() {
+    in_num_harmdiststep.onchange = function() {
         // TODO Check input to be a number
-        harm_dist_step_onchange(prime, parseFloat(this.value));
+        harm_dist_step_onchange(prime, this.value);
     }
     in_range_harmdiststep.oninput = function() {
         harm_dist_step_onchange(prime, this.value);
@@ -1087,7 +1136,7 @@ yshift_onchange(5, shift_5);
 
 harm_dist_step_onchange(2, 0.0);
 harm_dist_step_onchange(3, 0.2);
-harm_dist_step_onchange(5, 4.0);
+harm_dist_step_onchange(5, 3.0);
 
 add_base_tone([0,0,0]);
 
