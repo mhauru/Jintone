@@ -1,1146 +1,1149 @@
-"use strict";
+'use strict';
 
-///////////////////////////////////////////////////////////////////////////////
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
-// TODO Turn this into a generator that actually returns arbitrarily many primes.
-const all_primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+// TODO Turn this into a generator that actually returns arbitrarily many
+// primes.
+const ALLPRIMES = [
+  2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+  73, 79, 83, 89, 97,
+];
 const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
 
-///////////////////////////////////////////////////////////////////////////////
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Functions for arithmetic with coordinate representations of tones.
 
-function tones_equal(tone1, tone2) {
-    // Ensure that if there's a length difference, tone1 is longer.
-    if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
-    for (let i = 0; i < tone1.length; i++) {
-        let c1 = tone1[i]
-        // If tone2 has less values, assume it's padded with zeros at the end.
-        let c2 = (i < tone2.length ? tone2[i] : 0.0)
-        if (c1 !== c2) return false;
-    }
-    return true;
+// TODO Remove if not used.
+// function tonesEqual(tone1, tone2) {
+//   // Ensure that if there's a length difference, tone1 is longer.
+//   if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
+//   for (let i = 0; i < tone1.length; i++) {
+//     const c1 = tone1[i];
+//     // If tone2 has less values, assume it's padded with zeros at the end.
+//     const c2 = (i < tone2.length ? tone2[i] : 0.0);
+//     if (c1 !== c2) return false;
+//   }
+//   return true;
+// }
+
+// TODO Remove if not used.
+// function negTone(tone) {
+//   return tone.map((a) => -a);
+// }
+
+function subtractTone(tone1, tone2) {
+  // Ensure that if there's a length difference, tone1 is longer.
+  const flip = (tone1.length < tone2.length);
+  if (flip) [tone1, tone2] = [tone2, tone1];
+  const res = new Array(tone1.length);
+  for (let i = 0; i < res.length; i++) {
+    const c1 = tone1[i];
+    // If tone2 has less values, assume it's padded with zeros at the end.
+    const c2 = (i < tone2.length ? tone2[i] : 0.0);
+    res[i] = c2 - c1;
+    if (flip) res[i] = -res[i];
+  }
+  return res;
 }
 
-function neg_tone(tone) {
-    return tone.map(a => -a);
-}
-
-function subtract_tone(tone1, tone2) {
-    // Ensure that if there's a length difference, tone1 is longer.
-    let flip = (tone1.length < tone2.length);
-    if (flip) [tone1, tone2] = [tone2, tone1];
-    let res = new Array(tone1.length);
-    for (let i = 0; i < res.length; i++) {
-        let c1 = tone1[i]
-        // If tone2 has less values, assume it's padded with zeros at the end.
-        let c2 = (i < tone2.length ? tone2[i] : 0.0)
-        res[i] = c2 - c1
-        if (flip) res[i] = -res[i];
-    }
-    return res;
-}
-
-function sum_tones(tone1, tone2) {
-    // Ensure that if there's a length difference, tone1 is longer.
-    if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
-    let res = new Array(tone1.length);
-    for (let i = 0; i < res.length; i++) {
-        let c1 = tone1[i]
-        // If tone2 has less values, assume it's padded with zeros at the end.
-        let c2 = (i < tone2.length ? tone2[i] : 0.0)
-        res[i] = c1 + c2
-    }
-    return res;
+function sumTones(tone1, tone2) {
+  // Ensure that if there's a length difference, tone1 is longer.
+  if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
+  const res = new Array(tone1.length);
+  for (let i = 0; i < res.length; i++) {
+    const c1 = tone1[i];
+    // If tone2 has less values, assume it's padded with zeros at the end.
+    const c2 = (i < tone2.length ? tone2[i] : 0.0);
+    res[i] = c1 + c2;
+  }
+  return res;
 }
 
 function fraction(interval) {
-    let num = 1.0, denom = 1.0;
-    for (let i = 0; i < interval.length; i += 1) {
-        let p = scale_fig.primes[i];
-        let c = interval[i];
-        if (c > 0) num *= Math.pow(p, c);
-        else denom *= Math.pow(p,-c);
-    }
-    return [num, denom];
+  let num = 1.0;
+  let denom = 1.0;
+  for (let i = 0; i < interval.length; i += 1) {
+    const p = scaleFig.primes[i];
+    const c = interval[i];
+    if (c > 0) num *= Math.pow(p, c);
+    else denom *= Math.pow(p, -c);
+  }
+  return [num, denom];
 }
 
-function prime_decompose(num, denom) {
-    let tone = [0];
-    let i = 0;
-    while (i < scale_fig.primes.length) {
-        let p = scale_fig.primes[i];
-        let num_divisible = (num % p == 0);
-        let denom_divisible = (denom % p == 0);
-        if (num_divisible) {
-            num = num / p;
-            tone[tone.length-1] += 1;
-        }
-        if (denom_divisible) {
-            denom = denom / p;
-            tone[tone.length-1] -= 1;
-        }
-        if (num == 1 && denom == 1) return tone;
-        if (!num_divisible && !denom_divisible) {
-            i += 1;
-            tone.push(0);
-        }
+function primeDecompose(num, denom) {
+  const tone = [0];
+  let i = 0;
+  while (i < scaleFig.primes.length) {
+    const p = scaleFig.primes[i];
+    const numDivisible = (num % p == 0);
+    const denomDivisible = (denom % p == 0);
+    if (numDivisible) {
+      num = num / p;
+      tone[tone.length-1] += 1;
     }
-    // TODO We should actually raise an error or something, because too large
-    // primes were involved.
-    return tone;
+    if (denomDivisible) {
+      denom = denom / p;
+      tone[tone.length-1] -= 1;
+    }
+    if (num == 1 && denom == 1) return tone;
+    if (!numDivisible && !denomDivisible) {
+      i += 1;
+      tone.push(0);
+    }
+  }
+  // TODO We should actually raise an error or something, because too large
+  // primes were involved.
+  return tone;
 }
 
-function harm_dist(scale_fig, tone1, tone2) {
-    let interval = subtract_tone(tone1, tone2);
-    let d = 0.0;
-    for (let i = 0; i < interval.length; i++) {
-        let p = scale_fig.primes[i];
-        let c = interval[i];
-        let p_str = p.toString()
-        let step;
-        if (scale_fig.harm_dist_steps.hasOwnProperty(p_str)) {
-            step = scale_fig.harm_dist_steps[p_str]
-        } else {
-            step = +Infinity;
-        }
-        if (c != 0.0) d += step * Math.abs(c);
+function harmDist(scaleFig, tone1, tone2) {
+  const interval = subtractTone(tone1, tone2);
+  let d = 0.0;
+  for (let i = 0; i < interval.length; i++) {
+    const p = scaleFig.primes[i];
+    const c = interval[i];
+    const pStr = p.toString();
+    let step;
+    if (scaleFig.harmDistSteps.hasOwnProperty(pStr)) {
+      step = scaleFig.harmDistSteps[pStr];
+    } else {
+      step = +Infinity;
     }
-    return d;
+    if (c != 0.0) d += step * Math.abs(c);
+  }
+  return d;
 }
 
-function pitch_factor(interval) {
-    let pf = 1.0;
-    for (let i = 0; i < interval.length; i += 1) {
-        let p = scale_fig.primes[i];
-        let c = interval[i];
-        pf *= Math.pow(p, c);
-    }
-    return pf;
+function pitchFactor(interval) {
+  let pf = 1.0;
+  for (let i = 0; i < interval.length; i += 1) {
+    const p = scaleFig.primes[i];
+    const c = interval[i];
+    pf *= Math.pow(p, c);
+  }
+  return pf;
 }
 
-///////////////////////////////////////////////////////////////////////////////
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // TODO Come up with a title.
 
 // TODO Make all these adjustable.
-let style = {
-    "opacity_harm_norm": true,
-    "base_tone_border_size": 4.0,
-    "base_tone_border_color": "#000000",
-}
+const style = {
+  'opacityHarmNorm': true,
+  'baseToneBorderSize': 4.0,
+  'baseToneBorderColor': '#000000',
+};
 
-let canvas = SVG("div_canvas");
+const canvas = SVG('divCanvas');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
-let g_pitchlines = canvas.group()
-let g_steps = canvas.group()
-let g_tones = canvas.group()
-let svg_groups = {
-    "pitchlines": g_pitchlines,
-    "steps": g_steps,
-    "tones": g_tones,
-}
+const gPitchlines = canvas.group();
+const gSteps = canvas.group();
+const gTones = canvas.group();
+const svgGroups = {
+  'pitchlines': gPitchlines,
+  'steps': gSteps,
+  'tones': gTones,
+};
 
 // TODO Make all these adjustable.
-let scale_fig = {
-    "canvas": canvas,
-    "svg_groups": svg_groups,
-    "horizontal_zoom": 1,
-    "y_shifts": {},
-    "style": style,
-    "origin_freq": 440,
-    "base_tones": [],
-    "step_intervals": {},
-    "harm_dist_steps": {},
-    "primes": [],
+const scaleFig = {
+  'canvas': canvas,
+  'svgGroups': svgGroups,
+  'horizontalZoom': 1,
+  'yShifts': {},
+  'style': style,
+  'originFreq': 440,
+  'baseTones': [],
+  'stepIntervals': {},
+  'harmDistSteps': {},
+  'primes': [],
 
-    "max_harm_norm": 8,
+  'maxHarmNorm': 8,
 
-    "tones": {},
-    "boundary_tones": {},
-    "steps": [],
-}
+  'tones': {},
+  'boundaryTones': {},
+  'steps': [],
+};
 
-function resize_canvas() {
-    let div = document.getElementById("div_canvas");
-    let h = div.clientHeight
-    let w = div.clientWidth
-    let c = scale_fig.canvas;
-    c.viewbox(-w/2, -h/2, w, h);
+function resizeCanvas() {
+  const div = document.getElementById('divCanvas');
+  const h = div.clientHeight;
+  const w = div.clientWidth;
+  const c = scaleFig.canvas;
+  c.viewbox(-w/2, -h/2, w, h);
 }
 
 window.onresize = function(evt) {
-    resize_canvas()
+  resizeCanvas();
+};
+
+resizeCanvas();
+
+function isInViewbox(scaleFig, x, y) {
+  const viewboxLeft = scaleFig.canvas.viewbox().x;
+  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+  const viewboxTop = scaleFig.canvas.viewbox().y;
+  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+  const inBoxHor = (viewboxLeft < x && x < viewboxRight);
+  const inBoxVer = (viewboxTop < y && y < viewboxBottom);
+  const inBox = inBoxHor && inBoxVer;
+  return inBox;
 }
 
-resize_canvas();
-
-
-function is_in_viewbox(scale_fig, x, y) {
-    let viewbox_left = scale_fig.canvas.viewbox().x;
-    let viewbox_right = viewbox_left + scale_fig.canvas.viewbox().width;
-    let viewbox_top = scale_fig.canvas.viewbox().y;
-    let viewbox_bottom = viewbox_top + scale_fig.canvas.viewbox().height;
-    let in_box_hor = (viewbox_left < x && x < viewbox_right);
-    let in_box_ver = (viewbox_top < y && y < viewbox_bottom);
-    let in_box = in_box_hor && in_box_ver;
-    return in_box;
+function isInViewclosure(scaleFig, x, y) {
+  const viewboxLeft = scaleFig.canvas.viewbox().x;
+  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+  const viewboxTop = scaleFig.canvas.viewbox().y;
+  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+  const maxPrime = Math.max(...scaleFig.primes);
+  const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
+  const maxYjump = Math.max(...Object.values(scaleFig.yShifts));
+  const closureLeft = viewboxLeft - maxXjump;
+  const closureRight = viewboxRight + maxXjump;
+  const closureTop = viewboxTop - maxYjump;
+  const closureBottom = viewboxBottom + maxYjump;
+  const inClosureHor = (closureLeft < x && x < closureRight);
+  const inClosureVer = (closureTop < y && y < closureBottom);
+  const inClosure = inClosureHor && inClosureVer;
+  return inClosure;
 }
 
-function is_in_viewclosure(scale_fig, x, y) {
-    let viewbox_left   = scale_fig.canvas.viewbox().x;
-    let viewbox_right  = viewbox_left + scale_fig.canvas.viewbox().width;
-    let viewbox_top    = scale_fig.canvas.viewbox().y;
-    let viewbox_bottom = viewbox_top + scale_fig.canvas.viewbox().height;
-    let max_prime = Math.max(...scale_fig.primes)
-    let max_xjump = scale_fig.horizontal_zoom * Math.log2(max_prime);
-    let max_yjump = Math.max(...Object.values(scale_fig.y_shifts));
-    let closure_left   = viewbox_left - max_xjump
-    let closure_right  = viewbox_right + max_xjump
-    let closure_top    = viewbox_top - max_yjump
-    let closure_bottom = viewbox_bottom + max_yjump
-    let in_closure_hor = (closure_left < x && x < closure_right);
-    let in_closure_ver = (closure_top < y && y < closure_bottom);
-    let in_closure = in_closure_hor && in_closure_ver;
-    return in_closure;
+function startTone(tone) {
+  synth.triggerAttack(tone);
 }
 
-function start_tone(tone) {
-    synth.triggerAttack(tone);
+function stopTone(tone) {
+  synth.triggerRelease(tone);
 }
 
-function stop_tone(tone) {
-    synth.triggerRelease(tone);
+const rangeZoom = document.getElementById('rangeZoom');
+function rangeZoomOninput(value) {
+  // TODO Refer to global scope scaleFig like this?
+  const oldValue = scaleFig.horizontalZoom;
+  scaleFig.horizontalZoom = value;
+  rangeZoom.value = value;
+  repositionAll(scaleFig);
+  // TODO We assume here that the viewbox is always centered at the origin.
+  if (Math.abs(oldValue) > Math.abs(value)) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
+}
+rangeZoom.oninput = function() {
+  rangeZoomOninput(this.value);
+};
+
+const numOriginFreq = document.getElementById('numOriginFreq');
+function numOriginFreqOninput(value) {
+  // TODO Refer to global scope scaleFig like this?
+  scaleFig.originFreq = value;
+  numOriginFreq.value = value;
+}
+numOriginFreq.oninput = function() {
+  numOriginFreqOninput(this.value);
+};
+
+const numToneRadius = document.getElementById('numToneRadius');
+function numToneRadiusOninput(value) {
+  // TODO Refer to global scope scaleFig like this?
+  scaleFig.style['toneRadius'] = parseFloat(value);
+  numToneRadius.value = value;
+  rescaleTones(scaleFig);
+}
+numToneRadius.oninput = function() {
+  numToneRadiusOninput(this.value);
+};
+
+const toneColor = document.getElementById('toneColor');
+function toneColorOninput(value) {
+  // TODO Refer to global scope scaleFig like this?
+  scaleFig.style['toneColor'] = value;
+  toneColor.value = value;
+  recolorTones(scaleFig);
+}
+toneColor.oninput = function() {
+  toneColorOninput(this.value);
+};
+
+function rescaleTones(scaleFig) {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.scaleSvgTone();
+  });
 }
 
-let range_zoom = document.getElementById("range_zoom");
-function range_zoom_oninput(value) {
-    // TODO Refer to global scope scale_fig like this?
-    let old_value = scale_fig.horizontal_zoom
-    scale_fig.horizontal_zoom = value;
-    range_zoom.value = value;
-    reposition_all(scale_fig);
-    // TODO We assume here that the viewbox is always centered at the origin.
-    if (Math.abs(old_value) > Math.abs(value)) {
-        generate_tones();
-    } else {
-        delete_tones();
-    }
-}
-range_zoom.oninput = function() {
-    range_zoom_oninput(this.value);
+function setPitchlinesVisibility(scaleFig) {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.setSvgPitchlineVisibility();
+  });
 }
 
-let num_origin_freq = document.getElementById("num_origin_freq");
-function num_origin_freq_oninput(value) {
-    // TODO Refer to global scope scale_fig like this?
-    scale_fig.origin_freq = value;
-    num_origin_freq.value = value;
+const checkboxPitchlines = document.getElementById('checkboxPitchlines');
+function checkboxPitchlinesOnclick(value) {
+  scaleFig.style['drawPitchlines'] = value;
+  checkboxPitchlines.checked = value;
+  setPitchlinesVisibility(scaleFig);
 }
-num_origin_freq.oninput = function() {
-    num_origin_freq_oninput(this.value);
+checkboxPitchlines.onclick = function() {
+  checkboxPitchlinesOnclick(this.checked);
+};
+
+const colorPitchlines = document.getElementById('colorPitchlines');
+function colorPitchlinesOninput(value) {
+  scaleFig.style['pitchlineColor'] = value;
+  colorPitchlines.value = value;
+  recolorPitchlines(scaleFig);
+}
+colorPitchlines.oninput = function() {
+  colorPitchlinesOninput(this.value);
+};
+
+function yshiftOnchange(prime, shift) {
+  const pStr = prime.toString();
+  const inNum = document.getElementById(`inNumYshift_${prime}`);
+  const inRange = document.getElementById(`inRangeYshift_${prime}`);
+  if (inNum != null) inNum.value = shift;
+  if (inRange != null) inRange.value = shift.toString();
+  // TODO Reading scaleFig from global scope?
+  const oldShift = scaleFig.yShifts[pStr];
+  scaleFig.yShifts[pStr] = shift;
+  repositionAll(scaleFig);
+  // TODO We assume here that the viewbox is always centered at the origin.
+  if (Math.abs(oldShift) > Math.abs(shift)) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
 }
 
-let num_tone_radius = document.getElementById("num_tone_radius");
-function num_tone_radius_oninput(value) {
-    // TODO Refer to global scope scale_fig like this?
-    scale_fig.style["tone_radius"] = parseFloat(value);
-    num_tone_radius.value = value;
-    rescale_tones(scale_fig);
-}
-num_tone_radius.oninput = function() {
-    num_tone_radius_oninput(this.value)
-}
-
-let tone_color = document.getElementById("tone_color");
-function tone_color_oninput(value) {
-    // TODO Refer to global scope scale_fig like this?
-    scale_fig.style["tone_color"] = value;
-    tone_color.value = value;
-    recolor_tones(scale_fig);
-}
-tone_color.oninput = function() {
-    tone_color_oninput(this.value);
+function harmDistStepOnchange(prime, dist) {
+  const pStr = prime.toString();
+  const oldDist = scaleFig.harmDistSteps[pStr];
+  scaleFig.harmDistSteps[pStr] = dist;
+  const inRange = document.getElementById(`inRangeHarmdiststep_${prime}`);
+  const inNum = document.getElementById(`inNumHarmdiststep_${prime}`);
+  if (inRange != null) inRange.value = dist;
+  if (inNum != null) inNum.value = dist;
+  recolorTones();
+  reopacitateSteps();
+  if (oldDist > dist) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
 }
 
-function rescale_tones(scale_fig) {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.scale_svg_tone();
+function repositionAll(scaleFig) {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.positionSvg();
+  });
+}
+
+function recolorSteps() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    Object.entries(tone.steps).forEach(([label, step]) => {
+      step.color();
     });
+  });
 }
 
-function set_pitchlines_visibility(scale_fig) {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.set_svg_pitchline_visibility();
+function reopacitateSteps() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    Object.entries(tone.steps).forEach(([label, step]) => {
+      step.opacitate();
     });
+  });
 }
 
-let checkbox_pitchlines = document.getElementById("checkbox_pitchlines");
-function checkbox_pitchlines_onclick(value) {
-    scale_fig.style["draw_pitchlines"] = value;
-    checkbox_pitchlines.checked = value;
-    set_pitchlines_visibility(scale_fig);
-}
-checkbox_pitchlines.onclick = function() {
-    checkbox_pitchlines_onclick(this.checked);
+function recolorTones() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.colorSvg();
+  });
 }
 
-let color_pitchlines = document.getElementById("color_pitchlines");
-function color_pitchlines_oninput(value) {
-    scale_fig.style["pitchline_color"] = value;
-    color_pitchlines.value = value;
-    recolor_pitchlines(scale_fig);
-}
-color_pitchlines.oninput = function() {
-    color_pitchlines_oninput(this.value);
-}
-
-function yshift_onchange(prime, shift) {
-    let p_str = prime.toString();
-    let in_num = document.getElementById(`in_num_yshift_${prime}`);
-    let in_range = document.getElementById(`in_range_yshift_${prime}`);
-    if (in_num != null) in_num.value = shift;
-    if (in_range != null) in_range.value = shift.toString();
-    // TODO Reading scale_fig from global scope?
-    let old_shift = scale_fig.y_shifts[p_str];
-    scale_fig.y_shifts[p_str] = shift;
-    reposition_all(scale_fig);
-    // TODO We assume here that the viewbox is always centered at the origin.
-    if (Math.abs(old_shift) > Math.abs(shift)) {
-        generate_tones();
-    } else {
-        delete_tones();
-    }
-}
-
-function harm_dist_step_onchange(prime, dist) {
-    let p_str = prime.toString();
-    let old_dist = scale_fig.harm_dist_steps[p_str];
-    scale_fig.harm_dist_steps[p_str] = dist;
-    let in_range = document.getElementById(`in_range_harmdiststep_${prime}`);
-    let in_num = document.getElementById(`in_num_harmdiststep_${prime}`);
-    if (in_range != null) in_range.value = dist;
-    if (in_num != null) in_num.value = dist;
-    recolor_tones();
-    reopacitate_steps();
-    if (old_dist > dist) {
-        generate_tones();
-    } else {
-        delete_tones();
-    }
-}
-
-function reposition_all(scale_fig) {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.position_svg();
-    });
-}
-
-function recolor_steps() {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        Object.entries(tone.steps).forEach(([label, step]) => {
-            step.color();
-        });
-    });
-}
-
-function reopacitate_steps() {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        Object.entries(tone.steps).forEach(([label, step]) => {
-            step.opacitate();
-        });
-    });
-}
-
-function recolor_tones() {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.color_svg();
-    });
-}
-
-function recolor_pitchlines() {
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.color_svg_pitchline();
-    });
+function recolorPitchlines() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.colorSvgPitchline();
+  });
 }
 
 // Generate default starting state.
 
-range_zoom_oninput(200);
-num_origin_freq_oninput(440);
-tone_color_oninput("#ac0006");
-num_tone_radius_oninput(13.0);
-checkbox_pitchlines_onclick(true);
-color_pitchlines_oninput("#c7c7c7");
+rangeZoomOninput(200);
+numOriginFreqOninput(440);
+toneColorOninput('#ac0006');
+numToneRadiusOninput(13.0);
+checkboxPitchlinesOnclick(true);
+colorPitchlinesOninput('#c7c7c7');
 
-// Manually chosen y_shifts for nice spacing.
-//let vertical_zoom = 250
-//let y_shifts = {
-//'2': 0,
-//'3': horizontal_zoom*Math.log2(4/3),
-//'5': horizontal_zoom*Math.log2(5/4)},
-//'3': horizontal_zoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
-//'5': horizontal_zoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
-//'3': vertical_zoom*Math.log2(3/2)-125,
-//'5': vertical_zoom*Math.log2(5/4)+100,
-//}
+// Manually chosen yShifts for nice spacing.
+// const verticalZoom = 250
+// const yShifts = {
+// '2': 0,
+// '3': horizontalZoom*Math.log2(4/3),
+// '5': horizontalZoom*Math.log2(5/4)},
+// '3': horizontalZoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
+// '5': horizontalZoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
+// '3': verticalZoom*Math.log2(3/2)-125,
+// '5': verticalZoom*Math.log2(5/4)+100,
+// }
 
 // Make y-distance match harmonic distance
-//let s = 30  // Scale
-//let y_shifts = {
-//    '2': s*harm_dist_steps[2],
-//    '3': s*harm_dist_steps[3],
-//    '5': s*harm_dist_steps[5],
-//}
+// const s = 30  // Scale
+// const yShifts = {
+//   '2': s*harmDistSteps[2],
+//   '3': s*harmDistSteps[3],
+//   '5': s*harmDistSteps[5],
+// }
 
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class StepInterval {
-    constructor(label, interval, color) {
-        this.label = label;
-        this._interval_ = [];
-        this._color_ = "";
-        this.initialize_html()
-        this.set_listeners()
-        this.interval = interval;
-        this.color = color;
-    }
+  constructor(label, interval, color) {
+    this.label = label;
+    this._interval_ = [];
+    this._color_ = '';
+    this.initializeHtml();
+    this.setListeners();
+    this.interval = interval;
+    this.color = color;
+  }
 
-    initialize_html() {
-        let div = document.createElement("div");
-        div.innerHTML = `Generating interval ${this.label}<br>`;
-        this.div = div;
+  initializeHtml() {
+    const div = document.createElement('div');
+    div.innerHTML = `Generating interval ${this.label}<br>`;
+    this.div = div;
 
-        let in_fraction_rep = document.createElement("input");
-        in_fraction_rep.type = "text";
-        in_fraction_rep.size = "3";
-        this.in_fraction_rep = in_fraction_rep;
+    const inFractionRep = document.createElement('input');
+    inFractionRep.type = 'text';
+    inFractionRep.size = '3';
+    this.inFractionRep = inFractionRep;
 
-        let in_coordinate_rep = document.createElement("input");
-        in_coordinate_rep.type = "text";
-        in_coordinate_rep.size = "7";
-        this.in_coordinate_rep = in_coordinate_rep;
+    const inCoordinateRep = document.createElement('input');
+    inCoordinateRep.type = 'text';
+    inCoordinateRep.size = '7';
+    this.inCoordinateRep = inCoordinateRep;
 
-        let span_decimal_rep = document.createElement("span");
-        this.span_decimal_rep = span_decimal_rep;
+    const spanDecimalRep = document.createElement('span');
+    this.spanDecimalRep = spanDecimalRep;
 
-        let span_name_rep = document.createElement("span");
-        this.span_name_rep = span_name_rep;
+    const spanNameRep = document.createElement('span');
+    this.spanNameRep = spanNameRep;
 
-        let in_color = document.createElement("input");
-        in_color.type = "color";
-        this.in_color = in_color;
+    const inColor = document.createElement('input');
+    inColor.type = 'color';
+    this.inColor = inColor;
 
-        let par_reps = document.createElement("p");
-        par_reps.innerHTML = "Interval: "
-        par_reps.appendChild(in_fraction_rep);
-        par_reps.appendChild(in_coordinate_rep);
-        par_reps.appendChild(span_decimal_rep);
-        par_reps.appendChild(span_name_rep);
-        this.par_reps = par_reps;
-        div.appendChild(par_reps);
+    const parReps = document.createElement('p');
+    parReps.innerHTML = 'Interval: ';
+    parReps.appendChild(inFractionRep);
+    parReps.appendChild(inCoordinateRep);
+    parReps.appendChild(spanDecimalRep);
+    parReps.appendChild(spanNameRep);
+    this.parReps = parReps;
+    div.appendChild(parReps);
 
-        let par_color = document.createElement("p");
-        par_color.innerHTML = "Color: "
-        par_color.appendChild(in_color);
-        this.par_color = par_color;
-        div.appendChild(par_color);
-        // TODO Add buttons for de(activating), and for mirroring (including also
-        // the negative of the same interval).
-    }
+    const parColor = document.createElement('p');
+    parColor.innerHTML = 'Color: ';
+    parColor.appendChild(inColor);
+    this.parColor = parColor;
+    div.appendChild(parColor);
+    // TODO Add buttons for de(activating), and for mirroring (including also
+    // the negative of the same interval).
+  }
 
-    set_listeners() {
-        let t = this;
-        this.in_color.oninput = function() {
-            t.color = this.value;
-        }
-        this.in_coordinate_rep.onchange = function() {
-            // TODO Sanitize and check input format.
-            // TODO Check that this interval doesn't exist already. Same in the other setter functions.
-            let interval = t.parse_in_coordinate_rep_value(this.value);
-            t.interval = interval;
-        }
-        this.in_fraction_rep.onchange = function() {
-            let interval = t.parse_in_fraction_rep_value(this.value);
-            t.interval = interval;
-        }
-    }
+  setListeners() {
+    const t = this;
+    this.inColor.oninput = function() {
+      t.color = this.value;
+    };
+    this.inCoordinateRep.onchange = function() {
+      // TODO Sanitize and check input format.
+      // TODO Check that this interval doesn't exist already. Same in the other
+      // setter functions.
+      const interval = t.parseInCoordinateRepValue(this.value);
+      t.interval = interval;
+    };
+    this.inFractionRep.onchange = function() {
+      const interval = t.parseInFractionRepValue(this.value);
+      t.interval = interval;
+    };
+  }
 
-    get pitch_factor() {
-        return pitch_factor(this.interval);
-    }
+  get pitchFactor() {
+    return pitchFactor(this.interval);
+  }
 
-    get fraction() {
-        return fraction(this.interval);
-    }
+  get fraction() {
+    return fraction(this.interval);
+  }
 
-    // TODO Static method?
-    parse_in_fraction_rep_value(value) {
-        let [num, denom] = value.split("/")
-        if (denom == undefined) denom = "1";
-        num = Number(num); denom = Number(denom);
-        let tone = prime_decompose(num, denom)
-        return tone
-    }
+  // TODO Static method?
+  parseInFractionRepValue(value) {
+    const [num, denom] = value.split('/');
+    if (denom == undefined) denom = '1';
+    num = Number(num); denom = Number(denom);
+    const tone = primeDecompose(num, denom);
+    return tone;
+  }
 
-    // TODO Static method?
-    parse_in_coordinate_rep_value(value) {
-        return JSON.parse(value);
-    }
+  // TODO Static method?
+  parseInCoordinateRepValue(value) {
+    return JSON.parse(value);
+  }
 
-    set_fraction_rep_value(tone) {
-        let [num, denom] = fraction(tone);
-        let str = num.toString() + "/" + denom.toString();
-        this.in_fraction_rep.value = str;
-    }
+  setFractionRepValue(tone) {
+    const [num, denom] = fraction(tone);
+    const str = num.toString() + '/' + denom.toString();
+    this.inFractionRep.value = str;
+  }
 
-    set_decimal_rep_value(tone) {
-        let pf = pitch_factor(tone);
-        this.span_decimal_rep.innerHTML = pf.toString();
-    }
+  setDecimalRepValue(tone) {
+    const pf = pitchFactor(tone);
+    this.spanDecimalRep.innerHTML = pf.toString();
+  }
 
-    set_coordinate_rep_value(tone) {
-        this.in_coordinate_rep.value = JSON.stringify(tone);
-    }
+  setCoordinateRepValue(tone) {
+    this.inCoordinateRep.value = JSON.stringify(tone);
+  }
 
-    get color() { return this._color_; }
-    set color(color) {
-        this._color_ = color;
-        this.in_color.value = color;
-        // TODO recolor_steps();  // TODO Should this call happen here?
-    }
+  get color() {
+    return this._color_;
+  }
+  set color(color) {
+    this._color_ = color;
+    this.inColor.value = color;
+    // TODO recolorSteps();  // TODO Should this call happen here?
+  }
 
-    get interval() { return this._interval_; }
-    set interval(interval) {
-        if (this._interval_ == interval) return;
-        let _interval_ = this._interval_;
-        _interval_.splice(0, _interval_.length);
-        _interval_.splice(0, interval.length, ...interval);
-        this.set_coordinate_rep_value(_interval_);
-        this.set_decimal_rep_value(_interval_);
-        this.set_fraction_rep_value(_interval_);
-        // TODO Check name, set name_rep
-        // TODO reposition_step(scale_fig);  // TODO Should this call happen here?
-    }
-
+  get interval() {
+    return this._interval_;
+  }
+  set interval(interval) {
+    if (this._interval_ == interval) return;
+    const _interval_ = this._interval_;
+    _interval_.splice(0, _interval_.length);
+    _interval_.splice(0, interval.length, ...interval);
+    this.setCoordinateRepValue(_interval_);
+    this.setDecimalRepValue(_interval_);
+    this.setFractionRepValue(_interval_);
+    // TODO Check name, set nameRep
+    // TODO repositionStep(scaleFig);  // TODO Should this call happen here?
+  }
 }
 
 class Step {
-    constructor(label, origin) {
-        this.label = label;
-        this.origin = origin;
-        this.update_endpoint();
-        this.initialize_svg();
-        this.position();
-        this.color();
-        this.opacitate();
-    }
+  constructor(label, origin) {
+    this.label = label;
+    this.origin = origin;
+    this.updateEndpoint();
+    this.initializeSvg();
+    this.position();
+    this.color();
+    this.opacitate();
+  }
 
-    initialize_svg() {
-        let grad = scale_fig.canvas.gradient('linear', function(stop) {
-            stop.at({"offset": 0});
-            stop.at({"offset": 1});
-        });
-        grad.attr("gradientUnits", "userSpaceOnUse");
-        let svg_step = scale_fig.svg_groups["steps"].line(0,0,0,0).attr({
-            "visibility": "hidden",
-            "stroke": grad,
-            "stroke-width": 2.5,
-            "stroke-linecap": "butt",
-            "stroke-linejoin": "miter",
-            "stroke-miterlimit": 4,
-            "stroke-opacity": 1,
-        });
-        this.grad = grad;
-        this.svg_step = svg_step;
-    }
+  initializeSvg() {
+    const grad = scaleFig.canvas.gradient('linear', function(stop) {
+      stop.at({'offset': 0});
+      stop.at({'offset': 1});
+    });
+    grad.attr('gradientUnits', 'userSpaceOnUse');
+    const svgStep = scaleFig.svgGroups['steps'].line(0, 0, 0, 0).attr({
+      'visibility': 'hidden',
+      'stroke': grad,
+      'stroke-width': 2.5,
+      'stroke-linecap': 'butt',
+      'stroke-linejoin': 'miter',
+      'stroke-miterlimit': 4,
+      'stroke-opacity': 1,
+    });
+    this.grad = grad;
+    this.svgStep = svgStep;
+  }
 
-    update_endpoint() {
-        let origin_coords = this.origin.coords;
-        let interval = scale_fig.step_intervals[this.label].interval;
-        let endpoint_coords = sum_tones(origin_coords, interval);
-        let endpoint = scale_fig.tones[endpoint_coords]
-        this.endpoint = endpoint;
-        if (!(endpoint === undefined)) {
-            endpoint.incoming_steps[this.label] = this;
-        }
+  updateEndpoint() {
+    const originCoords = this.origin.coords;
+    const interval = scaleFig.stepIntervals[this.label].interval;
+    const endpointCoords = sumTones(originCoords, interval);
+    const endpoint = scaleFig.tones[endpointCoords];
+    this.endpoint = endpoint;
+    if (!(endpoint === undefined)) {
+      endpoint.incomingSteps[this.label] = this;
     }
+  }
 
-    get has_endpoint() {
-        return !(this.endpoint === undefined);
-    }
+  get hasEndpoint() {
+    return !(this.endpoint === undefined);
+  }
 
-    opacitate() {
-        if (!(this.has_endpoint)) return;
-        let svg_step = this.svg_step;
-        let grad = this.grad;
-        let max_harm_norm = scale_fig.max_harm_norm;
-        let rel_hn1 = this.origin.rel_harm_norm;
-        let rel_hn2 = this.endpoint.rel_harm_norm;
-        grad.get(0).attr("stop-opacity", rel_hn1);
-        grad.get(1).attr("stop-opacity", rel_hn2);
-        if (rel_hn1 > 0 || rel_hn2 > 0) {
-            svg_step.attr("visibility", "inherit");
-        } else {
-            svg_step.attr("visibility", "hidden");
-        }
+  opacitate() {
+    if (!(this.hasEndpoint)) return;
+    const svgStep = this.svgStep;
+    const grad = this.grad;
+    const relHn1 = this.origin.relHarmNorm;
+    const relHn2 = this.endpoint.relHarmNorm;
+    grad.get(0).attr('stop-opacity', relHn1);
+    grad.get(1).attr('stop-opacity', relHn2);
+    if (relHn1 > 0 || relHn2 > 0) {
+      svgStep.attr('visibility', 'inherit');
+    } else {
+      svgStep.attr('visibility', 'hidden');
     }
+  }
 
-    color() {
-        if (!(this.has_endpoint)) return;
-        let color = scale_fig.step_intervals[this.label].color;
-        let svg_step = this.svg_step;
-        let grad = this.grad;
-        grad.get(0).attr("stop-color", color)
-        grad.get(1).attr("stop-color", color)
-    }
+  color() {
+    if (!(this.hasEndpoint)) return;
+    const color = scaleFig.stepIntervals[this.label].color;
+    const grad = this.grad;
+    grad.get(0).attr('stop-color', color);
+    grad.get(1).attr('stop-color', color);
+  }
 
-    position() {
-        if (!(this.has_endpoint)) return;
-        let svg_step = this.svg_step;
-        let grad = this.grad;
-        let origin = this.origin;
-        let endpoint = this.endpoint;
-        let [x1, y1] = [origin.xpos, origin.ypos];
-        let [x2, y2] = [endpoint.xpos, endpoint.ypos];
-        let r = scale_fig.style["tone_radius"];
-        let step_length = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-        let x1_edge = x1 - r*(x1-x2)/step_length;
-        let y1_edge = y1 - r*(y1-y2)/step_length;
-        let x2_edge = x2 + r*(x1-x2)/step_length;
-        let y2_edge = y2 + r*(y1-y2)/step_length;
-        svg_step.attr("x1", x1_edge);
-        svg_step.attr("x2", x2_edge);
-        svg_step.attr("y1", y1_edge);
-        svg_step.attr("y2", y2_edge);
-        grad.attr("x1", x1);
-        grad.attr("x2", x2);
-        grad.attr("y1", y1);
-        grad.attr("y2", y2);
-    }
+  position() {
+    if (!(this.hasEndpoint)) return;
+    const svgStep = this.svgStep;
+    const grad = this.grad;
+    const origin = this.origin;
+    const endpoint = this.endpoint;
+    const [x1, y1] = [origin.xpos, origin.ypos];
+    const [x2, y2] = [endpoint.xpos, endpoint.ypos];
+    const r = scaleFig.style['toneRadius'];
+    const stepLength = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+    const x1Edge = x1 - r*(x1-x2)/stepLength;
+    const y1Edge = y1 - r*(y1-y2)/stepLength;
+    const x2Edge = x2 + r*(x1-x2)/stepLength;
+    const y2Edge = y2 + r*(y1-y2)/stepLength;
+    svgStep.attr('x1', x1Edge);
+    svgStep.attr('x2', x2Edge);
+    svgStep.attr('y1', y1Edge);
+    svgStep.attr('y2', y2Edge);
+    grad.attr('x1', x1);
+    grad.attr('x2', x2);
+    grad.attr('y1', y1);
+    grad.attr('y2', y2);
+  }
 
-    destroy() {
-        this.svg_step.remove()
-        delete this.origin.steps[this.label]
-        if (this.has_endpoint) {
-            delete this.endpoint.incoming_steps[this.label]
-        }
+  destroy() {
+    this.svgStep.remove();
+    delete this.origin.steps[this.label];
+    if (this.hasEndpoint) {
+      delete this.endpoint.incomingSteps[this.label];
     }
+  }
 }
 
-// TODO The "Object" part of the name is to avoid a name collission with
+// TODO The 'Object' part of the name is to avoid a name collission with
 // Tone.js. Think about namespace management.
 class ToneObject {
-    // TODO Everything is recomputed from the minimal set of data necessary to
-    // store.  This is easy, but slow. Optimize if necessary by storing some of
-    // the data, avoiding recomputation if nothing has changed.
-    constructor(coordinates, is_base) {
-        this.coords = coordinates;
-        this._is_base_ = is_base;
-        this.steps = {};
-        this.incoming_steps = {};
+  // TODO Everything is recomputed from the minimal set of data necessary to
+  // store.  This is easy, but slow. Optimize if necessary by storing some of
+  // the data, avoiding recomputation if nothing has changed.
+  constructor(coordinates, isBase) {
+    this.coords = coordinates;
+    this.IsBase_ = isBase;
+    this.steps = {};
+    this.incomingSteps = {};
 
-        this.svg_tone = scale_fig.svg_groups["tones"].circle(1.0);
-        // TODO Where do these numbers come from?
-        this.svg_pitchline = scale_fig.svg_groups["pitchlines"].path('M 0,-1000 V 2000')
-        this.position_svg();
-        this.color_svg();
-        this.scale_svg_tone();
-        this.set_listeners();
-        this.add_steps();
+    this.svgTone = scaleFig.svgGroups['tones'].circle(1.0);
+    // TODO Where do these numbers come from?
+    const group = scaleFig.svgGroups['pitchlines'];
+    this.svgPitchline = group.path('M 0,-1000 V 2000');
+    this.positionSvg();
+    this.colorSvg();
+    this.scaleSvgTone();
+    this.setListeners();
+    this.addSteps();
+  }
+
+  setListeners() {
+    const t = this;
+    function toneOn(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      startTone(t.frequency);
+    };
+    function toneOff(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      stopTone(t.frequency);
+    };
+    const svgTone = this.svgTone;
+    svgTone.mousedown(toneOn);
+    svgTone.mouseup(toneOff);
+    svgTone.mouseleave(toneOff);
+    svgTone.touchstart(toneOn);
+    svgTone.touchend(toneOff);
+    svgTone.touchleave(toneOff);
+    svgTone.touchcancel(toneOff);
+  }
+
+  set isBase(value) {
+    this.IsBase_ = value;
+    this.colorSvgTone();
+    this.scaleSvgTone();
+  }
+
+  get isBase() {
+    return this.IsBase_;
+  }
+
+  get pitchFactor() {
+    let pf = 1.0;
+    for (let i = 0; i < this.coords.length; i += 1) {
+      const p = scaleFig.primes[i];
+      const c = this.coords[i];
+      pf *= Math.pow(p, c);
     }
+    return pf;
+  }
 
-    set_listeners() {
-        let t = this;
-        let tone_on = function(ev) {
-            // Prevent a touch event from also generating a mouse event.
-            ev.preventDefault();
-            start_tone(t.frequency);
-        }
-        let tone_off = function(ev) {
-            // Prevent a touch event from also generating a mouse event.
-            ev.preventDefault();
-            stop_tone(t.frequency);
-        }
-        let svg_tone = this.svg_tone;
-        svg_tone.mousedown(tone_on);
-        svg_tone.mouseup(tone_off);
-        svg_tone.mouseleave(tone_off);
-        svg_tone.touchstart(tone_on);
-        svg_tone.touchend(tone_off);
-        svg_tone.touchleave(tone_off);
-        svg_tone.touchcancel(tone_off);
+  get xpos() {
+    return scaleFig.horizontalZoom * Math.log2(this.pitchFactor);
+  }
+
+  get ypos() {
+    let y = 0.0;
+    for (let i = 0; i < this.coords.length; i += 1) {
+      const p = scaleFig.primes[i];
+      const c = this.coords[i];
+      const pStr = p.toString();
+      // TODO Is the check necessary?
+      if (scaleFig.yShifts.hasOwnProperty(pStr)) {
+        y += -scaleFig.yShifts[pStr] * c;
+      }
     }
+    return y;
+  }
 
-    set is_base(value) {
-        this._is_base_ = value;
-        this.color_svg_tone();
-        this.scale_svg_tone();
+  get frequency() {
+    return scaleFig.originFreq * this.pitchFactor;
+  }
+
+  get harmDists() {
+    const harmDists = [];
+    for (let i = 0; i < scaleFig.baseTones.length; i += 1) {
+      const bt = scaleFig.baseTones[i];
+      // TODO Remove explicit argument scale?
+      const dist = harmDist(scaleFig, this.coords, bt);
+      harmDists.push(dist);
     }
+    return harmDists;
+  }
 
-    get is_base() {
-        return this._is_base_;
+  get harmNorm() {
+    return Math.min(...this.harmDists);
+  }
+
+  get relHarmNorm() {
+    const hn = this.harmNorm;
+    const relHn = Math.max(1.0 - hn/scaleFig.maxHarmNorm, 0.0);
+    if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
+      relHn = 1.0;
     }
+    return relHn;
+  }
 
-    get pitch_factor() {
-        let pf = 1.0;
-        for (let i = 0; i < this.coords.length; i += 1) {
-            let p = scale_fig.primes[i];
-            let c = this.coords[i];
-            pf *= Math.pow(p, c);
-        }
-        return pf;
+  get inbounds() {
+    // TODO Add note radius, to check if the edge of a note fits, rather
+    // than center?
+    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
+    // Remove explicit scaleFig reference?
+    const inViewbox = isInViewbox(scaleFig, this.xpos, this.ypos);
+    return harmClose && inViewbox;
+  }
+
+  get inclosure() {
+    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
+    // Remove explicit scaleFig reference?
+    const inViewclosure = isInViewclosure(scaleFig, this.xpos, this.ypos);
+    return harmClose && inViewclosure;
+  }
+
+  addSteps() {
+    Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
+      if (label in this.steps) return;
+      this.steps[label] = new Step(label, this);
+    });
+  }
+
+  positionSvg() {
+    this.positionSvgTone();
+    this.positionSvgPitchline();
+    this.setSvgPitchlineVisibility();
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.position();
+    });
+  }
+
+  colorSvg() {
+    this.colorSvgTone();
+    this.colorSvgPitchline();
+    this.setSvgPitchlineVisibility();
+  }
+
+  positionSvgTone() {
+    this.svgTone.attr({
+      'cx': this.xpos,
+      'cy': this.ypos,
+    });
+  }
+
+  scaleSvgTone() {
+    const svgTone = this.svgTone;
+    let toneRadius = style['toneRadius'];
+    if (this.isBase) {
+      const borderSize = style['baseToneBorderSize'];
+      toneRadius = toneRadius + borderSize/2;
     }
+    svgTone.radius(toneRadius);
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.position();
+    });
+  }
 
-    get xpos() {
-        return scale_fig.horizontal_zoom * Math.log2(this.pitch_factor);
-    }
-
-    get ypos() {
-        let y = 0.0;
-        for (let i = 0; i < this.coords.length; i += 1) {
-            let p = scale_fig.primes[i];
-            let c = this.coords[i];
-            let p_str = p.toString();
-            // TODO Is the check necessary?
-            if (scale_fig.y_shifts.hasOwnProperty(p_str)) {
-                y += -scale_fig.y_shifts[p_str] * c;
-            }
-        }
-        return y;
-    }
-
-    get frequency() {
-        return scale_fig.origin_freq * this.pitch_factor;
-    }
-
-    get harm_dists() {
-        let harm_dists = [];
-        for (let i = 0; i < scale_fig.base_tones.length; i += 1) {
-            let bt = scale_fig.base_tones[i];
-            let dist = harm_dist(scale_fig, this.coords, bt);  // TODO Remove explicit argument scale?
-            harm_dists.push(dist);
-        }
-        return harm_dists;
-    }
-
-    get harm_norm() {
-        return Math.min(...this.harm_dists);
-    }
-
-    get rel_harm_norm() {
-        let hn = this.harm_norm;
-        let rel_hn = Math.max(1.0 - hn/scale_fig.max_harm_norm, 0.0)
-        if (!scale_fig.style['opacity_harm_norm'] && rel_hn > 0.0) {
-            rel_hn = 1.0;
-        }
-        return rel_hn;
-    }
-
-    get inbounds() {
-        // TODO Add note radius, to check if the edge of a note fits, rather
-        // than center?
-        let harm_close = (this.harm_norm <= scale_fig.max_harm_norm);
-        let in_viewbox = is_in_viewbox(scale_fig, this.xpos, this.ypos);  // Remove explicit scale_fig reference?
-        return harm_close && in_viewbox;
-    }
-
-    get inclosure() {
-        let harm_close = (this.harm_norm <= scale_fig.max_harm_norm);
-        let in_viewclosure = is_in_viewclosure(scale_fig, this.xpos, this.ypos);  // Remove explicit scale_fig reference?
-        return harm_close && in_viewclosure;
-    }
-
-    add_steps() {
-        Object.entries(scale_fig.step_intervals).forEach(
-            ([label, step_interval]) => {
-                if (label in this.steps) return;
-                this.steps[label] = new Step(label, this);
-            });
-    }
-
-    position_svg() {
-        this.position_svg_tone();
-        this.position_svg_pitchline();
-        this.set_svg_pitchline_visibility();
-        Object.entries(this.steps).forEach(([label, step]) => {
-            step.position();
-        });
-    }
-
-    color_svg() {
-        this.color_svg_tone();
-        this.color_svg_pitchline();
-        this.set_svg_pitchline_visibility();
-    }
-
-    position_svg_tone() {
-        this.svg_tone.attr({
-            "cx": this.xpos,
-            "cy": this.ypos,
-        })
-    }
-
-    scale_svg_tone() {
-        let svg_tone = this.svg_tone;
-        let tone_radius = style["tone_radius"];
-        if (this.is_base) {
-            let border_size = style["base_tone_border_size"];
-            tone_radius = tone_radius + border_size/2;
-        }
-        svg_tone.radius(tone_radius);
-        Object.entries(this.steps).forEach(([label, step]) => {
-            step.position();
-        });
-    }
-
-    color_svg_tone() {
-        let svg_tone = this.svg_tone;
-        let rel_hn = this.rel_harm_norm;
-        let style = scale_fig.style;
-        let tone_color = style["tone_color"];
-        if (this.is_base) {
-            let border_color = style["base_tone_border_color"];
-            let border_size = style["base_tone_border_size"];
-            svg_tone.attr({
-                "fill": tone_color,
-                "fill-opacity": rel_hn,
-                "stroke": border_color,
-                "stroke-width": border_size,
-            });
-        } else {
-            svg_tone.attr({
-                "fill": tone_color,
-                "fill-opacity": rel_hn,
-                "stroke-width": 0.0,
-            })
-        }
-    }
-
-    position_svg_pitchline() {
-        this.svg_pitchline.x(this.xpos)
-    }
-
-    set_svg_pitchline_visibility() {
-        let svg_pitchline = this.svg_pitchline;
-        let rel_hn = this.rel_harm_norm;
-        if (scale_fig.style["draw_pitchlines"] && this.inbounds && rel_hn > 0) {
-            svg_pitchline.attr("visibility", "inherit");
-        } else {
-            svg_pitchline.attr("visibility", "hidden");
-        }
-    }
-
-    color_svg_pitchline() {
-        let svg_pitchline = this.svg_pitchline;
-        let rel_hn = this.rel_harm_norm;
-        let style = scale_fig.style;
-        let pitchline_color = style["pitchline_color"];
-        // TODO Make more of these settings adjustable from Settings, and
-        // stored with scale_fig.
-        svg_pitchline.attr({
-            "stroke": pitchline_color,
-            "stroke-width": "1.0",
-            "stroke-miterlimit": 4,
-            "stroke-dasharray": "0.5, 0.5",
-            "stroke-dashoffset": 0,
-            "stroke-opacity": rel_hn,
-        });
-    }
-
-    destroy() {
-        this.svg_tone.remove()
-        this.svg_pitchline.remove()
-        Object.entries(this.steps).forEach(([label, step]) => {
-            step.destroy()
-            delete this.steps[label];
-        });
-        Object.entries(this.incoming_steps).forEach(([label, step]) => {
-            step.endpoint = undefined
-            step.position();
-            step.color();
-            step.opacitate();
-        });
-    }
-
-}
-
-function add_base_tone(base_tone) {
-    scale_fig.base_tones.push(base_tone);
-    let bt_str = base_tone.toString();
-    if (bt_str in scale_fig.tones) {
-        scale_fig.tones[bt_str].is_base = true;
+  colorSvgTone() {
+    const svgTone = this.svgTone;
+    const relHn = this.relHarmNorm;
+    const style = scaleFig.style;
+    const toneColor = style['toneColor'];
+    if (this.isBase) {
+      const borderColor = style['baseToneBorderColor'];
+      const borderSize = style['baseToneBorderSize'];
+      svgTone.attr({
+        'fill': toneColor,
+        'fill-opacity': relHn,
+        'stroke': borderColor,
+        'stroke-width': borderSize,
+      });
     } else {
-        let tone_obj = add_tone(base_tone, true);
-        scale_fig.boundary_tones[bt_str] = tone_obj;
+      svgTone.attr({
+        'fill': toneColor,
+        'fill-opacity': relHn,
+        'stroke-width': 0.0,
+      });
     }
+  }
 
-    // Since harmonic distances may have changed, recolor existing tones.
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.color_svg();
+  positionSvgPitchline() {
+    this.svgPitchline.x(this.xpos);
+  }
+
+  setSvgPitchlineVisibility() {
+    const svgPitchline = this.svgPitchline;
+    const relHn = this.relHarmNorm;
+    if (scaleFig.style['drawPitchlines'] && this.inbounds && relHn > 0) {
+      svgPitchline.attr('visibility', 'inherit');
+    } else {
+      svgPitchline.attr('visibility', 'hidden');
+    }
+  }
+
+  colorSvgPitchline() {
+    const svgPitchline = this.svgPitchline;
+    const relHn = this.relHarmNorm;
+    const style = scaleFig.style;
+    const pitchlineColor = style['pitchlineColor'];
+    // TODO Make more of these settings adjustable from Settings, and
+    // stored with scaleFig.
+    svgPitchline.attr({
+      'stroke': pitchlineColor,
+      'stroke-width': '1.0',
+      'stroke-miterlimit': 4,
+      'stroke-dasharray': '0.5, 0.5',
+      'stroke-dashoffset': 0,
+      'stroke-opacity': relHn,
     });
+  }
 
-    generate_tones();
-}
-
-function generate_tones() {
-    // TODO This doesn't work if a base_tone is outside of the viewbox closure.
-    // Starting from the current boundary tones, i.e. tones that are not
-    // inbounds (drawable) but are within the closure (close enough to
-    // being drawable that they may be necessary to reach all drawable tones),
-    // check whether any of them have actually come within the closure since we
-    // last checked. If yes, generate all their neighbors (that don't already
-    // exist), and recursively check whether they are within the closure.  At
-    // the end, all possible tones within the closure, and all their neighbors,
-    // should exist, but the neighbors that are outside the closure should not
-    // further have their neighbors generated.
-    let roots = Object.entries(scale_fig.boundary_tones);
-    while (roots.length > 0) {
-        let root_str, root_tone;
-        [root_str, root_tone] = roots.pop();
-        let inclosure = root_tone.inclosure;
-        if (inclosure) {
-            // The tone in question is close enough to the drawable tones, that
-            // we generate more tones starting from it. After this, it will no
-            // longer be a boundary tone.
-            let added = add_neighbors(root_tone);
-            roots = roots.concat(added);
-            delete scale_fig.boundary_tones[root_str]
-        }
-        // Create steps, since root may now have new neighbors.
-        Object.entries(root_tone.steps).forEach(([label, step]) => {
-            if (step.has_endpoint) return;
-            step.update_endpoint()
-            step.position();
-            step.color();
-            step.opacitate();
-        });
-    }
-}
-
-function delete_tones() {
-    // TODO This doesn't work if a base_tone is outside of the viewbox closure.
-    // The complement of generate_tones: Start from the boundary tones, working
-    // inwards, deleting all tones that are two or more ste removed from the
-    // closure zone.
-    let leaves = Object.entries(scale_fig.boundary_tones);
-    while (leaves.length > 0) {
-        let leaf_str, leaf_tone;
-        [leaf_str, leaf_tone] = leaves.pop();
-        // TODO We actually know that at least all the tones we added during
-        // this lop are inclosure. So this could be optimized by running the
-        // inclosure filter before the main while loop, avoiding rechecking
-        // inclosure. Then again, a storage system within Tone for
-        // inclosure would do the same and more.
-        let inclosure = leaf_tone.inclosure;
-        if (!inclosure) {
-            // The tone in question is close enough to the drawable tones, that
-            // we generate more tones starting from it. After this, it will no
-            // longer be a boundary tone.
-            let still_boundary, marked;
-            [still_boundary, marked] = mark_neighbors(leaf_tone);
-            leaves = leaves.concat(marked);
-            if (!still_boundary) {
-                leaf_tone.destroy()
-                delete scale_fig.boundary_tones[leaf_str];
-                // TODO Should probably do something else too.
-                //leaf_tone.destroy();
-                delete scale_fig.tones[leaf_str];
-            }
-        }
-    }
-}
-
-function mark_neighbors(tone) {
-    let neigh_coords, neigh_str, neigh_tone;
-    let marked = [];
-    let still_boundary = false;
-    for (let i = 0; i < tone.coords.length; i += 1) {
-        [-1,+1].forEach(function(increment) {
-            neigh_coords = tone.coords.slice();
-            neigh_coords[i] += increment;
-            neigh_str = neigh_coords.toString();
-            if (!(neigh_str in scale_fig.tones)) {
-                // This tone doesn't exist, moving on.
-                return;
-            }
-            neigh_tone = scale_fig.tones[neigh_str];
-            if (neigh_tone.inclosure) {
-                still_boundary = true;
-            } else if (!(neigh_str in scale_fig.boundary_tones)) {
-                scale_fig.boundary_tones[neigh_str] = neigh_tone;
-                marked.push([neigh_str, neigh_tone]);
-            }
-        });
-    }
-    return [still_boundary, marked];
-}
-
-function add_neighbors(tone) {
-    let neigh_coords, neigh_str, neigh_tone;
-    let added = [];
-    for (let i = 0; i < tone.coords.length; i += 1) {
-        [-1,+1].forEach(function(increment) {
-            neigh_coords = tone.coords.slice();
-            neigh_coords[i] += increment;
-            neigh_str = neigh_coords.toString();
-            if (neigh_str in scale_fig.tones) {
-                // This tone exists already, moving on.
-                return;
-            }
-            neigh_tone = add_tone(neigh_coords, false);
-            added.push([neigh_str, neigh_tone]);
-            scale_fig.boundary_tones[neigh_str] = neigh_tone;
-        });
-    }
-    return added;
-}
-
-function add_tone(tone, is_base) {
-    let tone_str = tone.toString();
-    let new_tone = new ToneObject(tone, is_base)
-    scale_fig.tones[tone_str] = new_tone;
-    return new_tone;
-}
-
-function add_step_interval(interval, color) {
-    let existing_labels = Object.keys(scale_fig.step_intervals);
-    let label = 1;
-    while (existing_labels.includes(label.toString())) { label++; }
-    label = label.toString();
-    let step_interval = new StepInterval(label, interval, color);
-    scale_fig.step_intervals[label] = step_interval;
-    let div_gis = document.getElementById("div_gis");
-    div_gis.appendChild(step_interval.div);
-
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        tone.add_steps();
+  destroy() {
+    this.svgTone.remove();
+    this.svgPitchline.remove();
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.destroy();
+      delete this.steps[label];
     });
-}
-
-function add_axis() {
-    let prime = all_primes[scale_fig.primes.length];
-
-    let in_num_yshift = document.createElement("input");
-    in_num_yshift.id = `in_num_yshift_${prime}`
-    in_num_yshift.type = "number";
-    in_num_yshift.min = -500;
-    in_num_yshift.max = 500;
-    in_num_yshift.step = 0.01;
-    in_num_yshift.style.width = "80px"
-
-    let in_range_yshift = document.createElement("input");
-    in_range_yshift.id = `in_range_yshift_${prime}`
-    in_range_yshift.type = "range";
-    in_range_yshift.step = 0.01;
-    in_range_yshift.max = 500.0;
-    in_range_yshift.min = -500.0;
-
-    let in_num_harmdiststep = document.createElement("input");
-    in_num_harmdiststep.id = `in_num_harmdiststep_${prime}`
-    in_num_harmdiststep.type = "number";
-    in_num_harmdiststep.min = -500;
-    in_num_harmdiststep.max = 500;
-    in_num_harmdiststep.step = 0.01;
-    in_num_harmdiststep.style.width = "80px"
-
-    let in_range_harmdiststep = document.createElement("input");
-    in_range_harmdiststep.id = `in_range_harmdiststep_${prime}`
-    in_range_harmdiststep.type = "range";
-    in_range_harmdiststep.step = 0.01;
-    in_range_harmdiststep.max = 10.0;
-    in_range_harmdiststep.min = 0.0;
-
-    let par_y_shift = document.createElement("p");
-    par_y_shift.innerHTML = "y-shift: ";
-    par_y_shift.appendChild(in_num_yshift);
-    par_y_shift.appendChild(in_range_yshift);
-
-    let par_harm_dist_step = document.createElement("p");
-    par_harm_dist_step.innerHTML = "Harmonic distance: ";
-    par_harm_dist_step.appendChild(in_num_harmdiststep);
-    par_harm_dist_step.appendChild(in_range_harmdiststep);
-
-    let div_axis = document.createElement("div");
-    div_axis.id = `div_axis_${prime}`
-    div_axis.innerHTML = `Axis: ${prime}`;
-    div_axis.appendChild(par_y_shift);
-    div_axis.appendChild(par_harm_dist_step);
-
-    document.getElementById("div_axes").appendChild(div_axis);;
-
-    in_num_yshift.onchange = function() {
-        // TODO Check input to be a number
-        yshift_onchange(prime, this.value);
-    }
-    in_range_yshift.oninput = function() {
-        yshift_onchange(prime, this.value);
-    }
-    in_num_harmdiststep.onchange = function() {
-        // TODO Check input to be a number
-        harm_dist_step_onchange(prime, this.value);
-    }
-    in_range_harmdiststep.oninput = function() {
-        harm_dist_step_onchange(prime, this.value);
-    }
-
-    yshift_onchange(prime, 0.0);
-    harm_dist_step_onchange(prime, Infinity);
-
-    scale_fig.primes.push(prime);
-
-    Object.entries(scale_fig.tones).forEach(([coords, tone]) => {
-        new_coords = coords.slice();
-        new_coords.push(0);
-
-        delete scale_fig.tones[coords];
-        scale_fig.tones[new_coords] = tone;
-        if (coords in scale_fig.boundary_tones) {
-            delete scale_fig.boundary_tones[coords];
-            scale_fig.boundary_tones[new_coords] = tone;
-        }
-
-        tone.coords = new_coords;
+    Object.entries(this.incomingSteps).forEach(([label, step]) => {
+      step.endpoint = undefined;
+      step.position();
+      step.color();
+      step.opacitate();
     });
-
-    Object.entries(scale_fig.step_intervals).forEach(
-        ([label, step_interval]) => {
-            interval = step_interval.interval;
-            new_interval = interval.slice();
-            new_interval.push(0);
-            step_interval.interval = new_interval;
-        });
+  }
 }
 
-function remove_axis() {
-    // TODO
-    ;
+function addBaseTone(baseTone) {
+  scaleFig.baseTones.push(baseTone);
+  const btStr = baseTone.toString();
+  if (btStr in scaleFig.tones) {
+    scaleFig.tones[btStr].isBase = true;
+  } else {
+    const toneObj = addTone(baseTone, true);
+    scaleFig.boundaryTones[btStr] = toneObj;
+  }
+
+  // Since harmonic distances may have changed, recolor existing tones.
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.colorSvg();
+  });
+
+  generateTones();
 }
 
-add_axis();
-add_axis();
-add_axis();
+function generateTones() {
+  // TODO This doesn't work if a baseTone is outside of the viewbox closure.
+  // Starting from the current boundary tones, i.e. tones that are not
+  // inbounds (drawable) but are within the closure (close enough to
+  // being drawable that they may be necessary to reach all drawable tones),
+  // check whether any of them have actually come within the closure since we
+  // last checked. If yes, generate all their neighbors (that don't already
+  // exist), and recursively check whether they are within the closure.  At
+  // the end, all possible tones within the closure, and all their neighbors,
+  // should exist, but the neighbors that are outside the closure should not
+  // further have their neighbors generated.
+  let roots = Object.entries(scaleFig.boundaryTones);
+  while (roots.length > 0) {
+    const [rootStr, rootTone] = roots.pop();
+    const inclosure = rootTone.inclosure;
+    if (inclosure) {
+      // The tone in question is close enough to the drawable tones, that
+      // we generate more tones starting from it. After this, it will no
+      // longer be a boundary tone.
+      const added = addNeighbors(rootTone);
+      roots = roots.concat(added);
+      delete scaleFig.boundaryTones[rootStr];
+    }
+    // Create steps, since root may now have new neighbors.
+    Object.entries(rootTone.steps).forEach(([label, step]) => {
+      if (step.hasEndpoint) return;
+      step.updateEndpoint();
+      step.position();
+      step.color();
+      step.opacitate();
+    });
+  }
+}
+
+function deleteTones() {
+  // TODO This doesn't work if a baseTone is outside of the viewbox closure.
+  // The complement of generateTones: Start from the boundary tones, working
+  // inwards, deleting all tones that are two or more ste removed from the
+  // closure zone.
+  let leaves = Object.entries(scaleFig.boundaryTones);
+  while (leaves.length > 0) {
+    const [leafStr, leafTone] = leaves.pop();
+    // TODO We actually know that at least all the tones we added during
+    // this lop are inclosure. So this could be optimized by running the
+    // inclosure filter before the main while loop, avoiding rechecking
+    // inclosure. Then again, a storage system within Tone for
+    // inclosure would do the same and more.
+    const inclosure = leafTone.inclosure;
+    if (!inclosure) {
+      // The tone in question is close enough to the drawable tones, that
+      // we generate more tones starting from it. After this, it will no
+      // longer be a boundary tone.
+      const [stillBoundary, marked] = markNeighbors(leafTone);
+      leaves = leaves.concat(marked);
+      if (!stillBoundary) {
+        leafTone.destroy();
+        delete scaleFig.boundaryTones[leafStr];
+        delete scaleFig.tones[leafStr];
+      }
+    }
+  }
+}
+
+function markNeighbors(tone) {
+  const marked = [];
+  let stillBoundary = false;
+  for (let i = 0; i < tone.coords.length; i += 1) {
+    [-1, +1].forEach(function(increment) {
+      const neighCoords = tone.coords.slice();
+      neighCoords[i] += increment;
+      const neighStr = neighCoords.toString();
+      if (!(neighStr in scaleFig.tones)) {
+        // This tone doesn't exist, moving on.
+        return;
+      }
+      const neighTone = scaleFig.tones[neighStr];
+      if (neighTone.inclosure) {
+        stillBoundary = true;
+      } else if (!(neighStr in scaleFig.boundaryTones)) {
+        scaleFig.boundaryTones[neighStr] = neighTone;
+        marked.push([neighStr, neighTone]);
+      }
+    });
+  }
+  return [stillBoundary, marked];
+}
+
+function addNeighbors(tone) {
+  const added = [];
+  for (let i = 0; i < tone.coords.length; i += 1) {
+    [-1, +1].forEach(function(increment) {
+      const neighCoords = tone.coords.slice();
+      neighCoords[i] += increment;
+      const neighStr = neighCoords.toString();
+      if (neighStr in scaleFig.tones) {
+        // This tone exists already, moving on.
+        return;
+      }
+      const neighTone = addTone(neighCoords, false);
+      added.push([neighStr, neighTone]);
+      scaleFig.boundaryTones[neighStr] = neighTone;
+    });
+  }
+  return added;
+}
+
+function addTone(tone, isBase) {
+  const toneStr = tone.toString();
+  const newTone = new ToneObject(tone, isBase);
+  scaleFig.tones[toneStr] = newTone;
+  return newTone;
+}
+
+function addStepInterval(interval, color) {
+  const existingLabels = Object.keys(scaleFig.stepIntervals);
+  let labelInt = 1;
+  while (existingLabels.includes(labelInt.toString())) {
+    labelInt++;
+  }
+  const label = labelInt.toString();
+  const stepInterval = new StepInterval(label, interval, color);
+  scaleFig.stepIntervals[label] = stepInterval;
+  const divGis = document.getElementById('divGis');
+  divGis.appendChild(stepInterval.div);
+
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.addSteps();
+  });
+}
+
+function addAxis() {
+  const prime = ALLPRIMES[scaleFig.primes.length];
+
+  const inNumYshift = document.createElement('input');
+  inNumYshift.id = `inNumYshift_${prime}`;
+  inNumYshift.type = 'number';
+  inNumYshift.min = -500;
+  inNumYshift.max = 500;
+  inNumYshift.step = 0.01;
+  inNumYshift.style.width = '80px';
+
+  const inRangeYshift = document.createElement('input');
+  inRangeYshift.id = `inRangeYshift_${prime}`;
+  inRangeYshift.type = 'range';
+  inRangeYshift.step = 0.01;
+  inRangeYshift.max = 500.0;
+  inRangeYshift.min = -500.0;
+
+  const inNumHarmdiststep = document.createElement('input');
+  inNumHarmdiststep.id = `inNumHarmdiststep_${prime}`;
+  inNumHarmdiststep.type = 'number';
+  inNumHarmdiststep.min = -500;
+  inNumHarmdiststep.max = 500;
+  inNumHarmdiststep.step = 0.01;
+  inNumHarmdiststep.style.width = '80px';
+
+  const inRangeHarmdiststep = document.createElement('input');
+  inRangeHarmdiststep.id = `inRangeHarmdiststep_${prime}`;
+  inRangeHarmdiststep.type = 'range';
+  inRangeHarmdiststep.step = 0.01;
+  inRangeHarmdiststep.max = 10.0;
+  inRangeHarmdiststep.min = 0.0;
+
+  const parYShift = document.createElement('p');
+  parYShift.innerHTML = 'y-shift: ';
+  parYShift.appendChild(inNumYshift);
+  parYShift.appendChild(inRangeYshift);
+
+  const parHarmDistStep = document.createElement('p');
+  parHarmDistStep.innerHTML = 'Harmonic distance: ';
+  parHarmDistStep.appendChild(inNumHarmdiststep);
+  parHarmDistStep.appendChild(inRangeHarmdiststep);
+
+  const divAxis = document.createElement('div');
+  divAxis.id = `divAxis_${prime}`;
+  divAxis.innerHTML = `Axis: ${prime}`;
+  divAxis.appendChild(parYShift);
+  divAxis.appendChild(parHarmDistStep);
+
+  document.getElementById('divAxes').appendChild(divAxis);
+
+  inNumYshift.onchange = function() {
+    // TODO Check input to be a number
+    yshiftOnchange(prime, this.value);
+  };
+  inRangeYshift.oninput = function() {
+    yshiftOnchange(prime, this.value);
+  };
+  inNumHarmdiststep.onchange = function() {
+    // TODO Check input to be a number
+    harmDistStepOnchange(prime, this.value);
+  };
+  inRangeHarmdiststep.oninput = function() {
+    harmDistStepOnchange(prime, this.value);
+  };
+
+  yshiftOnchange(prime, 0.0);
+  harmDistStepOnchange(prime, Infinity);
+
+  scaleFig.primes.push(prime);
+
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    newCoords = coords.slice();
+    newCoords.push(0);
+
+    delete scaleFig.tones[coords];
+    scaleFig.tones[newCoords] = tone;
+    if (coords in scaleFig.boundaryTones) {
+      delete scaleFig.boundaryTones[coords];
+      scaleFig.boundaryTones[newCoords] = tone;
+    }
+
+    tone.coords = newCoords;
+  });
+
+  Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
+    interval = stepInterval.interval;
+    newInterval = interval.slice();
+    newInterval.push(0);
+    stepInterval.interval = newInterval;
+  });
+}
+
+// TODO Implement this
+// function removeAxis() {
+// }
+
+addAxis();
+addAxis();
+addAxis();
 
 // Rectilinear projection of 3D lattice.
-let phi = 2.0*Math.PI*0.75  // Angle of the lattice against the projection
-let spios = Math.sin(Math.PI/6.0)
-let k = 1.0/(1.0 + spios)
-let s = scale_fig.horizontal_zoom*(1.0+1.0/spios)  // Scale
-let shift_2 =  Math.log2(2.0) * s*k * Math.cos(phi);
-let shift_3 =  Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
-let shift_5 =  Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
-yshift_onchange(2, shift_2);
-yshift_onchange(3, shift_3);
-yshift_onchange(5, shift_5);
+const phi = 2.0*Math.PI*0.75; // Angle of the lattice against the projection
+const spios = Math.sin(Math.PI/6.0);
+const k = 1.0/(1.0 + spios);
+const s = scaleFig.horizontalZoom*(1.0+1.0/spios); // Scale
+const shift2 = Math.log2(2.0) * s*k * Math.cos(phi);
+const shift3 = Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
+const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
+yshiftOnchange(2, shift2);
+yshiftOnchange(3, shift3);
+yshiftOnchange(5, shift5);
 
 
-harm_dist_step_onchange(2, 0.0);
-harm_dist_step_onchange(3, 0.2);
-harm_dist_step_onchange(5, 3.0);
+harmDistStepOnchange(2, 0.0);
+harmDistStepOnchange(3, 0.2);
+harmDistStepOnchange(5, 3.0);
 
-add_base_tone([0,0,0]);
+addBaseTone([0, 0, 0]);
 
-add_step_interval([1,0,0], "#000000");
-add_step_interval([-1,1,0], "#001bac");
-add_step_interval([-2,0,1], "#ac5f00");
+addStepInterval([1, 0, 0], '#000000');
+addStepInterval([-1, 1, 0], '#001bac');
+addStepInterval([-2, 0, 1], '#ac5f00');
 
