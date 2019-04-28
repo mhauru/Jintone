@@ -129,6 +129,11 @@ function pitchFactor(interval) {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // TODO Come up with a title.
 
+// TODO This stuff about creating the scaleFig is the only part that is not
+// about constant, function or class declarations that is not at the very end
+// of the file. Where do I want this stuff to happen? Relates to whether
+// scaleFig should be a global constant.
+
 // TODO Make all these adjustable.
 const style = {
   'opacityHarmNorm': true,
@@ -136,7 +141,7 @@ const style = {
   'baseToneBorderColor': '#000000',
 };
 
-const canvas = SVG('divCanvas');
+const canvas = new SVG('divCanvas');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
 const gPitchlines = canvas.group();
@@ -155,7 +160,7 @@ const scaleFig = {
   'horizontalZoom': 1,
   'yShifts': {},
   'style': style,
-  'originFreq': 440,
+  'originFreq': 1,
   'baseTones': [],
   'stepIntervals': {},
   'harmDistSteps': {},
@@ -201,6 +206,10 @@ function isInViewclosure(scaleFig, x, y) {
   const maxPrime = Math.max(...scaleFig.primes);
   const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
   const maxYjump = Math.max(...Object.values(scaleFig.yShifts));
+  // const closureLeft = Math.min(viewboxLeft, viewboxRight - maxXjump);
+  // const closureRight = Math.max(viewboxRight, viewboxLeft + maxXjump);
+  // const closureTop = Math.min(viewboxTop, viewboxBottom - maxYjump);
+  // const closureBottom = Math.max(viewboxBottom, viewboxTop + maxYjump);
   const closureLeft = viewboxLeft - maxXjump;
   const closureRight = viewboxRight + maxXjump;
   const closureTop = viewboxTop - maxYjump;
@@ -232,6 +241,7 @@ function rangeZoomOninput(value) {
   } else {
     deleteTones();
   }
+  writeURL();
 }
 rangeZoom.oninput = function() {
   rangeZoomOninput(this.value);
@@ -242,6 +252,7 @@ function numOriginFreqOninput(value) {
   // TODO Refer to global scope scaleFig like this?
   scaleFig.originFreq = value;
   numOriginFreq.value = value;
+  writeURL();
 }
 numOriginFreq.oninput = function() {
   numOriginFreqOninput(this.value);
@@ -253,6 +264,7 @@ function numToneRadiusOninput(value) {
   scaleFig.style['toneRadius'] = parseFloat(value);
   numToneRadius.value = value;
   rescaleTones(scaleFig);
+  writeURL();
 }
 numToneRadius.oninput = function() {
   numToneRadiusOninput(this.value);
@@ -264,6 +276,7 @@ function toneColorOninput(value) {
   scaleFig.style['toneColor'] = value;
   toneColor.value = value;
   recolorTones(scaleFig);
+  writeURL();
 }
 toneColor.oninput = function() {
   toneColorOninput(this.value);
@@ -286,6 +299,7 @@ function checkboxPitchlinesOnclick(value) {
   scaleFig.style['drawPitchlines'] = value;
   checkboxPitchlines.checked = value;
   setPitchlinesVisibility(scaleFig);
+  writeURL();
 }
 checkboxPitchlines.onclick = function() {
   checkboxPitchlinesOnclick(this.checked);
@@ -296,12 +310,13 @@ function colorPitchlinesOninput(value) {
   scaleFig.style['pitchlineColor'] = value;
   colorPitchlines.value = value;
   recolorPitchlines(scaleFig);
+  writeURL();
 }
 colorPitchlines.oninput = function() {
   colorPitchlinesOninput(this.value);
 };
 
-function yshiftOnchange(prime, shift) {
+function yShiftOnchange(prime, shift) {
   const pStr = prime.toString();
   const inNum = document.getElementById(`inNumYshift_${prime}`);
   const inRange = document.getElementById(`inRangeYshift_${prime}`);
@@ -317,6 +332,7 @@ function yshiftOnchange(prime, shift) {
   } else {
     deleteTones();
   }
+  writeURL();
 }
 
 function harmDistStepOnchange(prime, dist) {
@@ -334,6 +350,7 @@ function harmDistStepOnchange(prime, dist) {
   } else {
     deleteTones();
   }
+  writeURL();
 }
 
 function repositionAll(scaleFig) {
@@ -369,35 +386,6 @@ function recolorPitchlines() {
     tone.colorSvgPitchline();
   });
 }
-
-// Generate default starting state.
-
-rangeZoomOninput(200);
-numOriginFreqOninput(440);
-toneColorOninput('#ac0006');
-numToneRadiusOninput(13.0);
-checkboxPitchlinesOnclick(true);
-colorPitchlinesOninput('#c7c7c7');
-
-// Manually chosen yShifts for nice spacing.
-// const verticalZoom = 250
-// const yShifts = {
-// '2': 0,
-// '3': horizontalZoom*Math.log2(4/3),
-// '5': horizontalZoom*Math.log2(5/4)},
-// '3': horizontalZoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
-// '5': horizontalZoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
-// '3': verticalZoom*Math.log2(3/2)-125,
-// '5': verticalZoom*Math.log2(5/4)+100,
-// }
-
-// Make y-distance match harmonic distance
-// const s = 30  // Scale
-// const yShifts = {
-//   '2': s*harmDistSteps[2],
-//   '3': s*harmDistSteps[3],
-//   '5': s*harmDistSteps[5],
-// }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -588,7 +576,20 @@ class Step {
     const relHn2 = this.endpoint.relHarmNorm;
     grad.get(0).attr('stop-opacity', relHn1);
     grad.get(1).attr('stop-opacity', relHn2);
-    if (relHn1 > 0 || relHn2 > 0) {
+    // TODO This used to be || instead of &&. That allowed drawing dangling
+    // steps to tones that were not visible. However, there's no guarantee that
+    // these endpoint tones will even be generated, since generation is
+    // strictly based on the viewbox and harmonic distance, and not on what the
+    // stepIntervals are. Rethink how to decide which steps to draw. Should we
+    // draw steps to tones that are outside the viewbox? (note that they could
+    // be faaaar out.) Should we draw steps to tones that are outside the
+    // harmonic distance limit? If so, we should probably opacitate them
+    // correctly, namely not round all negative relHns to 0. Maybe the right
+    // way to go would be to separate drawing of steps from an endpoint tone
+    // existing, but this requires separate functions for evaluating relHns,
+    // and makes it harder to avoid duplicates and/or make steps be removed
+    // correctly if and only if both endpoints are removed.
+    if (relHn1 > 0 && relHn2 > 0) {
       svgStep.attr('visibility', 'inherit');
     } else {
       svgStep.attr('visibility', 'hidden');
@@ -1076,10 +1077,10 @@ function addAxis() {
 
   inNumYshift.onchange = function() {
     // TODO Check input to be a number
-    yshiftOnchange(prime, this.value);
+    yShiftOnchange(prime, this.value);
   };
   inRangeYshift.oninput = function() {
-    yshiftOnchange(prime, this.value);
+    yShiftOnchange(prime, this.value);
   };
   inNumHarmdiststep.onchange = function() {
     // TODO Check input to be a number
@@ -1089,7 +1090,7 @@ function addAxis() {
     harmDistStepOnchange(prime, this.value);
   };
 
-  yshiftOnchange(prime, 0.0);
+  yShiftOnchange(prime, 0.0);
   harmDistStepOnchange(prime, Infinity);
 
   scaleFig.primes.push(prime);
@@ -1116,34 +1117,161 @@ function addAxis() {
   });
 }
 
+function readURL() {
+  const params = new URLSearchParams(decodeURIComponent(location.search));
+  Object.entries(DEFAULT_URLPARAMS).forEach(([key, value]) => {
+    if (params.has(key)) {
+      value = JSON.parse(params.get(key));
+    }
+    URLParamSetters[key](value);
+  });
+}
+
+function writeURL() {
+  let queryStr = '';
+  Object.entries(URLParamGetters).forEach(([key, func]) => {
+    const value = func();
+    const valueStr = JSON.stringify(value);
+    queryStr += `${key}=${valueStr}&`;
+  });
+  queryStr = encodeURIComponent(queryStr);
+  const newURL = window.location.pathname + '?' + queryStr;
+  window.history.replaceState(null, '', newURL);
+}
+
 // TODO Implement this
 // function removeAxis() {
 // }
 
-addAxis();
-addAxis();
-addAxis();
+// Manually chosen yShifts for nice spacing.
+// const verticalZoom = 250
+// const yShifts = {
+// '2': 0,
+// '3': horizontalZoom*Math.log2(4/3),
+// '5': horizontalZoom*Math.log2(5/4)},
+// '3': horizontalZoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
+// '5': horizontalZoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
+// '3': verticalZoom*Math.log2(3/2)-125,
+// '5': verticalZoom*Math.log2(5/4)+100,
+// }
+
+// Make y-distance match harmonic distance
+// const s = 30  // Scale
+// const yShifts = {
+//   '2': s*harmDistSteps[2],
+//   '3': s*harmDistSteps[3],
+//   '5': s*harmDistSteps[5],
+// }
 
 // Rectilinear projection of 3D lattice.
 const phi = 2.0*Math.PI*0.75; // Angle of the lattice against the projection
 const spios = Math.sin(Math.PI/6.0);
 const k = 1.0/(1.0 + spios);
-const s = scaleFig.horizontalZoom*(1.0+1.0/spios); // Scale
+// TODO This constant 200.0 is just the default horizontalZoom.
+const s = 200.0*(1.0+1.0/spios); // Scale
 const shift2 = Math.log2(2.0) * s*k * Math.cos(phi);
 const shift3 = Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
 const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
-yshiftOnchange(2, shift2);
-yshiftOnchange(3, shift3);
-yshiftOnchange(5, shift5);
 
+const DEFAULT_URLPARAMS = {
+  'originFreq': 440,
+  'pitchlineColor': '#c7c7c7',
+  'showPitchlines': true,
+  'toneRadius': 13.0,
+  'toneColor': '#ac0006',
+  'horizontalZoom': 200,
+  'axes': [
+    {'yShift': shift2, 'harmDistStep': 0.0},
+    {'yShift': shift3, 'harmDistStep': 0.2},
+    {'yShift': shift5, 'harmDistStep': 3.0},
+  ],
+  'baseTones': [[0, 0, 0]],
+  'stepIntervals': [
+    {'interval': [1, 0, 0], 'color': '#000000'},
+    {'interval': [-1, 1, 0], 'color': '#001bac'},
+    {'interval': [-2, 0, 1], 'color': '#ac5f00'},
+  ],
+};
 
-harmDistStepOnchange(2, 0.0);
-harmDistStepOnchange(3, 0.2);
-harmDistStepOnchange(5, 3.0);
+const URLParamSetters = {
+  'originFreq': numOriginFreqOninput,
+  'pitchlineColor': colorPitchlinesOninput,
+  'showPitchlines': checkboxPitchlinesOnclick,
+  'toneRadius': numToneRadiusOninput,
+  'toneColor': toneColorOninput,
+  'horizontalZoom': rangeZoomOninput,
+  // TODO The way this is done with what are essentially "AxisObjects" is a
+  // stylistically different from how scaleFig just stores a dictionary of
+  // yShifts and hamrDistSteps. Don't know if this really is an issue.
+  // stepIntervals does something similar, although its less avoidable there.
+  'axes': (axes) => {
+    for (let i = 0; i < axes.length; i++) {
+      if (scaleFig.primes.length < i+1) addAxis();
+      const yShift = axes[i].yShift;
+      const harmDistStep = axes[i].harmDistStep;
+      const p = scaleFig.primes[i];
+      yShiftOnchange(p, yShift);
+      harmDistStepOnchange(p, harmDistStep);
+    }
+  },
+  'baseTones': (baseTones) => {
+    baseTones.forEach((baseTone) => {
+      addBaseTone(baseTone);
+    });
+  },
+  'stepIntervals': (stepIntervals) => {
+    for (let i = 0; i < stepIntervals.length; i++) {
+      const interval = stepIntervals[i].interval;
+      const color = stepIntervals[i].color;
+      addStepInterval(interval, color);
+    }
+  },
+};
 
-addBaseTone([0, 0, 0]);
+const URLParamGetters = {
+  'originFreq': () => {
+    return scaleFig.originFreq;
+  },
+  'pitchlineColor': () => {
+    return scaleFig.style['pitchlineColor'];
+  },
+  'showPitchlines': () => {
+    return scaleFig.style['drawPitchlines'];
+  },
+  'toneRadius': () => {
+    return scaleFig.style['toneRadius'];
+  },
+  'toneColor': () => {
+    return scaleFig.style['toneColor'];
+  },
+  'horizontalZoom': () => {
+    return scaleFig.horizontalZoom;
+  },
+  'axes': () => {
+    const axes = [];
+    for (let i = 0; i < scaleFig.primes.length; i++) {
+      const p = scaleFig.primes[i];
+      const pStr = p.toString();
+      const yShift = scaleFig.yShifts[pStr];
+      const harmDistStep = scaleFig.harmDistSteps[pStr];
+      axes.push({'yShift': yShift, 'harmDistStep': harmDistStep});
+    }
+    return axes;
+  },
+  'baseTones': () => {
+    return scaleFig.baseTones;
+  },
+  'stepIntervals': () => {
+    const stepIntervals = [];
+    Object.values(scaleFig.stepIntervals).forEach((stepInterval) => {
+      const interval = stepInterval.interval;
+      const color = stepInterval.color;
+      stepIntervals.push({'interval': interval, 'color': color});
+    });
+    return stepIntervals;
+  },
+};
 
-addStepInterval([1, 0, 0], '#000000');
-addStepInterval([-1, 1, 0], '#001bac');
-addStepInterval([-2, 0, 1], '#ac5f00');
+readURL();
+writeURL();
 

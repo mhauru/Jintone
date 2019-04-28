@@ -17,12 +17,9 @@ Possibilities:
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 Next:
-- Reconsider the criterion for being in closure: I don't think it's necessary to keep the closure vs inbounds distinction if the width of the viewbox cylinders is more than the largest distance between lattice neighbors, or something like that.
-- Could we give up drawing open-ended steps? Would simplify things. Besides, the gradients for them are wrong anyway, since they always draw as if the rel_hn of the endpoint is 0, even though it could be negative.
+- Could we give up drawing open-ended steps? Would simplify things. (Would it?) Besides, the gradients for them are wrong anyway, since they always draw as if the rel_hn of the endpoint is 0, even though it could be negative. Actually, even drawing steps to tones outside the viewbox is problematic, since those tones may not be generated. There's more thoughts in a TODO note in the .js.
 - Make all settings be part of the URL.
 - Make Settings collapsible.
-- Lint
-- Properly remove tones, step and pitchlines, removing the svg element and not just the object.
 
 - Add a dropdown menu with preset options.
 - Make all reasonable settings part of Settings.
