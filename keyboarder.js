@@ -367,6 +367,22 @@ function recolorSteps() {
   });
 }
 
+function updateStepEndpoints() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    Object.entries(tone.steps).forEach(([label, step]) => {
+      step.updateEndpoint();
+    });
+  });
+}
+
+function repositionSteps() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    Object.entries(tone.steps).forEach(([label, step]) => {
+      step.position();
+    });
+  });
+}
+
 function reopacitateSteps() {
   Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
     Object.entries(tone.steps).forEach(([label, step]) => {
@@ -504,7 +520,9 @@ class StepInterval {
   set color(color) {
     this._color_ = color;
     this.inColor.value = color;
-    // TODO recolorSteps();  // TODO Should this call happen here?
+    // TODO Should all these global calls happen here, in this class?
+    recolorSteps();
+    writeURL();
   }
 
   get interval() {
@@ -519,7 +537,11 @@ class StepInterval {
     this.setDecimalRepValue(_interval_);
     this.setFractionRepValue(_interval_);
     // TODO Check name, set nameRep
-    // TODO repositionStep(scaleFig);  // TODO Should this call happen here?
+    // TODO Should all these global calls happen here, in this class?
+    updateStepEndpoints();
+    repositionSteps();
+    reopacitateSteps();
+    writeURL();
   }
 }
 
