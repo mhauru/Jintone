@@ -1187,10 +1187,10 @@ function setGeneralExpanded(expanded) {
   const contentGeneral = document.getElementById('contentGeneral');
   const iconGeneral = document.getElementById('iconGeneral');
   if (expanded) {
-    iconGeneral.style.transform = 'rotate(90deg)';
+    iconGeneral.style.transform = 'rotate(-90deg)';
     contentGeneral.style.display = 'block';
   } else {
-    iconGeneral.style.transform = 'rotate(-90deg)';
+    iconGeneral.style.transform = 'rotate(90deg)';
     contentGeneral.style.display = 'none';
   }
   writeURL();
@@ -1206,10 +1206,10 @@ function setAxesExpanded(expanded) {
   const contentAxes = document.getElementById('contentAxes');
   const iconAxes = document.getElementById('iconAxes');
   if (expanded) {
-    iconAxes.style.transform = 'rotate(90deg)';
+    iconAxes.style.transform = 'rotate(-90deg)';
     contentAxes.style.display = 'block';
   } else {
-    iconAxes.style.transform = 'rotate(-90deg)';
+    iconAxes.style.transform = 'rotate(90deg)';
     contentAxes.style.display = 'none';
   }
   writeURL();
@@ -1225,10 +1225,10 @@ function setStepIntervalsExpanded(expanded) {
   const contentStepIntervals = document.getElementById('contentStepIntervals');
   const iconStepIntervals = document.getElementById('iconStepIntervals');
   if (expanded) {
-    iconStepIntervals.style.transform = 'rotate(90deg)';
+    iconStepIntervals.style.transform = 'rotate(-90deg)';
     contentStepIntervals.style.display = 'block';
   } else {
-    iconStepIntervals.style.transform = 'rotate(-90deg)';
+    iconStepIntervals.style.transform = 'rotate(90deg)';
     contentStepIntervals.style.display = 'none';
   }
   writeURL();
@@ -1244,10 +1244,10 @@ function setStyleExpanded(expanded) {
   const contentStyle = document.getElementById('contentStyle');
   const iconStyle = document.getElementById('iconStyle');
   if (expanded) {
-    iconStyle.style.transform = 'rotate(90deg)';
+    iconStyle.style.transform = 'rotate(-90deg)';
     contentStyle.style.display = 'block';
   } else {
-    iconStyle.style.transform = 'rotate(-90deg)';
+    iconStyle.style.transform = 'rotate(90deg)';
     contentStyle.style.display = 'none';
   }
   writeURL();

@@ -37,6 +37,8 @@ Next:
 - Implement vertical zoom.
 - Reposition the zoom slider(s) to be along the axes of the canvas somehow.
 - Put limits on horizontal zoom at the hearing thresholds.
+- Highlight the tone and the pitchline of tones that are playing.
+- Make every number selector be such that when it's active, it spawns a hovering slider next to it. Get rid of other sliders.
 
 - Use more CSS classes.
 - Go through TODOs in source.
