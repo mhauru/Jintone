@@ -17,8 +17,6 @@ Possibilities:
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 Next:
-- Make Settings collapsible.
-
 - Add a dropdown menu with preset options.
 - Make all reasonable settings part of Settings.
 - Add buttons for adding and removing axes and generating intervals.

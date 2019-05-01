@@ -1149,6 +1149,115 @@ function readURL() {
   });
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+function setSettingsExpanded(expanded) {
+  scaleFig.style['settingsExpanded'] = expanded;
+  const divSettings = document.getElementById('divSettings');
+  const divCanvas = document.getElementById('divCanvas');
+  const button = document.getElementById('buttToggleSettings');
+  if (expanded) {
+    button.style.transform = '';
+    button.style.borderLeft = '1px solid black';
+    button.style.borderRight = 'none';
+    button.style.right = '20%';
+    divSettings.style.right = '0';
+    divCanvas.style.width = '80%';
+  } else {
+    button.style.transform = 'scale(-1, 1)';
+    button.style.borderRight = '1px solid black';
+    button.style.borderLeft = 'none';
+    button.style.right = 0;
+    divSettings.style.right = '-20%';
+    divCanvas.style.width = '100%';
+  }
+  resizeCanvas();
+  writeURL();
+}
+
+const buttToggleSettings = document.getElementById('buttToggleSettings');
+buttToggleSettings.onclick = function() {
+  setSettingsExpanded(!scaleFig.style['settingsExpanded']);
+};
+
+// TODO Isn't there a better way to generate these, rather than copy paste code
+// and replace General -> Axes, etc.
+function setGeneralExpanded(expanded) {
+  scaleFig.style['generalExpanded'] = expanded;
+  const contentGeneral = document.getElementById('contentGeneral');
+  const iconGeneral = document.getElementById('iconGeneral');
+  if (expanded) {
+    iconGeneral.style.transform = 'rotate(90deg)';
+    contentGeneral.style.display = 'block';
+  } else {
+    iconGeneral.style.transform = 'rotate(-90deg)';
+    contentGeneral.style.display = 'none';
+  }
+  writeURL();
+};
+
+const headGeneral = document.getElementById('headGeneral');
+headGeneral.onclick = function() {
+  setGeneralExpanded(!scaleFig.style['generalExpanded']);
+};
+
+function setAxesExpanded(expanded) {
+  scaleFig.style['axesExpanded'] = expanded;
+  const contentAxes = document.getElementById('contentAxes');
+  const iconAxes = document.getElementById('iconAxes');
+  if (expanded) {
+    iconAxes.style.transform = 'rotate(90deg)';
+    contentAxes.style.display = 'block';
+  } else {
+    iconAxes.style.transform = 'rotate(-90deg)';
+    contentAxes.style.display = 'none';
+  }
+  writeURL();
+};
+
+const headAxes = document.getElementById('headAxes');
+headAxes.onclick = function() {
+  setAxesExpanded(!scaleFig.style['axesExpanded']);
+};
+
+function setStepIntervalsExpanded(expanded) {
+  scaleFig.style['stepIntervalsExpanded'] = expanded;
+  const contentStepIntervals = document.getElementById('contentStepIntervals');
+  const iconStepIntervals = document.getElementById('iconStepIntervals');
+  if (expanded) {
+    iconStepIntervals.style.transform = 'rotate(90deg)';
+    contentStepIntervals.style.display = 'block';
+  } else {
+    iconStepIntervals.style.transform = 'rotate(-90deg)';
+    contentStepIntervals.style.display = 'none';
+  }
+  writeURL();
+};
+
+const headStepIntervals = document.getElementById('headStepIntervals');
+headStepIntervals.onclick = function() {
+  setStepIntervalsExpanded(!scaleFig.style['stepIntervalsExpanded']);
+};
+
+function setStyleExpanded(expanded) {
+  scaleFig.style['styleExpanded'] = expanded;
+  const contentStyle = document.getElementById('contentStyle');
+  const iconStyle = document.getElementById('iconStyle');
+  if (expanded) {
+    iconStyle.style.transform = 'rotate(90deg)';
+    contentStyle.style.display = 'block';
+  } else {
+    iconStyle.style.transform = 'rotate(-90deg)';
+    contentStyle.style.display = 'none';
+  }
+  writeURL();
+};
+
+const headStyle = document.getElementById('headStyle');
+headStyle.onclick = function() {
+  setStyleExpanded(!scaleFig.style['styleExpanded']);
+};
+
 function writeURL() {
   let queryStr = '';
   Object.entries(URLParamGetters).forEach(([key, func]) => {
@@ -1213,6 +1322,11 @@ const DEFAULT_URLPARAMS = {
     {'interval': [-1, 1, 0], 'color': '#001bac'},
     {'interval': [-2, 0, 1], 'color': '#ac5f00'},
   ],
+  'settingsExpanded': true,
+  'generalExpanded': true,
+  'axesExpanded': false,
+  'stepIntervalsExpanded': false,
+  'styleExpanded': false,
 };
 
 const URLParamSetters = {
@@ -1248,6 +1362,11 @@ const URLParamSetters = {
       addStepInterval(interval, color);
     }
   },
+  'settingsExpanded': setSettingsExpanded,
+  'generalExpanded': setGeneralExpanded,
+  'axesExpanded': setAxesExpanded,
+  'stepIntervalsExpanded': setStepIntervalsExpanded,
+  'styleExpanded': setStyleExpanded,
 };
 
 const URLParamGetters = {
@@ -1292,99 +1411,23 @@ const URLParamGetters = {
     });
     return stepIntervals;
   },
+  'settingsExpanded': () => {
+    return scaleFig.style['settingsExpanded'];
+  },
+  'generalExpanded': () => {
+    return scaleFig.style['generalExpanded'];
+  },
+  'axesExpanded': () => {
+    return scaleFig.style['axesExpanded'];
+  },
+  'stepIntervalsExpanded': () => {
+    return scaleFig.style['stepIntervalsExpanded'];
+  },
+  'styleExpanded': () => {
+    return scaleFig.style['styleExpanded'];
+  },
 };
 
 readURL();
 writeURL();
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-const buttToggleSettings = document.getElementById('buttToggleSettings');
-buttToggleSettings.collapsed = false;
-buttToggleSettings.onclick = function() {
-  const divSettings = document.getElementById('divSettings');
-  const divCanvas = document.getElementById('divCanvas');
-  this.collapsed = !this.collapsed;
-  if (this.collapsed) {
-    buttToggleSettings.style.transform = 'scale(-1, 1)';
-    buttToggleSettings.style.borderRight = buttToggleSettings.style.borderLeft;
-    buttToggleSettings.style.borderLeft = 'none';
-    this.style.right = 0;
-    divSettings.style.right = '-20%';
-    divCanvas.style.width = '100%';
-  } else {
-    buttToggleSettings.style.transform = '';
-    buttToggleSettings.style.borderLeft = buttToggleSettings.style.borderRight;
-    buttToggleSettings.style.borderRight = 'none';
-    this.style.right = '20%';
-    divSettings.style.right = '0';
-    divCanvas.style.width = '80%';
-  }
-  resizeCanvas();
-};
-
-
-// TODO Isn't there a better way to generate these, rather than copy paste code
-// and replace General -> Axes, etc.
-const headGeneral = document.getElementById('headGeneral');
-headGeneral.collapsed = false;
-headGeneral.onclick = function() {
-  const contentGeneral = document.getElementById('contentGeneral');
-  const iconGeneral = document.getElementById('iconGeneral');
-  this.collapsed = !this.collapsed;
-  if (this.collapsed) {
-    iconGeneral.style.transform = 'rotate(-90deg)';
-    contentGeneral.style.display = 'none';
-  } else {
-    iconGeneral.style.transform = 'rotate(90deg)';
-    contentGeneral.style.display = 'block';
-  }
-};
-
-const headAxes = document.getElementById('headAxes');
-headAxes.collapsed = false;
-headAxes.onclick = function() {
-  const contentAxes = document.getElementById('contentAxes');
-  const iconAxes = document.getElementById('iconAxes');
-  this.collapsed = !this.collapsed;
-  if (this.collapsed) {
-    iconAxes.style.transform = 'rotate(-90deg)';
-    contentAxes.style.display = 'none';
-  } else {
-    iconAxes.style.transform = 'rotate(90deg)';
-    contentAxes.style.display = 'block';
-  }
-};
-headAxes.onclick(); // Collapsed by default.
-
-const headStepIntervals = document.getElementById('headStepIntervals');
-headStepIntervals.collapsed = false;
-headStepIntervals.onclick = function() {
-  const contentStepIntervals = document.getElementById('contentStepIntervals');
-  const iconStepIntervals = document.getElementById('iconStepIntervals');
-  this.collapsed = !this.collapsed;
-  if (this.collapsed) {
-    iconStepIntervals.style.transform = 'rotate(-90deg)';
-    contentStepIntervals.style.display = 'none';
-  } else {
-    iconStepIntervals.style.transform = 'rotate(90deg)';
-    contentStepIntervals.style.display = 'block';
-  }
-};
-headStepIntervals.onclick(); // Collapsed by default.
-
-const headStyle = document.getElementById('headStyle');
-headStyle.collapsed = false;
-headStyle.onclick = function() {
-  const contentStyle = document.getElementById('contentStyle');
-  const iconStyle = document.getElementById('iconStyle');
-  this.collapsed = !this.collapsed;
-  if (this.collapsed) {
-    iconStyle.style.transform = 'rotate(-90deg)';
-    contentStyle.style.display = 'none';
-  } else {
-    iconStyle.style.transform = 'rotate(90deg)';
-    contentStyle.style.display = 'block';
-  }
-};
-headStyle.onclick(); // Collapsed by default.
