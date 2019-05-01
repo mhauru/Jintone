@@ -1038,8 +1038,8 @@ function addStepInterval(interval, color) {
   const label = labelInt.toString();
   const stepInterval = new StepInterval(label, interval, color);
   scaleFig.stepIntervals[label] = stepInterval;
-  const divGis = document.getElementById('divGis');
-  divGis.appendChild(stepInterval.div);
+  const divStepIntervals = document.getElementById('contentStepIntervals');
+  divStepIntervals.appendChild(stepInterval.div);
 
   Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
     tone.addSteps();
@@ -1095,7 +1095,7 @@ function addAxis() {
   divAxis.appendChild(parYShift);
   divAxis.appendChild(parHarmDistStep);
 
-  document.getElementById('divAxes').appendChild(divAxis);
+  document.getElementById('contentAxes').appendChild(divAxis);
 
   inNumYshift.onchange = function() {
     // TODO Check input to be a number
@@ -1297,3 +1297,94 @@ const URLParamGetters = {
 readURL();
 writeURL();
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+const buttToggleSettings = document.getElementById('buttToggleSettings');
+buttToggleSettings.collapsed = false;
+buttToggleSettings.onclick = function() {
+  const divSettings = document.getElementById('divSettings');
+  const divCanvas = document.getElementById('divCanvas');
+  this.collapsed = !this.collapsed;
+  if (this.collapsed) {
+    buttToggleSettings.style.transform = 'scale(-1, 1)';
+    buttToggleSettings.style.borderRight = buttToggleSettings.style.borderLeft;
+    buttToggleSettings.style.borderLeft = 'none';
+    this.style.right = 0;
+    divSettings.style.right = '-20%';
+    divCanvas.style.width = '100%';
+  } else {
+    buttToggleSettings.style.transform = '';
+    buttToggleSettings.style.borderLeft = buttToggleSettings.style.borderRight;
+    buttToggleSettings.style.borderRight = 'none';
+    this.style.right = '20%';
+    divSettings.style.right = '0';
+    divCanvas.style.width = '80%';
+  }
+  resizeCanvas();
+};
+
+
+// TODO Isn't there a better way to generate these, rather than copy paste code
+// and replace General -> Axes, etc.
+const headGeneral = document.getElementById('headGeneral');
+headGeneral.collapsed = false;
+headGeneral.onclick = function() {
+  const contentGeneral = document.getElementById('contentGeneral');
+  const iconGeneral = document.getElementById('iconGeneral');
+  this.collapsed = !this.collapsed;
+  if (this.collapsed) {
+    iconGeneral.style.transform = 'rotate(-90deg)';
+    contentGeneral.style.display = 'none';
+  } else {
+    iconGeneral.style.transform = 'rotate(90deg)';
+    contentGeneral.style.display = 'block';
+  }
+};
+
+const headAxes = document.getElementById('headAxes');
+headAxes.collapsed = false;
+headAxes.onclick = function() {
+  const contentAxes = document.getElementById('contentAxes');
+  const iconAxes = document.getElementById('iconAxes');
+  this.collapsed = !this.collapsed;
+  if (this.collapsed) {
+    iconAxes.style.transform = 'rotate(-90deg)';
+    contentAxes.style.display = 'none';
+  } else {
+    iconAxes.style.transform = 'rotate(90deg)';
+    contentAxes.style.display = 'block';
+  }
+};
+headAxes.onclick(); // Collapsed by default.
+
+const headStepIntervals = document.getElementById('headStepIntervals');
+headStepIntervals.collapsed = false;
+headStepIntervals.onclick = function() {
+  const contentStepIntervals = document.getElementById('contentStepIntervals');
+  const iconStepIntervals = document.getElementById('iconStepIntervals');
+  this.collapsed = !this.collapsed;
+  if (this.collapsed) {
+    iconStepIntervals.style.transform = 'rotate(-90deg)';
+    contentStepIntervals.style.display = 'none';
+  } else {
+    iconStepIntervals.style.transform = 'rotate(90deg)';
+    contentStepIntervals.style.display = 'block';
+  }
+};
+headStepIntervals.onclick(); // Collapsed by default.
+
+const headStyle = document.getElementById('headStyle');
+headStyle.collapsed = false;
+headStyle.onclick = function() {
+  const contentStyle = document.getElementById('contentStyle');
+  const iconStyle = document.getElementById('iconStyle');
+  this.collapsed = !this.collapsed;
+  if (this.collapsed) {
+    iconStyle.style.transform = 'rotate(-90deg)';
+    contentStyle.style.display = 'none';
+  } else {
+    iconStyle.style.transform = 'rotate(90deg)';
+    contentStyle.style.display = 'block';
+  }
+};
+headStyle.onclick(); // Collapsed by default.

@@ -12,7 +12,7 @@
 2/1     octave
 
 Possibilities:
-- Should harmonic work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
+- Should harmonic distance work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
 - Arc the interval lines?
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
@@ -34,11 +34,13 @@ Next:
 - Implement the help/info page/overlay.
 - Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
 - Before the first note is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info."
-- Add a horizontal axis that shows frequency, and/or maybe tone names.
+- At the bottom, create a whole functional piano keyboard. Make it collapsible.
+- Add a horizontal axis that shows frequency, and/or maybe tone names. Or is this made unnecessary by the keyboard? What about when the keyboard is collapsed?
 - Implement vertical zoom.
 - Reposition the zoom slider(s) to be along the axes of the canvas somehow.
 - Put limits on horizontal zoom at the hearing thresholds.
-- At the bottom, create a whole functional piano keyboard? Make it collapsible.
 
+- Use more CSS classes.
 - Go through TODOs in source.
 - Optimize performance by storing data to avoid recomputation.
+- Document and pretty the code: Maybe separate JS files, certainly a separate CSS file, ...

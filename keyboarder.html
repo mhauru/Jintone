@@ -6,18 +6,52 @@
 </head>
 <body>
     <div id="divCanvas" style="box-sizing: border-box;overflow: hidden;width: 80%;height: 100%;border: 0px;position: absolute;top: 0;left: 0; margin: 0;padding: 0;"></div>
-    <div id="divSettings" style="box-sizing: border-box;overflow: auto;width: 20%;height: 100%;border: 1px solid black;margin: 0;padding: 10px;position: absolute;top: 0;right: 0;background: white;">
-        <h2>Settings</h2>
-        <p> Horizontal zoom: <input id="rangeZoom" type="range" min="100" max="700" step="0.01"> </p>
-        <p> Origin frequency: <input id="numOriginFreq" style="width: 80px" type="number" min="1" max="20000" step="0.01"></p>
-        <p> Note radius: <input id="numToneRadius" type="number" style="width: 80px" min="0.01" max="100" step="0.01"><br>
-        Note color: <input id="toneColor" type="color"></p>
-        <p> Pitchlines? <input id="checkboxPitchlines" type="checkbox"><br>
-        Pitchline color: <input id="colorPitchlines" type="color"></p>
+    <h2 id="buttToggleSettings", style="background: white;position: absolute;top: 0; right: 20%;border: 1px solid black;padding:20px;margin:0px;border-right: none;border-top: none">
+      <img id="iconSettings" style="vertical-align:middle;height: 1em;width: 1em;transform:;" src="arrowheads.svg"/>
+    </h2>
+    <div id="divSettings" style="box-sizing: border-box;overflow: auto;width: 20%;max-height: 100%;border: none;margin: 0;padding: 0;position: absolute;top: 0;right: 0;background: white;">
+        <h2 style="padding-top:20px;padding-bottom:20px;margin:0px;">Settings</h2>
+        <div id="divGeneral" style="overflow: hidden;padding-top: 0px;border: 1px solid black;padding: 10px">
+          <h3 id="headGeneral" style="margin-top: 5px;margin-bottom: 5px;">
+            <img id="iconGeneral" style="vertical-align:middle;height: 1em;width: 1em;transform: rotate(90deg);" src="arrowheads.svg"/>
+            General
+          </h3>
+          <div id="contentGeneral">
+          <p> Horizontal zoom: <input id="rangeZoom" type="range" min="100" max="700" step="0.01"> </p>
+          <p> Origin frequency: <input id="numOriginFreq" style="width: 80px" type="number" min="1" max="20000" step="0.01"></p>
+          <p> Note radius: <input id="numToneRadius" type="number" style="width: 80px" min="0.01" max="100" step="0.01"><br>
+          Note color: <input id="toneColor" type="color"></p>
+          <p> Pitchlines? <input id="checkboxPitchlines" type="checkbox"><br>
+          Pitchline color: <input id="colorPitchlines" type="color"></p>
+          </div>
+        </div>
 
-        <div id="divAxes" style="border: 1px solid black;"></div>
+        <div id="divAxes" style="border: 1px solid black;padding: 10px">
+          <h3 id="headAxes" style="margin-top: 5px;margin-bottom: 5px;">
+            <img id="iconAxes" style="vertical-align:middle;height: 1em;width: 1em;transform: rotate(90deg);" src="arrowheads.svg"/>
+            Axes
+          </h3>
+          <div id="contentAxes">
+          </div>
+        </div>
 
-        <div id="divGis" style="border: 1px solid black;"></div>
+        <div id="divStepIntervals" style="border: 1px solid black;padding: 10px">
+          <h3 id="headStepIntervals" style="margin-top: 5px;margin-bottom: 5px;">
+            <img id="iconStepIntervals" style="vertical-align:middle;height: 1em;width: 1em;transform: rotate(90deg);" src="arrowheads.svg"/>
+            Intervals
+          </h3>
+          <div id="contentStepIntervals">
+          </div>
+        </div>
+
+        <div id="divStyle" style="border: 1px solid black;padding: 10px">
+          <h3 id="headStyle" style="margin-top: 5px;margin-bottom: 5px;">
+            <img id="iconStyle" style="vertical-align:middle;height: 1em;width: 1em;transform: rotate(90deg);" src="arrowheads.svg"/>
+            Aesthetics
+          </h3>
+          <div id="contentStyle">
+          </div>
+        </div>
     </div>
 
     <script src="svg.min.js"></script>
