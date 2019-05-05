@@ -10,8 +10,8 @@
       <img id="iconSettings" style="vertical-align:middle;height: 1em;width: 1em;transform:;" src="arrowheads.svg"/>
     </h2>
     <div id="divSettings" style="box-sizing: border-box;overflow: hidden;width: 20%;height: 100%;border: none;margin: 0;padding: 0;position: absolute;top: 0;right: 0;background: white;">
-      <h2 style="padding-top:15px;padding-bottom:15px;padding-left:5px;margin:0px;border-bottom: 1px solid black;">Settings</h2>
-      <div style="margin: 0;padding: 0;overflow: auto;height: 100%;border-left: 1px solid black">
+      <h2 id="settingsHeader" style="box-sizing: border-box;padding-top:15px;padding-bottom:15px;padding-left:5px;margin:0px;border-bottom: 1px solid black;">Settings</h2>
+      <div id="divSettingsInner" style="box-sizing: border-box;margin: 0;padding: 0;overflow: auto;height: 80%;border-left: 1px solid black">
         <div id="divGeneral" style="padding-top: 0px;border: none;padding: 10px">
           <h3 id="headGeneral" style="margin-top: 5px;margin-bottom: 5px;">
             <img id="iconGeneral" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
@@ -88,7 +88,10 @@
             <img id="iconStepIntervals" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
             Intervals
           </h3>
-          <div id="contentStepIntervals">
+          <div id="contentStepIntervals" style="margin: 0;padding: 0;">
+            <div id="divGeneratedStepIntervals" style="margin: 0;padding: 0;">
+            </div>
+            <button id="buttAddInterval">Add interval</button>
           </div>
         </div>
 

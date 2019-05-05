@@ -185,11 +185,18 @@ function resizeCanvas() {
   c.viewbox(-w/2, -h/2, w, h);
 }
 
+function resizeSettings() {
+  const div = document.getElementById('divSettings');
+  const header = document.getElementById('settingsHeader');
+  const divInner = document.getElementById('divSettingsInner');
+  const innerHeight = div.offsetHeight - header.offsetHeight;
+  divInner.style.height = `${innerHeight}px`;
+}
+
 window.onresize = function(evt) {
   resizeCanvas();
+  resizeSettings();
 };
-
-resizeCanvas();
 
 function isInViewbox(scaleFig, x, y) {
   const viewboxLeft = scaleFig.canvas.viewbox().x;
@@ -377,6 +384,19 @@ cboxSteps.onclick = function() {
   cboxStepsOnclick(this.checked);
 };
 
+
+const buttAddInterval = document.getElementById('buttAddInterval');
+function buttAddIntervalOnclick(value) {
+  const interval = new Array(scaleFig.primes.length).fill(0);
+  const color = '#000000';
+  const show = true;
+  addStepInterval(interval, color, show);
+  writeURL();
+}
+buttAddInterval.onclick = function() {
+  buttAddIntervalOnclick(this.checked);
+};
+
 const colorPitchlines = document.getElementById('colorPitchlines');
 function colorPitchlinesOninput(value) {
   scaleFig.style['pitchlineColor'] = value;
@@ -481,22 +501,35 @@ function recolorPitchlines() {
   });
 }
 
+function deleteStepInterval(label) {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    if (label in tone.steps) tone.steps[label].destroy();
+  });
+  const stepInterval = scaleFig.stepIntervals[label];
+  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
+  divStepIntervals.removeChild(stepInterval.div);
+  stepInterval.svgGroup.remove();
+  delete scaleFig.stepIntervals[label];
+  writeURL();
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class StepInterval {
-  constructor(label, interval, color) {
+  constructor(label, interval, color, show) {
     this.label = label;
     this._interval_ = [];
-    this._color_ = '';
     this.initializeHtml();
     this.setListeners();
+    this.svgGroup = scaleFig.svgGroups.steps.group();
     this.interval = interval;
     this.color = color;
+    this.show = show;
   }
 
   initializeHtml() {
     const div = document.createElement('div');
-    div.innerHTML = `Generating interval ${this.label}<br>`;
+    div.innerHTML = `Interval ${this.label}<br>`;
     this.div = div;
 
     const inFractionRep = document.createElement('input');
@@ -519,6 +552,14 @@ class StepInterval {
     inColor.type = 'color';
     this.inColor = inColor;
 
+    const inShow = document.createElement('input');
+    inShow.type = 'checkbox';
+    this.inShow = inShow;
+
+    const buttDelete = document.createElement('button');
+    buttDelete.innerHTML = 'Delete';
+    this.buttDelete = buttDelete;
+
     const parReps = document.createElement('p');
     parReps.innerHTML = 'Interval: ';
     parReps.appendChild(inFractionRep);
@@ -533,14 +574,29 @@ class StepInterval {
     parColor.appendChild(inColor);
     this.parColor = parColor;
     div.appendChild(parColor);
-    // TODO Add buttons for de(activating), and for mirroring (including also
-    // the negative of the same interval).
+
+    const parShow = document.createElement('p');
+    parShow.innerHTML = 'Show: ';
+    parShow.appendChild(inShow);
+    this.parShow = parShow;
+    div.appendChild(parShow);
+
+    const parDelete = document.createElement('p');
+    parShow.appendChild(buttDelete);
+    this.parDelete = parDelete;
+    div.appendChild(parDelete);
   }
 
   setListeners() {
     const t = this;
     this.inColor.oninput = function() {
       t.color = this.value;
+    };
+    this.inShow.onclick = function() {
+      t.show = this.checked;
+    };
+    this.buttDelete.onclick = function() {
+      deleteStepInterval(t.label);
     };
     this.inCoordinateRep.onchange = function() {
       // TODO Sanitize and check input format.
@@ -565,10 +621,14 @@ class StepInterval {
 
   // TODO Static method?
   parseInFractionRepValue(value) {
-    const [num, denom] = value.split('/');
-    if (denom == undefined) denom = '1';
-    num = Number(num); denom = Number(denom);
+    const [numStr, denomStr] = value.split('/');
+    if (denomStr == undefined) denom = '1';
+    const num = Number(numStr);
+    const denom = Number(denomStr);
     const tone = primeDecompose(num, denom);
+    while (tone.length < scaleFig.primes.length) {
+      tone.push(0.0);
+    }
     return tone;
   }
 
@@ -600,6 +660,20 @@ class StepInterval {
     this.inColor.value = color;
     // TODO Should all these global calls happen here, in this class?
     recolorSteps();
+    writeURL();
+  }
+
+  get show() {
+    return this._show_;
+  }
+  set show(show) {
+    this._show_ = show;
+    this.inShow.checked = show;
+    if (show) {
+      this.svgGroup.attr('visibility', 'inherit');
+    } else {
+      this.svgGroup.attr('visibility', 'hidden');
+    }
     writeURL();
   }
 
@@ -640,7 +714,8 @@ class Step {
       stop.at({'offset': 1});
     });
     grad.attr('gradientUnits', 'userSpaceOnUse');
-    const svgStep = scaleFig.svgGroups['steps'].line(0, 0, 0, 0).attr({
+    const svgGroup = scaleFig.stepIntervals[this.label].svgGroup;
+    const svgStep = svgGroup.line(0, 0, 0, 0).attr({
       'visibility': 'hidden',
       'stroke': grad,
       'stroke-width': 2.5,
@@ -751,8 +826,8 @@ class ToneObject {
 
     this.svgTone = scaleFig.svgGroups['tones'].circle(1.0);
     // TODO Where do these numbers come from?
-    const group = scaleFig.svgGroups['pitchlines'];
-    this.svgPitchline = group.path('M 0,-1000 V 2000');
+    const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
+    this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
     this.positionSvg();
     this.colorSvg();
     this.scaleSvgTone();
@@ -1030,7 +1105,8 @@ boundary.`;
     });
 
     Object.entries(tone.steps).forEach(([label, step]) => {
-      svgSteps.push(step.svgStep);
+      const svgStep = step.svgStep;
+      svgSteps.push(svgStep);
       if (step.hasEndpoint) {
         const endpoint = step.endpoint;
         const endpointKnows = endpoint.incomingSteps[label] === step;
@@ -1056,6 +1132,13 @@ boundary.`;
 \of a step from ${step.origin.coords}, but no endpoint has been set.`;
           console.log(msg);
         }
+      }
+
+      const stepInterval = scaleFig.stepIntervals[step.label];
+      const svgInGroup = stepInterval.svgGroup.has(svgStep);
+      if (!svgInGroup) {
+        const msg = `Error: svgStep ${svgStep.id()} is not in the step group.`;
+        console.log(msg);
       }
     });
 
@@ -1101,14 +1184,6 @@ pitchline group.`;
     }
   });
 
-  svgSteps.forEach((svgStep) => {
-    const inGroup = scaleFig.svgGroups.steps.has(svgStep);
-    if (!inGroup) {
-      const msg = `Error: svgStep ${svgStep.id()} is not in the step group.`;
-      console.log(msg);
-    }
-  });
-
   scaleFig.svgGroups.pitchlines.children().forEach((svgPitchline) => {
     const hasParent = svgPitchlines.includes(svgPitchline);
     if (!hasParent) {
@@ -1127,13 +1202,15 @@ tone of any tone.`;
     }
   });
 
-  scaleFig.svgGroups.steps.children().forEach((svgStep) => {
-    const hasParent = svgSteps.includes(svgStep);
-    if (!hasParent) {
-      const msg = `Error: svgStep ${svgStep.id()} is not the \
+  scaleFig.svgGroups.steps.each((i, stepGroups) => {
+    stepGroups[i].children().forEach((svgStep) => {
+      const hasParent = svgSteps.includes(svgStep);
+      if (!hasParent) {
+        const msg = `Error: svgStep ${svgStep.id()} is not the \
 step of any tone.`;
-      console.log(msg);
-    }
+        console.log(msg);
+      }
+    });
   });
 }
 
@@ -1259,16 +1336,16 @@ function addTone(tone, isBase) {
   return newTone;
 }
 
-function addStepInterval(interval, color) {
+function addStepInterval(interval, color, show) {
   const existingLabels = Object.keys(scaleFig.stepIntervals);
   let labelInt = 1;
   while (existingLabels.includes(labelInt.toString())) {
     labelInt++;
   }
   const label = labelInt.toString();
-  const stepInterval = new StepInterval(label, interval, color);
+  const stepInterval = new StepInterval(label, interval, color, show);
   scaleFig.stepIntervals[label] = stepInterval;
-  const divStepIntervals = document.getElementById('contentStepIntervals');
+  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
   divStepIntervals.appendChild(stepInterval.div);
 
   Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
@@ -1553,9 +1630,9 @@ const DEFAULT_URLPARAMS = {
   ],
   'baseTones': [[0, 0, 0]],
   'stepIntervals': [
-    {'interval': [1, 0, 0], 'color': '#000000'},
-    {'interval': [-1, 1, 0], 'color': '#001bac'},
-    {'interval': [-2, 0, 1], 'color': '#ac5f00'},
+    {'interval': [1, 0, 0], 'color': '#000000', 'show': true},
+    {'interval': [-1, 1, 0], 'color': '#001bac', 'show': true},
+    {'interval': [-2, 0, 1], 'color': '#ac5f00', 'show': true},
   ],
   'settingsExpanded': true,
   'generalExpanded': true,
@@ -1599,7 +1676,8 @@ const URLParamSetters = {
     for (let i = 0; i < stepIntervals.length; i++) {
       const interval = stepIntervals[i].interval;
       const color = stepIntervals[i].color;
-      addStepInterval(interval, color);
+      const show = stepIntervals[i].show;
+      addStepInterval(interval, color, show);
     }
   },
   'settingsExpanded': setSettingsExpanded,
@@ -1662,7 +1740,8 @@ const URLParamGetters = {
     Object.values(scaleFig.stepIntervals).forEach((stepInterval) => {
       const interval = stepInterval.interval;
       const color = stepInterval.color;
-      stepIntervals.push({'interval': interval, 'color': color});
+      const show = stepInterval.show;
+      stepIntervals.push({'interval': interval, 'color': color, 'show': show});
     });
     return stepIntervals;
   },
@@ -1682,6 +1761,9 @@ const URLParamGetters = {
     return scaleFig.style['styleExpanded'];
   },
 };
+
+resizeCanvas();
+resizeSettings();
 
 readURL();
 writeURL();

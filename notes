@@ -17,15 +17,13 @@ Possibilities:
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 Next:
-- Add tick-boxes for including inverse generating intervals.
 - Add buttons for adding and removing axes and generating intervals.
-- Redo the representation of intervals in the UI.
 - A UI element for adding and removing base tones.
 
 - Add a dropdown menu with preset options.
-- Style Settings with nice fonts etc.
 - Add a dial with three options: No names; note names (A, F#, etc.); intervals (fractions). Have them float next to the buttons, maybe directly above.
 - Add a volume slider.
+- Make pitchlines not show under tones.
 
 - At the bottom, create a whole functional piano keyboard. Make it collapsible.
 - Add a horizontal axis that shows frequency, and/or maybe tone names. Or is this made unnecessary by the keyboard? What about when the keyboard is collapsed?
@@ -43,10 +41,13 @@ Next:
 - Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
 - Before the first note is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info."
 
+- Redo the representation of intervals in the UI.
+- Redo the representation of axes in the UI.
 - Make the linestyles of pitchlines, intervals, and base tone borders adjustable.
 - Make the background color adjustable, and set it to black by default.
 - Create color presets, at least one dark and one light.
 - Create a checkbox for setting all the settings stuff either light or dark.
+- Style Settings with nice fonts etc.
 
 - Use more CSS classes.
 - Go through TODOs in source.
