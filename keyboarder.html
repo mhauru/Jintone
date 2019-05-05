@@ -18,12 +18,53 @@
             General
           </h3>
           <div id="contentGeneral">
-            <p> Horizontal zoom: <input id="rangeZoom" type="range" min="100" max="700" step="0.01"> </p>
-            <p> Origin frequency: <input id="numOriginFreq" style="width: 80px" type="number" min="1" max="20000" step="0.01"></p>
-            <p> Note radius: <input id="numToneRadius" type="number" style="width: 80px" min="0.01" max="100" step="0.01"><br>
-            Note color: <input id="toneColor" type="color"></p>
-            <p> Pitchlines? <input id="checkboxPitchlines" type="checkbox"><br>
-            Pitchline color: <input id="colorPitchlines" type="color"></p>
+            <p>
+            <label> Horizontal zoom:
+              <input id="rangeZoom" type="range" min="100" max="700" step="0.01">
+            </label>
+            </p>
+
+            <p>
+            <label> Origin frequency:
+              <input id="numOriginFreq" style="width: 80px" type="number" min="1" max="20000" step="0.01">
+            </label>
+            </p>
+
+            <p>
+            <label> Maximum visible harmonic norm
+              <input id="numMaxHarmNorm" type="number" style="width: 80px" min="0.01" max="100" step="0.01">
+            </label>
+            </p>
+
+            <p>
+            <label> Tone radius:
+              <input id="numToneRadius" type="number" style="width: 80px" min="0.01" max="100" step="0.01">
+            </label><br>
+            <label> Tone color:
+              <input id="toneColor" type="color">
+            </label><br>
+            <label> Base tone border color:
+              <input id="baseToneBorderColor" type="color">
+            </label><br>
+            <label> Base tone border size:
+              <input id="numBaseToneBorderSize" type="number" style="width: 80px" min="0.0" max="10" step="0.01">
+            </label>
+            </p>
+
+            <p>
+            <label> Pitchlines?
+              <input id="cboxPitchlines" type="checkbox">
+            </label><br>
+            <label> Pitchline color:
+              <input id="colorPitchlines" type="color">
+            </label>
+            </p>
+
+            <p>
+            <label> Opacity by harmonic norm
+              <input id="cboxOpacityHarmNorm" type="checkbox">
+            </label>
+            </p>
           </div>
         </div>
 

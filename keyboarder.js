@@ -32,6 +32,18 @@ const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
 //   return tone.map((a) => -a);
 // }
 
+function tonesEqual(tone1, tone2) {
+  // Ensure that if there's a length difference, tone1 is longer.
+  if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
+  for (let i = 0; i < tone1.length; i++) {
+    const c1 = tone1[i];
+    // If tone2 has less values, assume it's padded with zeros at the end.
+    const c2 = (i < tone2.length ? tone2[i] : 0.0);
+    if (c1 !== c2) return false;
+  }
+  return true;
+}
+
 function subtractTone(tone1, tone2) {
   // Ensure that if there's a length difference, tone1 is longer.
   const flip = (tone1.length < tone2.length);
@@ -41,7 +53,7 @@ function subtractTone(tone1, tone2) {
     const c1 = tone1[i];
     // If tone2 has less values, assume it's padded with zeros at the end.
     const c2 = (i < tone2.length ? tone2[i] : 0.0);
-    res[i] = c2 - c1;
+    res[i] = c1 - c2;
     if (flip) res[i] = -res[i];
   }
   return res;
@@ -134,13 +146,6 @@ function pitchFactor(interval) {
 // of the file. Where do I want this stuff to happen? Relates to whether
 // scaleFig should be a global constant.
 
-// TODO Make all these adjustable.
-const style = {
-  'opacityHarmNorm': true,
-  'baseToneBorderSize': 4.0,
-  'baseToneBorderColor': '#000000',
-};
-
 const canvas = new SVG('divCanvas');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
@@ -153,20 +158,19 @@ const svgGroups = {
   'tones': gTones,
 };
 
-// TODO Make all these adjustable.
 const scaleFig = {
   'canvas': canvas,
   'svgGroups': svgGroups,
   'horizontalZoom': 1,
   'yShifts': {},
-  'style': style,
+  'style': {},
   'originFreq': 1,
   'baseTones': [],
   'stepIntervals': {},
   'harmDistSteps': {},
   'primes': [],
 
-  'maxHarmNorm': 8,
+  'maxHarmNorm': 1.0,
 
   'tones': {},
   'boundaryTones': {},
@@ -230,7 +234,6 @@ function stopTone(tone) {
 
 const rangeZoom = document.getElementById('rangeZoom');
 function rangeZoomOninput(value) {
-  // TODO Refer to global scope scaleFig like this?
   const oldValue = scaleFig.horizontalZoom;
   scaleFig.horizontalZoom = value;
   rangeZoom.value = value;
@@ -249,30 +252,45 @@ rangeZoom.oninput = function() {
 
 const numOriginFreq = document.getElementById('numOriginFreq');
 function numOriginFreqOninput(value) {
-  // TODO Refer to global scope scaleFig like this?
   scaleFig.originFreq = value;
   numOriginFreq.value = value;
   writeURL();
 }
 numOriginFreq.oninput = function() {
-  numOriginFreqOninput(this.value);
+  numOriginFreqOninput(parseFloat(this.value));
+};
+
+const numMaxHarmNorm = document.getElementById('numMaxHarmNorm');
+function numMaxHarmNormOnchange(value) {
+  const oldValue = scaleFig.maxHarmNorm;
+  scaleFig.maxHarmNorm = value;
+  numMaxHarmNorm.value = value;
+  recolorTones();
+  reopacitateSteps();
+  if (value > oldValue) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
+  writeURL();
+}
+numMaxHarmNorm.onchange = function() {
+  numMaxHarmNormOnchange(parseFloat(this.value));
 };
 
 const numToneRadius = document.getElementById('numToneRadius');
 function numToneRadiusOninput(value) {
-  // TODO Refer to global scope scaleFig like this?
-  scaleFig.style['toneRadius'] = parseFloat(value);
+  scaleFig.style['toneRadius'] = value;
   numToneRadius.value = value;
   rescaleTones(scaleFig);
   writeURL();
 }
 numToneRadius.oninput = function() {
-  numToneRadiusOninput(this.value);
+  numToneRadiusOninput(parseFloat(this.value));
 };
 
 const toneColor = document.getElementById('toneColor');
 function toneColorOninput(value) {
-  // TODO Refer to global scope scaleFig like this?
   scaleFig.style['toneColor'] = value;
   toneColor.value = value;
   recolorTones(scaleFig);
@@ -280,6 +298,39 @@ function toneColorOninput(value) {
 }
 toneColor.oninput = function() {
   toneColorOninput(this.value);
+};
+
+const baseToneBorderColor = document.getElementById('baseToneBorderColor');
+function baseToneBorderColorOninput(value) {
+  scaleFig.style['baseToneBorderColor'] = value;
+  baseToneBorderColor.value = value;
+  recolorTones(scaleFig);
+  writeURL();
+}
+baseToneBorderColor.oninput = function() {
+  baseToneBorderColorOninput(this.value);
+};
+
+const numBaseToneBorderSize = document.getElementById('numBaseToneBorderSize');
+function numBaseToneBorderSizeOninput(value) {
+  scaleFig.style['baseToneBorderSize'] = value;
+  numBaseToneBorderSize.value = value;
+  recolorTones(scaleFig); // TODO This is heavy-handed.
+  writeURL();
+}
+numBaseToneBorderSize.oninput = function() {
+  numBaseToneBorderSizeOninput(parseFloat(this.value));
+};
+
+const cboxOpacityHarmNorm = document.getElementById('cboxOpacityHarmNorm');
+function cboxOpacityHarmNormOnclick(value) {
+  scaleFig.style['opacityHarmNorm'] = value;
+  cboxOpacityHarmNorm.checked = value;
+  reopacitateAll(scaleFig);
+  writeURL();
+}
+cboxOpacityHarmNorm.onclick = function() {
+  cboxOpacityHarmNormOnclick(this.checked);
 };
 
 function rescaleTones(scaleFig) {
@@ -294,15 +345,15 @@ function setPitchlinesVisibility(scaleFig) {
   });
 }
 
-const checkboxPitchlines = document.getElementById('checkboxPitchlines');
-function checkboxPitchlinesOnclick(value) {
+const cboxPitchlines = document.getElementById('cboxPitchlines');
+function cboxPitchlinesOnclick(value) {
   scaleFig.style['drawPitchlines'] = value;
-  checkboxPitchlines.checked = value;
+  cboxPitchlines.checked = value;
   setPitchlinesVisibility(scaleFig);
   writeURL();
 }
-checkboxPitchlines.onclick = function() {
-  checkboxPitchlinesOnclick(this.checked);
+cboxPitchlines.onclick = function() {
+  cboxPitchlinesOnclick(this.checked);
 };
 
 const colorPitchlines = document.getElementById('colorPitchlines');
@@ -389,6 +440,12 @@ function reopacitateSteps() {
       step.opacitate();
     });
   });
+}
+
+function reopacitateAll() {
+  reopacitateSteps();
+  recolorTones();
+  recolorPitchlines();
 }
 
 function recolorTones() {
@@ -763,7 +820,7 @@ class ToneObject {
 
   get relHarmNorm() {
     const hn = this.harmNorm;
-    const relHn = Math.max(1.0 - hn/scaleFig.maxHarmNorm, 0.0);
+    let relHn = Math.max(1.0 - hn/scaleFig.maxHarmNorm, 0.0);
     if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
       relHn = 1.0;
     }
@@ -817,6 +874,7 @@ class ToneObject {
 
   scaleSvgTone() {
     const svgTone = this.svgTone;
+    const style = scaleFig.style;
     let toneRadius = style['toneRadius'];
     if (this.isBase) {
       const borderSize = style['baseToneBorderSize'];
@@ -916,6 +974,150 @@ function addBaseTone(baseTone) {
   generateTones();
 }
 
+function checkTones() {
+  // Some consistency checks, for testing purposes.
+  const svgTones = [];
+  const svgPitchlines = [];
+  const svgSteps = [];
+
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    const inbounds = tone.inbounds;
+    const inclosure = tone.inclosure;
+    const isboundary = coords in scaleFig.boundaryTones;
+    svgTones.push(tone.svgTone);
+    svgPitchlines.push(tone.svgPitchline);
+
+    if (inbounds && !inclosure) {
+      const msg = `Error: tone ${coords} is inbounds but not inclosure.`;
+      console.log(msg);
+    }
+
+    // TODO Some kind of check of the fact that inbounds and inclosure should
+    // match when viewbox is large enough.
+
+    if (!inclosure && !isboundary) {
+      const msg = `Error: tone ${coords} is not inclosure, but also is not \
+boundary.`;
+      console.log(msg);
+    }
+
+    Object.entries(tone.incomingSteps).forEach(([label, step]) => {
+      const isEndpoint = step.endpoint == tone;
+      if (!isEndpoint) {
+        const msg = `Error: tone ${endpoint} claims to be the endpoint of step\
+ ${step} , but isn't actually.`;
+        console.log(msg);
+      }
+    });
+
+    Object.entries(tone.steps).forEach(([label, step]) => {
+      svgSteps.push(step.svgStep);
+      if (step.hasEndpoint) {
+        const endpoint = step.endpoint;
+        const endpointKnows = endpoint.incomingSteps[label] === step;
+        if (!endpointKnows) {
+          const msg = `Error: tone ${endpoint} is the endpoint of step ${step}\
+ , but doesn't know it.`;
+          console.log(msg);
+        }
+
+        const interval = scaleFig.stepIntervals[label].interval;
+        const endpointCoords = sumTones(tone.coords, interval);
+        if (!tonesEqual(endpointCoords, endpoint.coords)) {
+          const msg = `Error: tone ${endpoint} is the endpoint of step ${step}\
+ , but the correct endpoint is at ${endpointCoords}.`;
+          console.log(msg);
+        }
+      } else {
+        const interval = scaleFig.stepIntervals[label].interval;
+        const endpointCoords = sumTones(tone.coords, interval);
+        const endpointExists = endpointCoords in scaleFig.tones;
+        if (endpointExists) {
+          const msg = `Error: tone at ${endpointCoords} should be the endpoint 
+\of a step from ${step.origin.coords}, but no endpoint has been set.`;
+          console.log(msg);
+        }
+      }
+    });
+
+    Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
+      const hasStep = label in tone.steps;
+      if (!hasStep) {
+        const msg = `Error: tone ${tone} does not have a step ${label}.`;
+        console.log(msg);
+      }
+    });
+  });
+
+  Object.entries(scaleFig.boundaryTones).forEach(([coords, tone]) => {
+    const inclosure = tone.inclosure;
+    const intones = coords in scaleFig.tones;
+
+    if (!intones) {
+      const msg = `Error: tone ${coords} is in boundaryTones, but not in \
+tones.`;
+      console.log(msg);
+    }
+
+    if (inclosure) {
+      const msg = `Error: tone ${coords} is boundary, but also inclosure.`;
+      console.log(msg);
+    }
+  });
+
+  svgTones.forEach((svgTone) => {
+    const inGroup = scaleFig.svgGroups.tones.has(svgTone);
+    if (!inGroup) {
+      const msg = `Error: svgTone ${svgTone.id()} is not in the tone group.`;
+      console.log(msg);
+    }
+  });
+
+  svgPitchlines.forEach((svgPitchline) => {
+    const inGroup = scaleFig.svgGroups.pitchlines.has(svgPitchline);
+    if (!inGroup) {
+      const msg = `Error: svgPitchline ${svgPitchline.id()} is not in the \
+pitchline group.`;
+      console.log(msg);
+    }
+  });
+
+  svgSteps.forEach((svgStep) => {
+    const inGroup = scaleFig.svgGroups.steps.has(svgStep);
+    if (!inGroup) {
+      const msg = `Error: svgStep ${svgStep.id()} is not in the step group.`;
+      console.log(msg);
+    }
+  });
+
+  scaleFig.svgGroups.pitchlines.children().forEach((svgPitchline) => {
+    const hasParent = svgPitchlines.includes(svgPitchline);
+    if (!hasParent) {
+      const msg = `Error: svgPitchline ${svgPitchline.id()} is not the \
+pitchline of any tone.`;
+      console.log(msg);
+    }
+  });
+
+  scaleFig.svgGroups.tones.children().forEach((svgTone) => {
+    const hasParent = svgTones.includes(svgTone);
+    if (!hasParent) {
+      const msg = `Error: svgTone ${svgTone.id()} is not the \
+tone of any tone.`;
+      console.log(msg);
+    }
+  });
+
+  scaleFig.svgGroups.steps.children().forEach((svgStep) => {
+    const hasParent = svgSteps.includes(svgStep);
+    if (!hasParent) {
+      const msg = `Error: svgStep ${svgStep.id()} is not the \
+step of any tone.`;
+      console.log(msg);
+    }
+  });
+}
+
 function generateTones() {
   // TODO This doesn't work if a baseTone is outside of the viewbox closure.
   // Starting from the current boundary tones, i.e. tones that are not
@@ -927,6 +1129,7 @@ function generateTones() {
   // the end, all possible tones within the closure, and all their neighbors,
   // should exist, but the neighbors that are outside the closure should not
   // further have their neighbors generated.
+  const stepIntervals = Object.entries(scaleFig.stepIntervals);
   let roots = Object.entries(scaleFig.boundaryTones);
   while (roots.length > 0) {
     const [rootStr, rootTone] = roots.pop();
@@ -938,15 +1141,23 @@ function generateTones() {
       const added = addNeighbors(rootTone);
       roots = roots.concat(added);
       delete scaleFig.boundaryTones[rootStr];
+      // Check whether any endpointless steps would have an endpoint in one
+      // of the new tones.
+      added.forEach(([newStr, newTone]) => {
+        stepIntervals.forEach(([label, stepInterval]) => {
+          const interval = stepInterval.interval;
+          const originCoords = subtractTone(newTone.coords, interval);
+          const originStr = originCoords.toString();
+          if (!(originStr in scaleFig.tones)) return;
+          const originTone = scaleFig.tones[originStr];
+          const step = originTone.steps[label];
+          step.updateEndpoint();
+          step.position();
+          step.color();
+          step.opacitate();
+        });
+      });
     }
-    // Create steps, since root may now have new neighbors.
-    Object.entries(rootTone.steps).forEach(([label, step]) => {
-      if (step.hasEndpoint) return;
-      step.updateEndpoint();
-      step.position();
-      step.color();
-      step.opacitate();
-    });
   }
 }
 
@@ -1306,10 +1517,14 @@ const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
 
 const DEFAULT_URLPARAMS = {
   'originFreq': 440,
+  'maxHarmNorm': 8.0,
   'pitchlineColor': '#c7c7c7',
   'showPitchlines': true,
   'toneRadius': 13.0,
   'toneColor': '#ac0006',
+  'baseToneBorderColor': '#000000',
+  'baseToneBorderSize': 5.0,
+  'opacityHarmNorm': true,
   'horizontalZoom': 200,
   'axes': [
     {'yShift': shift2, 'harmDistStep': 0.0},
@@ -1331,10 +1546,14 @@ const DEFAULT_URLPARAMS = {
 
 const URLParamSetters = {
   'originFreq': numOriginFreqOninput,
+  'maxHarmNorm': numMaxHarmNormOnchange,
   'pitchlineColor': colorPitchlinesOninput,
-  'showPitchlines': checkboxPitchlinesOnclick,
+  'showPitchlines': cboxPitchlinesOnclick,
   'toneRadius': numToneRadiusOninput,
   'toneColor': toneColorOninput,
+  'baseToneBorderColor': baseToneBorderColorOninput,
+  'baseToneBorderSize': numBaseToneBorderSizeOninput,
+  'opacityHarmNorm': cboxOpacityHarmNormOnclick,
   'horizontalZoom': rangeZoomOninput,
   // TODO The way this is done with what are essentially "AxisObjects" is a
   // stylistically different from how scaleFig just stores a dictionary of
@@ -1373,6 +1592,9 @@ const URLParamGetters = {
   'originFreq': () => {
     return scaleFig.originFreq;
   },
+  'maxHarmNorm': () => {
+    return scaleFig.maxHarmNorm;
+  },
   'pitchlineColor': () => {
     return scaleFig.style['pitchlineColor'];
   },
@@ -1384,6 +1606,15 @@ const URLParamGetters = {
   },
   'toneColor': () => {
     return scaleFig.style['toneColor'];
+  },
+  'baseToneBorderColor': () => {
+    return scaleFig.style['baseToneBorderColor'];
+  },
+  'baseToneBorderSize': () => {
+    return scaleFig.style['baseToneBorderSize'];
+  },
+  'opacityHarmNorm': () => {
+    return scaleFig.style['opacityHarmNorm'];
   },
   'horizontalZoom': () => {
     return scaleFig.horizontalZoom;
@@ -1431,3 +1662,4 @@ const URLParamGetters = {
 readURL();
 writeURL();
 
+checkTones(); // TODO Only here for testing during development.
