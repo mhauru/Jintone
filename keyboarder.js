@@ -339,21 +339,42 @@ function rescaleTones(scaleFig) {
   });
 }
 
-function setPitchlinesVisibility(scaleFig) {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.setSvgPitchlineVisibility();
-  });
+function setPitchlineGroupVisibility(scaleFig) {
+  if (scaleFig.style['drawPitchlines']) {
+    scaleFig.svgGroups.pitchlines.attr('visibility', 'inherit');
+  } else {
+    scaleFig.svgGroups.pitchlines.attr('visibility', 'hidden');
+  }
+}
+
+function setStepGroupVisibility(scaleFig) {
+  if (scaleFig.style['drawSteps']) {
+    scaleFig.svgGroups.steps.attr('visibility', 'inherit');
+  } else {
+    scaleFig.svgGroups.steps.attr('visibility', 'hidden');
+  }
 }
 
 const cboxPitchlines = document.getElementById('cboxPitchlines');
 function cboxPitchlinesOnclick(value) {
   scaleFig.style['drawPitchlines'] = value;
   cboxPitchlines.checked = value;
-  setPitchlinesVisibility(scaleFig);
+  setPitchlineGroupVisibility(scaleFig);
   writeURL();
 }
 cboxPitchlines.onclick = function() {
   cboxPitchlinesOnclick(this.checked);
+};
+
+const cboxSteps = document.getElementById('cboxSteps');
+function cboxStepsOnclick(value) {
+  scaleFig.style['drawSteps'] = value;
+  cboxSteps.checked = value;
+  setStepGroupVisibility(scaleFig);
+  writeURL();
+}
+cboxSteps.onclick = function() {
+  cboxStepsOnclick(this.checked);
 };
 
 const colorPitchlines = document.getElementById('colorPitchlines');
@@ -916,7 +937,7 @@ class ToneObject {
   setSvgPitchlineVisibility() {
     const svgPitchline = this.svgPitchline;
     const relHn = this.relHarmNorm;
-    if (scaleFig.style['drawPitchlines'] && this.inbounds && relHn > 0) {
+    if (this.inbounds && relHn > 0) {
       svgPitchline.attr('visibility', 'inherit');
     } else {
       svgPitchline.attr('visibility', 'hidden');
@@ -928,8 +949,6 @@ class ToneObject {
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
     const pitchlineColor = style['pitchlineColor'];
-    // TODO Make more of these settings adjustable from Settings, and
-    // stored with scaleFig.
     svgPitchline.attr({
       'stroke': pitchlineColor,
       'stroke-width': '1.0',
@@ -1520,12 +1539,13 @@ const DEFAULT_URLPARAMS = {
   'maxHarmNorm': 8.0,
   'pitchlineColor': '#c7c7c7',
   'showPitchlines': true,
-  'toneRadius': 13.0,
+  'showSteps': true,
+  'toneRadius': 20.0,
   'toneColor': '#ac0006',
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
   'opacityHarmNorm': true,
-  'horizontalZoom': 200,
+  'horizontalZoom': 300,
   'axes': [
     {'yShift': shift2, 'harmDistStep': 0.0},
     {'yShift': shift3, 'harmDistStep': 0.2},
@@ -1549,6 +1569,7 @@ const URLParamSetters = {
   'maxHarmNorm': numMaxHarmNormOnchange,
   'pitchlineColor': colorPitchlinesOninput,
   'showPitchlines': cboxPitchlinesOnclick,
+  'showSteps': cboxStepsOnclick,
   'toneRadius': numToneRadiusOninput,
   'toneColor': toneColorOninput,
   'baseToneBorderColor': baseToneBorderColorOninput,
@@ -1600,6 +1621,9 @@ const URLParamGetters = {
   },
   'showPitchlines': () => {
     return scaleFig.style['drawPitchlines'];
+  },
+  'showSteps': () => {
+    return scaleFig.style['drawSteps'];
   },
   'toneRadius': () => {
     return scaleFig.style['toneRadius'];
