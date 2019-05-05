@@ -397,6 +397,24 @@ buttAddInterval.onclick = function() {
   buttAddIntervalOnclick(this.checked);
 };
 
+const buttAddAxis = document.getElementById('buttAddAxis');
+function buttAddAxisOnclick(value) {
+  addAxis();
+  writeURL();
+}
+buttAddAxis.onclick = function() {
+  buttAddAxisOnclick(this.checked);
+};
+
+const buttRemoveAxis = document.getElementById('buttRemoveAxis');
+function buttRemoveAxisOnclick(value) {
+  removeAxis();
+  writeURL();
+}
+buttRemoveAxis.onclick = function() {
+  buttRemoveAxisOnclick(this.checked);
+};
+
 const colorPitchlines = document.getElementById('colorPitchlines');
 function colorPitchlinesOninput(value) {
   scaleFig.style['pitchlineColor'] = value;
@@ -820,7 +838,7 @@ class ToneObject {
   // the data, avoiding recomputation if nothing has changed.
   constructor(coordinates, isBase) {
     this.coords = coordinates;
-    this.IsBase_ = isBase;
+    this._isBase_ = isBase;
     this.steps = {};
     this.incomingSteps = {};
 
@@ -858,7 +876,7 @@ class ToneObject {
   }
 
   set isBase(value) {
-    this.IsBase_ = value;
+    this._isBase_ = value;
     this.colorSvgTone();
     this.scaleSvgTone();
   }
@@ -903,7 +921,7 @@ class ToneObject {
     const harmDists = [];
     for (let i = 0; i < scaleFig.baseTones.length; i += 1) {
       const bt = scaleFig.baseTones[i];
-      // TODO Remove explicit argument scale?
+      // TODO Remove explicit argument scaleFig?
       const dist = harmDist(scaleFig, this.coords, bt);
       harmDists.push(dist);
     }
@@ -1051,7 +1069,7 @@ class ToneObject {
 }
 
 function addBaseTone(baseTone) {
-  scaleFig.baseTones.push(baseTone);
+  scaleFig.baseTones.push(baseTone.slice());
   const btStr = baseTone.toString();
   if (btStr in scaleFig.tones) {
     scaleFig.tones[btStr].isBase = true;
@@ -1420,28 +1438,90 @@ function addAxis() {
   };
 
   yShiftOnchange(prime, 0.0);
-  harmDistStepOnchange(prime, Infinity);
+  harmDistStepOnchange(prime, scaleFig.maxHarmNorm);
 
   scaleFig.primes.push(prime);
 
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    newCoords = coords.slice();
-    newCoords.push(0);
+  scaleFig.baseTones.forEach((baseTone) => {
+    baseTone.push(0);
+  });
 
-    delete scaleFig.tones[coords];
-    scaleFig.tones[newCoords] = tone;
-    if (coords in scaleFig.boundaryTones) {
-      delete scaleFig.boundaryTones[coords];
-      scaleFig.boundaryTones[newCoords] = tone;
+  Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
+    const coords = tone.coords;
+    const newCoords = coords.slice();
+    newCoords.push(0);
+    const newCoordsStr = newCoords.toString();
+
+    delete scaleFig.tones[coordsStr];
+    scaleFig.tones[newCoordsStr] = tone;
+    if (coordsStr in scaleFig.boundaryTones) {
+      delete scaleFig.boundaryTones[coordsStr];
     }
+    // Now that there's a new axis, but every tone has coordinate 0 on it, all
+    // of them are boundary.
+    scaleFig.boundaryTones[newCoordsStr] = tone;
 
     tone.coords = newCoords;
   });
 
   Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
-    interval = stepInterval.interval;
-    newInterval = interval.slice();
+    const interval = stepInterval.interval;
+    const newInterval = interval.slice();
     newInterval.push(0);
+    stepInterval.interval = newInterval;
+  });
+
+  // TODO Should we also call generateTones here? That harmDistStep is infinity
+  // means that none would be visible, but we are breaking the rule of having
+  // all the neighbours of all inbounds tones exist. Then again, maybe that
+  // rule should be given up, if we give up drawing dangling steps.
+}
+
+function removeAxis() {
+  const primes = scaleFig.primes;
+  const numPrimes = primes.length;
+  const prime = primes[numPrimes-1];
+  scaleFig.primes = primes.slice(0, numPrimes-1);
+  const divAxis = document.getElementById(`divAxis_${prime}`);
+  document.getElementById('contentAxes').removeChild(divAxis);
+
+  let i = 0;
+  while (i < scaleFig.baseTones.length) {
+    if (scaleFig.baseTones[i][numPrimes-1] != 0) {
+      scaleFig.baseTones.splice(i, 1);
+    } else {
+      scaleFig.baseTones[i].splice(numPrimes - 1, 1);
+      i++;
+    }
+  }
+
+  Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
+    const coords = tone.coords;
+    if (coords[numPrimes-1] != 0) {
+      // TODO Turn this into a function removeTone?
+      tone.destroy();
+      delete scaleFig.tones[coordsStr];
+      if (coordsStr in scaleFig.boundaryTones) {
+        delete scaleFig.boundaryTones[coordsStr];
+      }
+    } else {
+      const newCoords = coords.slice(0, numPrimes-1);
+      const newCoordsStr = newCoords.toString();
+      delete scaleFig.tones[coordsStr];
+      scaleFig.tones[newCoordsStr] = tone;
+      if (coordsStr in scaleFig.boundaryTones) {
+        // TODO Is it an issue that after the removal of one axis a tone may no
+        // longer be boundary, but we still keep it in boundaryTones?
+        delete scaleFig.boundaryTones[coordsStr];
+        scaleFig.boundaryTones[newCoordsStr] = tone;
+      }
+      tone.coords = newCoords;
+    }
+  });
+
+  Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
+    const interval = stepInterval.interval;
+    const newInterval = interval.slice(0, numPrimes-1);
     stepInterval.interval = newInterval;
   });
 }
@@ -1508,23 +1588,23 @@ headGeneral.onclick = function() {
   setGeneralExpanded(!scaleFig.style['generalExpanded']);
 };
 
-function setAxesExpanded(expanded) {
-  scaleFig.style['axesExpanded'] = expanded;
-  const contentAxes = document.getElementById('contentAxes');
-  const iconAxes = document.getElementById('iconAxes');
+function setTonesExpanded(expanded) {
+  scaleFig.style['tonesExpanded'] = expanded;
+  const contentTones = document.getElementById('contentTones');
+  const iconTones = document.getElementById('iconTones');
   if (expanded) {
-    iconAxes.style.transform = 'rotate(-90deg)';
-    contentAxes.style.display = 'block';
+    iconTones.style.transform = 'rotate(-90deg)';
+    contentTones.style.display = 'block';
   } else {
-    iconAxes.style.transform = 'rotate(90deg)';
-    contentAxes.style.display = 'none';
+    iconTones.style.transform = 'rotate(90deg)';
+    contentTones.style.display = 'none';
   }
   writeURL();
 };
 
-const headAxes = document.getElementById('headAxes');
-headAxes.onclick = function() {
-  setAxesExpanded(!scaleFig.style['axesExpanded']);
+const headTones = document.getElementById('headTones');
+headTones.onclick = function() {
+  setTonesExpanded(!scaleFig.style['tonesExpanded']);
 };
 
 function setStepIntervalsExpanded(expanded) {
@@ -1576,10 +1656,6 @@ function writeURL() {
   const newURL = window.location.pathname + '?' + queryStr;
   window.history.replaceState(null, '', newURL);
 }
-
-// TODO Implement this
-// function removeAxis() {
-// }
 
 // Manually chosen yShifts for nice spacing.
 // const verticalZoom = 250
@@ -1636,7 +1712,7 @@ const DEFAULT_URLPARAMS = {
   ],
   'settingsExpanded': true,
   'generalExpanded': true,
-  'axesExpanded': false,
+  'tonesExpanded': false,
   'stepIntervalsExpanded': false,
   'styleExpanded': false,
 };
@@ -1682,7 +1758,7 @@ const URLParamSetters = {
   },
   'settingsExpanded': setSettingsExpanded,
   'generalExpanded': setGeneralExpanded,
-  'axesExpanded': setAxesExpanded,
+  'tonesExpanded': setTonesExpanded,
   'stepIntervalsExpanded': setStepIntervalsExpanded,
   'styleExpanded': setStyleExpanded,
 };
@@ -1751,8 +1827,8 @@ const URLParamGetters = {
   'generalExpanded': () => {
     return scaleFig.style['generalExpanded'];
   },
-  'axesExpanded': () => {
-    return scaleFig.style['axesExpanded'];
+  'tonesExpanded': () => {
+    return scaleFig.style['tonesExpanded'];
   },
   'stepIntervalsExpanded': () => {
     return scaleFig.style['stepIntervalsExpanded'];
