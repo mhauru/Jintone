@@ -17,7 +17,6 @@ Possibilities:
 - In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 Next:
-- Add buttons for adding and removing axes and generating intervals.
 - A UI element for adding and removing base tones.
 
 - Add a dropdown menu with preset options.
@@ -25,8 +24,8 @@ Next:
 - Add a volume slider.
 - Make pitchlines not show under tones.
 
-- At the bottom, create a whole functional piano keyboard. Make it collapsible.
-- Add a horizontal axis that shows frequency, and/or maybe tone names. Or is this made unnecessary by the keyboard? What about when the keyboard is collapsed?
+- Make the height of the keyboard adjustable.
+- Should the keyboard carry tone names?
 - Implement vertical zoom.
 - Reposition the zoom slider(s) to be along the axes of the canvas somehow.
 - Put limits on horizontal zoom at the hearing thresholds.
@@ -41,6 +40,8 @@ Next:
 - Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
 - Before the first note is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info."
 
+- Make both keys and tones display if they are being played, maybe with fill color and/or border style.
+- Make a common way for inputting intervals and base tones.
 - Redo the representation of intervals in the UI.
 - Redo the representation of axes in the UI.
 - Make the linestyles of pitchlines, intervals, and base tone borders adjustable.

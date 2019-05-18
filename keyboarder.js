@@ -9,6 +9,8 @@ const ALLPRIMES = [
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
   73, 79, 83, 89, 97,
 ];
+const tetfactor = Math.pow(2, 1/12);
+const tetfactorlog = Math.log2(tetfactor);
 const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -147,6 +149,8 @@ function pitchFactor(interval) {
 // scaleFig should be a global constant.
 
 const canvas = new SVG('divCanvas');
+const keyCanvas = new SVG('divKeyCanvas');
+keyCanvas.attr('preserveAspectRatio', 'none');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
 const gPitchlines = canvas.group();
@@ -160,6 +164,8 @@ const svgGroups = {
 
 const scaleFig = {
   'canvas': canvas,
+  'keyCanvas': keyCanvas,
+  'keys': [],
   'svgGroups': svgGroups,
   'horizontalZoom': 1,
   'yShifts': {},
@@ -178,11 +184,18 @@ const scaleFig = {
 };
 
 function resizeCanvas() {
-  const div = document.getElementById('divCanvas');
-  const h = div.clientHeight;
-  const w = div.clientWidth;
-  const c = scaleFig.canvas;
-  c.viewbox(-w/2, -h/2, w, h);
+  const divCanvas = document.getElementById('divCanvas');
+  const h = divCanvas.clientHeight;
+  const w = divCanvas.clientWidth;
+  const canvas = scaleFig.canvas;
+  canvas.viewbox(-w/2, -h/2, w, h);
+}
+
+function resizeKeyCanvas() {
+  const divKeyCanvas = document.getElementById('divKeyCanvas');
+  const w = divKeyCanvas.clientWidth;
+  const keyCanvas = scaleFig.keyCanvas;
+  keyCanvas.viewbox(-w/2, 0, w, 1);
 }
 
 function resizeSettings() {
@@ -195,6 +208,7 @@ function resizeSettings() {
 
 window.onresize = function(evt) {
   resizeCanvas();
+  resizeKeyCanvas();
   resizeSettings();
 };
 
@@ -251,6 +265,12 @@ function rangeZoomOninput(value) {
   } else {
     deleteTones();
   }
+
+  scaleFig.keys.forEach((key) => {
+    key.scaleSvg();
+    key.positionSvg();
+  });
+
   writeURL();
 }
 rangeZoom.oninput = function() {
@@ -372,6 +392,32 @@ function cboxPitchlinesOnclick(value) {
 cboxPitchlines.onclick = function() {
   cboxPitchlinesOnclick(this.checked);
 };
+
+const cboxKeys = document.getElementById('cboxKeys');
+function cboxKeysOnclick(value) {
+  cboxKeys.checked = value;
+  scaleFig['showKeys'] = value;
+  setKeysExpanded();
+  writeURL();
+}
+cboxKeys.onclick = function() {
+  cboxKeysOnclick(this.checked);
+};
+
+function setKeysExpanded() {
+  const show = scaleFig['showKeys'];
+  const divCanvas = document.getElementById('divCanvas');
+  const divKeyCanvas = document.getElementById('divKeyCanvas');
+  if (show) {
+    divCanvas.style.height = '80%';
+    divKeyCanvas.style.height = '20%';
+  } else {
+    divCanvas.style.height = '100%';
+    divKeyCanvas.style.height = '0%';
+  }
+  resizeCanvas();
+  resizeKeyCanvas();
+}
 
 const cboxSteps = document.getElementById('cboxSteps');
 function cboxStepsOnclick(value) {
@@ -1536,12 +1582,152 @@ function readURL() {
   });
 }
 
+class Key {
+  constructor(frequency, type) {
+    this.frequency = frequency;
+    this.type = type;
+    this.createSvg();
+    this.setListeners();
+    this.scaleSvg();
+    this.positionSvg();
+  }
+
+  createSvg() {
+    const container = scaleFig.keyCanvas;
+    // TODO Make this a global constant, or at least set elsewhere.
+    const tf = tetfactorlog;
+    const ht = tf/2;
+    const bh = 2/3;
+    let str;
+    if (this.type == 'C') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+tf*prot},${bh}\
+             ${ht+tf*prot},1 ${-ht},1`;
+    } else if (this.type == 'D') {
+      const protl = 1/3;
+      const protr = 1/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+tf*protr},${bh}\
+             ${ht+tf*protr},1 ${-ht-tf*protl},1\
+             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'E') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},1 ${-ht-tf*prot},1\
+             ${-ht-tf*prot},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'F') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+tf*prot},${bh}\
+             ${ht+tf*prot},1 ${-ht},1`;
+    } else if (this.type == 'G') {
+      const protl = 1/3;
+      const protr = 1/2;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+tf*protr},${bh}\
+             ${ht+tf*protr},1 ${-ht-tf*protl},1\
+             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'A') {
+      const protl = 1/2;
+      const protr = 1/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+tf*protr},${bh}\
+             ${ht+tf*protr},1 ${-ht-tf*protl},1\
+             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'B') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},1 ${-ht-tf*prot},1\
+             ${-ht-tf*prot},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'black') {
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${-ht},${bh}`;
+    }
+    const group = container.group();
+    const svgKey = group.polygon(str);
+    const mx = tf*0.05;
+    const my = 0.1;
+    const markerStr = `${-mx},0 ${mx},0 ${mx},${my} ${-mx},${my}`;
+    const svgMarker = group.polygon(markerStr);
+
+    const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
+    svgKey.attr({
+      'fill': keyColor,
+      'stroke-width': '0.001',
+    });
+
+    const markerColor = '#888888';
+    svgMarker.attr({
+      'fill': markerColor,
+    });
+
+    this.svg = group;
+  }
+
+  setListeners() {
+    const t = this;
+    function toneOn(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      startTone(t.frequency);
+    };
+    function toneOff(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      stopTone(t.frequency);
+    };
+    const svg = this.svg;
+    svg.mousedown(toneOn);
+    svg.mouseup(toneOff);
+    svg.mouseleave(toneOff);
+    svg.touchstart(toneOn);
+    svg.touchend(toneOff);
+    svg.touchleave(toneOff);
+    svg.touchcancel(toneOff);
+  }
+
+  get pos() {
+    // TODO This assumes that the originTone is always in the middle of the SVG
+    // drawing. I think this will change at some point.
+    const frequencyRatio = this.frequency/scaleFig.originFreq;
+    return scaleFig.horizontalZoom * Math.log2(frequencyRatio);
+  }
+
+  positionSvg() {
+    this.svg.translate(this.pos, 0);
+  }
+
+  scaleSvg() {
+    const svg = this.svg;
+    const xscale = scaleFig.horizontalZoom;
+    svg.scale(xscale, 1);
+  }
+}
+
+function addKeys() {
+  // TODO Make this a global constant?
+  const toneNames = [
+    'C', 'black', 'D', 'black', 'E', 'F', 'black', 'G', 'black', 'A', 'black',
+    'B',
+  ];
+  for (let octave = -1; octave < 10; octave++) {
+    const baseFrequency = 440*Math.pow(2, octave-4);
+    for (let i = 0; i < 12; i++) {
+      const frequency = baseFrequency * Math.pow(tetfactor, i);
+      const newKey = new Key(frequency, toneNames[i]);
+      scaleFig.keys.push(newKey);
+    }
+  }
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 function setSettingsExpanded(expanded) {
   scaleFig.style['settingsExpanded'] = expanded;
   const divSettings = document.getElementById('divSettings');
   const divCanvas = document.getElementById('divCanvas');
+  const divKeyCanvas = document.getElementById('divKeyCanvas');
   const button = document.getElementById('buttToggleSettings');
   if (expanded) {
     button.style.transform = '';
@@ -1550,6 +1736,7 @@ function setSettingsExpanded(expanded) {
     button.style.right = '20%';
     divSettings.style.right = '0';
     divCanvas.style.width = '80%';
+    divKeyCanvas.style.width = '80%';
   } else {
     button.style.transform = 'scale(-1, 1)';
     button.style.borderRight = '1px solid black';
@@ -1557,8 +1744,10 @@ function setSettingsExpanded(expanded) {
     button.style.right = 0;
     divSettings.style.right = '-20%';
     divCanvas.style.width = '100%';
+    divKeyCanvas.style.width = '100%';
   }
   resizeCanvas();
+  resizeKeyCanvas();
   writeURL();
 }
 
@@ -1692,6 +1881,7 @@ const DEFAULT_URLPARAMS = {
   'maxHarmNorm': 8.0,
   'pitchlineColor': '#c7c7c7',
   'showPitchlines': true,
+  'showKeys': true,
   'showSteps': true,
   'toneRadius': 20.0,
   'toneColor': '#ac0006',
@@ -1722,6 +1912,7 @@ const URLParamSetters = {
   'maxHarmNorm': numMaxHarmNormOnchange,
   'pitchlineColor': colorPitchlinesOninput,
   'showPitchlines': cboxPitchlinesOnclick,
+  'showKeys': cboxKeysOnclick,
   'showSteps': cboxStepsOnclick,
   'toneRadius': numToneRadiusOninput,
   'toneColor': toneColorOninput,
@@ -1775,6 +1966,9 @@ const URLParamGetters = {
   },
   'showPitchlines': () => {
     return scaleFig.style['drawPitchlines'];
+  },
+  'showKeys': () => {
+    return scaleFig['showKeys'];
   },
   'showSteps': () => {
     return scaleFig.style['drawSteps'];
@@ -1839,7 +2033,9 @@ const URLParamGetters = {
 };
 
 resizeCanvas();
+resizeKeyCanvas();
 resizeSettings();
+addKeys();
 
 readURL();
 writeURL();

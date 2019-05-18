@@ -5,7 +5,10 @@
     <title>Keyboarder</title>
 </head>
 <body>
-    <div id="divCanvas" style="box-sizing: border-box;overflow: hidden;width: 80%;height: 100%;border: 0px;position: absolute;top: 0;left: 0; margin: 0;padding: 0;"></div>
+    <div id="divCanvas" style="box-sizing: border-box;overflow: hidden;width: 80%;height: 80%;border: 0px;position: absolute;top: 0;left: 0; margin: 0;padding: 0;"></div>
+
+    <div id="divKeyCanvas" style="box-sizing: border-box;overflow: hidden;width: 80%;height: 20%;border: 0px;position: absolute;top: 80%;left: 0; margin: 0;padding: 0;"></div>
+
     <h2 id="buttToggleSettings", style="background: white;position: absolute;top: 0; right: 20%;border: 1px solid black;padding:15px;margin:0px;border-right: none;border-top: none">
       <img id="iconSettings" style="vertical-align:middle;height: 1em;width: 1em;transform:;" src="arrowheads.svg"/>
     </h2>
@@ -67,6 +70,12 @@
             </p>
 
             <p>
+            <label> Show 12-TET keyboard
+              <input id="cboxKeys" type="checkbox">
+            </label><br>
+            </p>
+
+            <p>
             <label> Opacity by harmonic norm
               <input id="cboxOpacityHarmNorm" type="checkbox">
             </label>
@@ -81,6 +90,10 @@
           </h3>
           <div id="contentTones">
             <div id="contentBaseTones">
+              <!--
+              <input id="inNewBaseTone" type="text">
+              <button id="buttAddBaseTones">Add base tone</button>
+              --!>
             </div>
             <div id="contentAxes">
             </div>
