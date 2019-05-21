@@ -1646,7 +1646,7 @@ class Key {
     }
     const group = container.group();
     const svgKey = group.polygon(str);
-    const mx = tf*0.05;
+    const mx = tf*0.01;
     const my = 0.1;
     const markerStr = `${-mx},0 ${mx},0 ${mx},${my} ${-mx},${my}`;
     const svgMarker = group.polygon(markerStr);
@@ -1867,14 +1867,14 @@ function writeURL() {
 // }
 
 // Rectilinear projection of 3D lattice.
-const phi = 2.0*Math.PI*0.75; // Angle of the lattice against the projection
-const spios = Math.sin(Math.PI/6.0);
-const k = 1.0/(1.0 + spios);
-// TODO This constant 200.0 is just the default horizontalZoom.
-const s = 200.0*(1.0+1.0/spios); // Scale
-const shift2 = Math.log2(2.0) * s*k * Math.cos(phi);
-const shift3 = Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
-const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
+// const phi = 2.0*Math.PI*0.75; // Angle of the lattice against the projection
+// const spios = Math.sin(Math.PI/6.0);
+// const k = 1.0/(1.0 + spios);
+// // TODO This constant 200.0 is just the default horizontalZoom.
+// const s = 200.0*(1.0+1.0/spios); // Scale
+// const shift2 = Math.log2(2.0) * s*k * Math.cos(phi);
+// const shift3 = Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
+// const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
 
 const DEFAULT_URLPARAMS = {
   'originFreq': 440,
@@ -1884,21 +1884,21 @@ const DEFAULT_URLPARAMS = {
   'showKeys': true,
   'showSteps': true,
   'toneRadius': 20.0,
-  'toneColor': '#ac0006',
+  'toneColor': '#D82A1E',
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
   'opacityHarmNorm': true,
   'horizontalZoom': 300,
   'axes': [
-    {'yShift': shift2, 'harmDistStep': 0.0},
-    {'yShift': shift3, 'harmDistStep': 0.2},
-    {'yShift': shift5, 'harmDistStep': 3.0},
+    {'yShift': 0, 'harmDistStep': 0.0},
+    {'yShift': 151, 'harmDistStep': 1.5},
+    {'yShift': 47, 'harmDistStep': 2.5},
   ],
   'baseTones': [[0, 0, 0]],
   'stepIntervals': [
-    {'interval': [1, 0, 0], 'color': '#000000', 'show': true},
-    {'interval': [-1, 1, 0], 'color': '#001bac', 'show': true},
-    {'interval': [-2, 0, 1], 'color': '#ac5f00', 'show': true},
+    {'interval': [1, 0, 0], 'color': '#1d181e', 'show': true},
+    {'interval': [-1, 1, 0], 'color': '#17726F', 'show': true},
+    {'interval': [-2, 0, 1], 'color': '#774579', 'show': true},
   ],
   'settingsExpanded': true,
   'generalExpanded': true,
