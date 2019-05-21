@@ -1883,7 +1883,7 @@ const DEFAULT_URLPARAMS = {
   'showPitchlines': true,
   'showKeys': true,
   'showSteps': true,
-  'toneRadius': 20.0,
+  'toneRadius': 22.0,
   'toneColor': '#D82A1E',
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
@@ -1892,7 +1892,7 @@ const DEFAULT_URLPARAMS = {
   'axes': [
     {'yShift': 0, 'harmDistStep': 0.0},
     {'yShift': 151, 'harmDistStep': 1.5},
-    {'yShift': 47, 'harmDistStep': 2.5},
+    {'yShift': 47, 'harmDistStep': 2.7},
   ],
   'baseTones': [[0, 0, 0]],
   'stepIntervals': [
