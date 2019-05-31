@@ -19,6 +19,8 @@ Possibilities:
 TODO:
 
 Next:
+- Fix origin frequency refering to C, not to A.
+- Fix base tone border not showing.
 - A UI element for adding and removing base tones.
 - Add a dial with three options: No names; note names (A, F#, etc.); intervals (fractions). Have them float next to the buttons, maybe directly above.
 - Highlight the tone and the pitchline of tones that are playing. Maybe have the edges of the tone vibrate with a frequency proportional to the tone frequency?
@@ -26,7 +28,7 @@ Next:
 
 Convenience:
 - Make the height of the keyboard adjustable.
-- Add a dropdown menu with preset options.
+- Add a dropdown menu with preset options. (Note: Pythogorean should be one.)
 - Add a volume slider.
 - Make pitchlines not show under tones.
 
@@ -42,6 +44,8 @@ Possible improvements:
 - Visualize the vertical gap being adjusted when changing y-shifts?
 - Could we somehow color the tones based on their prime decomposition, with each prime associated with some color?
 - Could we output midi files on request?
+- Add an option for tone labels in the Ben Johnston notation: https://kylegann.com/BJNotation.html
+- Shift+click on tones to leave them on until next click on the same tone? Maybe have a touchable button on the screen that does the same thing too? Or make it work like a piano pedal, where the tones stop playing ones that button/shift is released?
 
 Help:
 - Implement the help/info page/overlay.
@@ -52,6 +56,7 @@ Style:
 - Make a common way for inputting intervals and base tones.
 - Redo the representation of intervals in the UI.
 - Redo the representation of axes in the UI.
+- When ever an interval in the UI is given as a decimal, also give the cents.
 - Make the linestyles of pitchlines, intervals, and base tone borders adjustable.
 - Make the background color adjustable, and set it to black by default.
 - Create color presets, at least one dark and one light.

@@ -3,15 +3,46 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
+const SQRT2 = Math.sqrt(2);
 // TODO Turn this into a generator that actually returns arbitrarily many
 // primes.
 const ALLPRIMES = [
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
   73, 79, 83, 89, 97,
 ];
-const tetfactor = Math.pow(2, 1/12);
-const tetfactorlog = Math.log2(tetfactor);
+const edofactor = Math.pow(2, 1/12);
+const edofactorlog = Math.log2(edofactor);
 const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
+
+const EDOTones = [];
+
+function generateEDOTones() {
+  const keytypes = [
+    'C', 'black', 'D', 'black', 'E', 'F', 'black', 'G', 'black', 'A', 'black',
+    'B',
+  ];
+  const letters = [
+    'C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯',
+    'B',
+  ];
+  for (let octave = -1; octave < 10; octave++) {
+    const baseFrequency = 440*Math.pow(2, octave-4);
+    for (let i = 0; i < 12; i++) {
+      const frequency = baseFrequency * Math.pow(edofactor, i);
+      const letter = letters[i];
+      const keytype = keytypes[i];
+      const EDOTone = {
+        'frequency': frequency,
+        'letter': letter,
+        'octave': octave,
+        'keytype': keytype,
+      };
+      EDOTones.push(EDOTone);
+    }
+  }
+}
+
+generateEDOTones();
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Functions for arithmetic with coordinate representations of tones.
@@ -315,6 +346,31 @@ function numToneRadiusOninput(value) {
 numToneRadius.oninput = function() {
   numToneRadiusOninput(parseFloat(this.value));
 };
+
+const radioToneLabelNone = document.getElementById('radioToneLabelNone');
+const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
+function radioToneLabelOnclick(value) {
+  scaleFig.labelTextStyle = value;
+  if (value == 'EDO') {
+    radioToneLabelEDO.checked = true;
+  } else if (value == 'none') {
+    radioToneLabelNone.checked = true;
+  }
+  relabelTones();
+  writeURL();
+}
+radioToneLabelEDO.onclick = function() {
+  radioToneLabelOnclick(this.value);
+};
+radioToneLabelNone.onclick = function() {
+  radioToneLabelOnclick(this.value);
+};
+
+function relabelTones() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.setLabelText();
+  });
+}
 
 const toneColor = document.getElementById('toneColor');
 function toneColorOninput(value) {
@@ -888,11 +944,14 @@ class ToneObject {
     this.steps = {};
     this.incomingSteps = {};
 
-    this.svgTone = scaleFig.svgGroups['tones'].circle(1.0);
+    this.svgTone = scaleFig.svgGroups['tones'].group();
+    this.svgCircle = this.svgTone.circle(1.0);
+    this.svgLabel = this.svgTone.text('');
     // TODO Where do these numbers come from?
     const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
     this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
     this.positionSvg();
+    this.setLabelText();
     this.colorSvg();
     this.scaleSvgTone();
     this.setListeners();
@@ -1003,6 +1062,48 @@ class ToneObject {
     return harmClose && inViewclosure;
   }
 
+  setLabelText() {
+    let labelText;
+    const frequency = this.frequency;
+    if (scaleFig.labelTextStyle == 'EDO') {
+      let i = 0;
+      // Note that we rely on EDOTones being in rising order of pitch.
+      while (i < EDOTones.length - 2) {
+        if (EDOTones[i+1].frequency > frequency) break;
+        i++;
+      }
+      const lowerNeighbor = EDOTones[i].frequency;
+      const heigherNeighbor = EDOTones[i+1].frequency;
+      const lowerDistance = Math.abs(lowerNeighbor - frequency);
+      const heigherDistance = Math.abs(heigherNeighbor - frequency);
+      let neighbor;
+      if (lowerDistance < heigherDistance) {
+        neighbor = EDOTones[i];
+      } else {
+        neighbor = EDOTones[i+1];
+      }
+      // TODO An experimental constant to position the subscript. Unfortunately
+      // Firefox doesn't support baseline-shift.
+      // TODO This should be a percentage of font-size, but it's not. I don't
+      // know what it's a percentage of.
+      const subShift = '1%';
+      const subFontSize = '90%';
+      labelText = (add) => {
+        add.tspan(`${neighbor.letter}`);
+        add.tspan(`${neighbor.octave}`).attr({
+          'dy': subShift,
+          'font-size': subFontSize,
+        });
+      };
+    } else if (scaleFig.labelTextStyle == 'none') {
+      labelText = '';
+    } else {
+      labelText = '';
+    }
+    this.svgLabel.text(labelText);
+    this.svgLabel.center(0, 0);
+  }
+
   addSteps() {
     Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
       if (label in this.steps) return;
@@ -1026,45 +1127,53 @@ class ToneObject {
   }
 
   positionSvgTone() {
-    this.svgTone.attr({
-      'cx': this.xpos,
-      'cy': this.ypos,
-    });
+    this.svgTone.move(this.xpos, this.ypos);
   }
 
   scaleSvgTone() {
-    const svgTone = this.svgTone;
+    const svgCircle = this.svgCircle;
+    const svgLabel = this.svgLabel;
     const style = scaleFig.style;
     let toneRadius = style['toneRadius'];
     if (this.isBase) {
       const borderSize = style['baseToneBorderSize'];
       toneRadius = toneRadius + borderSize/2;
     }
-    svgTone.radius(toneRadius);
+    svgCircle.radius(toneRadius);
     Object.entries(this.steps).forEach(([label, step]) => {
       step.position();
     });
+    // TODO This is just an experimental numerical constant, figure out
+    // something better.
+    const fontSize = toneRadius;
+    svgLabel.attr('font-size', fontSize);
+    svgLabel.center(0, 0);
   }
 
   colorSvgTone() {
     const svgTone = this.svgTone;
+    const svgCircle = this.svgCircle;
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
     const toneColor = style['toneColor'];
     if (this.isBase) {
       const borderColor = style['baseToneBorderColor'];
       const borderSize = style['baseToneBorderSize'];
-      svgTone.attr({
+      svgCircle.attr({
         'fill': toneColor,
-        'fill-opacity': relHn,
         'stroke': borderColor,
         'stroke-width': borderSize,
       });
-    } else {
       svgTone.attr({
-        'fill': toneColor,
         'fill-opacity': relHn,
+      });
+    } else {
+      svgCircle.attr({
+        'fill': toneColor,
         'stroke-width': 0.0,
+      });
+      svgTone.attr({
+        'fill-opacity': relHn,
       });
     }
   }
@@ -1595,58 +1704,58 @@ class Key {
   createSvg() {
     const container = scaleFig.keyCanvas;
     // TODO Make this a global constant, or at least set elsewhere.
-    const tf = tetfactorlog;
-    const ht = tf/2;
+    const ef = edofactorlog;
+    const ht = ef/2;
     const bh = 2/3;
     let str;
     if (this.type == 'C') {
       const prot = 2/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+tf*prot},${bh}\
-             ${ht+tf*prot},1 ${-ht},1`;
+             ${ht},${bh} ${ht+ef*prot},${bh}\
+             ${ht+ef*prot},1 ${-ht},1`;
     } else if (this.type == 'D') {
       const protl = 1/3;
       const protr = 1/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+tf*protr},${bh}\
-             ${ht+tf*protr},1 ${-ht-tf*protl},1\
-             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
     } else if (this.type == 'E') {
       const prot = 2/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},1 ${-ht-tf*prot},1\
-             ${-ht-tf*prot},${bh} ${-ht},${bh}`;
+             ${ht},1 ${-ht-ef*prot},1\
+             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
     } else if (this.type == 'F') {
       const prot = 2/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+tf*prot},${bh}\
-             ${ht+tf*prot},1 ${-ht},1`;
+             ${ht},${bh} ${ht+ef*prot},${bh}\
+             ${ht+ef*prot},1 ${-ht},1`;
     } else if (this.type == 'G') {
       const protl = 1/3;
       const protr = 1/2;
       str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+tf*protr},${bh}\
-             ${ht+tf*protr},1 ${-ht-tf*protl},1\
-             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
     } else if (this.type == 'A') {
       const protl = 1/2;
       const protr = 1/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+tf*protr},${bh}\
-             ${ht+tf*protr},1 ${-ht-tf*protl},1\
-             ${-ht-tf*protl},${bh} ${-ht},${bh}`;
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
     } else if (this.type == 'B') {
       const prot = 2/3;
       str = `${-ht},0, ${ht},0\
-             ${ht},1 ${-ht-tf*prot},1\
-             ${-ht-tf*prot},${bh} ${-ht},${bh}`;
+             ${ht},1 ${-ht-ef*prot},1\
+             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
     } else if (this.type == 'black') {
       str = `${-ht},0, ${ht},0\
              ${ht},${bh} ${-ht},${bh}`;
     }
     const group = container.group();
     const svgKey = group.polygon(str);
-    const mx = tf*0.01;
+    const mx = ef*0.01;
     const my = 0.1;
     const markerStr = `${-mx},0 ${mx},0 ${mx},${my} ${-mx},${my}`;
     const svgMarker = group.polygon(markerStr);
@@ -1706,19 +1815,10 @@ class Key {
 }
 
 function addKeys() {
-  // TODO Make this a global constant?
-  const toneNames = [
-    'C', 'black', 'D', 'black', 'E', 'F', 'black', 'G', 'black', 'A', 'black',
-    'B',
-  ];
-  for (let octave = -1; octave < 10; octave++) {
-    const baseFrequency = 440*Math.pow(2, octave-4);
-    for (let i = 0; i < 12; i++) {
-      const frequency = baseFrequency * Math.pow(tetfactor, i);
-      const newKey = new Key(frequency, toneNames[i]);
-      scaleFig.keys.push(newKey);
-    }
-  }
+  EDOTones.forEach((EDOTone) => {
+    const key = new Key(EDOTone.frequency, EDOTone.keytype);
+    scaleFig.keys.push(key);
+  });
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1884,6 +1984,7 @@ const DEFAULT_URLPARAMS = {
   'showKeys': true,
   'showSteps': true,
   'toneRadius': 22.0,
+  'toneLabelTextStyle': 'EDO',
   'toneColor': '#D82A1E',
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
@@ -1915,6 +2016,7 @@ const URLParamSetters = {
   'showKeys': cboxKeysOnclick,
   'showSteps': cboxStepsOnclick,
   'toneRadius': numToneRadiusOninput,
+  'toneLabelTextStyle': radioToneLabelOnclick,
   'toneColor': toneColorOninput,
   'baseToneBorderColor': baseToneBorderColorOninput,
   'baseToneBorderSize': numBaseToneBorderSizeOninput,
@@ -1975,6 +2077,9 @@ const URLParamGetters = {
   },
   'toneRadius': () => {
     return scaleFig.style['toneRadius'];
+  },
+  'toneLabelTextStyle': () => {
+    return scaleFig.labelTextStyle;
   },
   'toneColor': () => {
     return scaleFig.style['toneColor'];
