@@ -19,9 +19,8 @@ Possibilities:
 TODO:
 
 Next:
+- Fix the origin tone not moving when changing its frequency.
 - A UI element for adding and removing base tones.
-- Highlight the tone and the pitchline of tones that are playing. Maybe have the edges of the tone vibrate with a frequency proportional to the tone frequency?
-- Make both keys and tones display if they are being played, maybe with fill color and/or border style.
 
 Convenience:
 - Make the height of the keyboard adjustable.

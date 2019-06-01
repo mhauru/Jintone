@@ -388,6 +388,16 @@ toneColor.oninput = function() {
   toneColorOninput(this.value);
 };
 
+const toneColorActive = document.getElementById('toneColorActive');
+function toneColorActiveOninput(value) {
+  scaleFig.style['toneColorActive'] = value;
+  toneColorActive.value = value;
+  writeURL();
+}
+toneColorActive.oninput = function() {
+  toneColorActiveOninput(this.value);
+};
+
 const baseToneBorderColor = document.getElementById('baseToneBorderColor');
 function baseToneBorderColorOninput(value) {
   scaleFig.style['baseToneBorderColor'] = value;
@@ -531,6 +541,16 @@ function colorPitchlinesOninput(value) {
 }
 colorPitchlines.oninput = function() {
   colorPitchlinesOninput(this.value);
+};
+
+const colorPitchlinesActive = document.getElementById('colorPitchlinesActive');
+function colorPitchlinesActiveOninput(value) {
+  scaleFig.style['pitchlineColorActive'] = value;
+  colorPitchlinesActive.value = value;
+  writeURL();
+}
+colorPitchlinesActive.oninput = function() {
+  colorPitchlinesActiveOninput(this.value);
 };
 
 function yShiftOnchange(prime, shift) {
@@ -944,6 +964,7 @@ class ToneObject {
   // store.  This is easy, but slow. Optimize if necessary by storing some of
   // the data, avoiding recomputation if nothing has changed.
   constructor(coordinates, isBase) {
+    this.isDown = false;
     this.coords = coordinates;
     this._isBase_ = isBase;
     this.steps = {};
@@ -968,11 +989,21 @@ class ToneObject {
     function toneOn(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
+      t.isDown = true;
+      const toneColorActive = scaleFig.style['toneColorActive'];
+      t.svgCircle.attr('fill', toneColorActive);
+      const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
+      t.svgPitchline.attr('stroke', pitchlineColorActive);
       startTone(t.frequency);
     };
     function toneOff(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
+      t.isDown = false;
+      const toneColor = scaleFig.style['toneColor'];
+      t.svgCircle.attr('fill', toneColor);
+      const pitchlineColor = scaleFig.style['pitchlineColor'];
+      t.svgPitchline.attr('stroke', pitchlineColor);
       stopTone(t.frequency);
     };
     const svgTone = this.svgTone;
@@ -1197,27 +1228,30 @@ class ToneObject {
     const svgCircle = this.svgCircle;
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
-    const toneColor = style['toneColor'];
+    let toneColor;
+    if (this.isDown) {
+      toneColor = style['toneColorActive'];
+    } else {
+      toneColor = style['toneColor'];
+    }
     if (this.isBase) {
       const borderColor = style['baseToneBorderColor'];
       const borderSize = style['baseToneBorderSize'];
       svgCircle.attr({
-        'fill': toneColor,
         'stroke': borderColor,
         'stroke-width': borderSize,
       });
-      svgTone.attr({
-        'fill-opacity': relHn,
-      });
     } else {
       svgCircle.attr({
-        'fill': toneColor,
         'stroke-width': 0.0,
       });
-      svgTone.attr({
-        'fill-opacity': relHn,
-      });
     }
+    svgCircle.attr({
+      'fill': toneColor,
+    });
+    svgTone.attr({
+      'fill-opacity': relHn,
+    });
   }
 
   positionSvgPitchline() {
@@ -1238,7 +1272,12 @@ class ToneObject {
     const svgPitchline = this.svgPitchline;
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
-    const pitchlineColor = style['pitchlineColor'];
+    let pitchlineColor;
+    if (this.isDown) {
+      pitchlineColor = style['pitchlineColorActive'];
+    } else {
+      pitchlineColor = style['pitchlineColor'];
+    }
     svgPitchline.attr({
       'stroke': pitchlineColor,
       'stroke-width': '1.0',
@@ -1735,6 +1774,7 @@ function readURL() {
 
 class Key {
   constructor(frequency, type) {
+    this.isDown = false;
     this.frequency = frequency;
     this.type = type;
     this.createSvg();
@@ -1814,6 +1854,8 @@ class Key {
     });
 
     this.svg = group;
+    this.svgMarker = svgMarker;
+    this.svgKey = svgKey;
   }
 
   setListeners() {
@@ -1821,11 +1863,17 @@ class Key {
     function toneOn(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
+      t.isDown = true;
+      const toneColorActive = scaleFig.style['toneColorActive'];
+      t.svgKey.attr('fill', toneColorActive);
       startTone(t.frequency);
     };
     function toneOff(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
+      t.isDown = false;
+      const keyColor = (t.type == 'black') ? '#000000' : '#FFFFFF';
+      t.svgKey.attr('fill', keyColor);
       stopTone(t.frequency);
     };
     const svg = this.svg;
@@ -2022,12 +2070,14 @@ const DEFAULT_URLPARAMS = {
   'originFreq': 440,
   'maxHarmNorm': 8.0,
   'pitchlineColor': '#c7c7c7',
+  'pitchlineColorActive': '#000000',
   'showPitchlines': true,
   'showKeys': true,
   'showSteps': true,
   'toneRadius': 22.0,
   'toneLabelTextStyle': 'EDO',
   'toneColor': '#D82A1E',
+  'toneColorActive': '#D8B71E',
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
   'opacityHarmNorm': true,
@@ -2054,12 +2104,14 @@ const URLParamSetters = {
   'originFreq': numOriginFreqOninput,
   'maxHarmNorm': numMaxHarmNormOnchange,
   'pitchlineColor': colorPitchlinesOninput,
+  'pitchlineColorActive': colorPitchlinesActiveOninput,
   'showPitchlines': cboxPitchlinesOnclick,
   'showKeys': cboxKeysOnclick,
   'showSteps': cboxStepsOnclick,
   'toneRadius': numToneRadiusOninput,
   'toneLabelTextStyle': radioToneLabelOnclick,
   'toneColor': toneColorOninput,
+  'toneColorActive': toneColorActiveOninput,
   'baseToneBorderColor': baseToneBorderColorOninput,
   'baseToneBorderSize': numBaseToneBorderSizeOninput,
   'opacityHarmNorm': cboxOpacityHarmNormOnclick,
@@ -2108,6 +2160,9 @@ const URLParamGetters = {
   'pitchlineColor': () => {
     return scaleFig.style['pitchlineColor'];
   },
+  'pitchlineColorActive': () => {
+    return scaleFig.style['pitchlineColorActive'];
+  },
   'showPitchlines': () => {
     return scaleFig.style['drawPitchlines'];
   },
@@ -2125,6 +2180,9 @@ const URLParamGetters = {
   },
   'toneColor': () => {
     return scaleFig.style['toneColor'];
+  },
+  'toneColorActive': () => {
+    return scaleFig.style['toneColorActive'];
   },
   'baseToneBorderColor': () => {
     return scaleFig.style['baseToneBorderColor'];
