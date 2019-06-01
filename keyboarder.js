@@ -26,7 +26,7 @@ function generateEDOTones() {
     'B',
   ];
   for (let octave = -1; octave < 10; octave++) {
-    const baseFrequency = 440*Math.pow(2, octave-4);
+    const baseFrequency = 523.251*Math.pow(2, octave-5);
     for (let i = 0; i < 12; i++) {
       const frequency = baseFrequency * Math.pow(edofactor, i);
       const letter = letters[i];
