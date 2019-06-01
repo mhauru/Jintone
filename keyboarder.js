@@ -3,7 +3,6 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
-const SQRT2 = Math.sqrt(2);
 // TODO Turn this into a generator that actually returns arbitrarily many
 // primes.
 const ALLPRIMES = [
@@ -349,12 +348,15 @@ numToneRadius.oninput = function() {
 
 const radioToneLabelNone = document.getElementById('radioToneLabelNone');
 const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
+const radioToneLabelFrac = document.getElementById('radioToneLabelFrac');
 function radioToneLabelOnclick(value) {
   scaleFig.labelTextStyle = value;
   if (value == 'EDO') {
     radioToneLabelEDO.checked = true;
   } else if (value == 'none') {
     radioToneLabelNone.checked = true;
+  } else if (value == 'fractions') {
+    radioToneLabelFrac.checked = true;
   }
   relabelTones();
   writeURL();
@@ -363,6 +365,9 @@ radioToneLabelEDO.onclick = function() {
   radioToneLabelOnclick(this.value);
 };
 radioToneLabelNone.onclick = function() {
+  radioToneLabelOnclick(this.value);
+};
+radioToneLabelFrac.onclick = function() {
   radioToneLabelOnclick(this.value);
 };
 
@@ -1018,6 +1023,10 @@ class ToneObject {
     return y;
   }
 
+  get fraction() {
+    return fraction(this.coords);
+  }
+
   get frequency() {
     return scaleFig.originFreq * this.pitchFactor;
   }
@@ -1082,17 +1091,36 @@ class ToneObject {
       } else {
         neighbor = EDOTones[i+1];
       }
-      // TODO An experimental constant to position the subscript. Unfortunately
-      // Firefox doesn't support baseline-shift.
-      // TODO This should be a percentage of font-size, but it's not. I don't
-      // know what it's a percentage of.
-      const subShift = '1%';
-      const subFontSize = '90%';
+      // These are just constant, figured out by trial and error, that seem to
+      // do the job.
+      const subShift = 2;
+      const subFontSize = 12;
       labelText = (add) => {
         add.tspan(`${neighbor.letter}`);
         add.tspan(`${neighbor.octave}`).attr({
           'dy': subShift,
           'font-size': subFontSize,
+        });
+      };
+    } else if (scaleFig.labelTextStyle == 'fractions') {
+      const [num, denom] = this.fraction;
+      // These are just constant, figured out by trial and error, that seem to
+      // do the job.
+      const solidusShift = 3;
+      const denomShift = 3;
+      const numFontSize = 15;
+      const solidusFontSize = 15;
+      labelText = (add) => {
+        add.tspan(num).attr({
+          'font-size': numFontSize,
+        });
+        add.tspan('\u002F').attr({
+          'dy': solidusShift,
+          'font-size': solidusFontSize,
+        });
+        add.tspan(denom).attr({
+          'dy': denomShift,
+          'font-size': numFontSize,
         });
       };
     } else if (scaleFig.labelTextStyle == 'none') {
@@ -1101,7 +1129,7 @@ class ToneObject {
       labelText = '';
     }
     this.svgLabel.text(labelText);
-    this.svgLabel.center(0, 0);
+    this.scaleSvgTone();
   }
 
   addSteps() {
@@ -1134,20 +1162,34 @@ class ToneObject {
     const svgCircle = this.svgCircle;
     const svgLabel = this.svgLabel;
     const style = scaleFig.style;
-    let toneRadius = style['toneRadius'];
+    const toneRadius = style['toneRadius'];
     if (this.isBase) {
       const borderSize = style['baseToneBorderSize'];
-      toneRadius = toneRadius + borderSize/2;
+      svgCircle.radius(toneRadius + borderSize/2);
+    } else {
+      svgCircle.radius(toneRadius);
     }
-    svgCircle.radius(toneRadius);
     Object.entries(this.steps).forEach(([label, step]) => {
       step.position();
     });
-    // TODO This is just an experimental numerical constant, figure out
-    // something better.
-    const fontSize = toneRadius;
-    svgLabel.attr('font-size', fontSize);
+    // Compute the right scaling factor for the text, so that it fits in the
+    // circle.
+    const bbox = svgLabel.bbox();
+    // Note that bbox dimensions do not account for the currenc scaleY and
+    // scaleX. And that's what we want.
+    const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
+    // The 0.95 is to give a bit of buffer around the edges.
+    const targetFactor = 0.95*toneRadius/halfDiagLength;
+    // If we can comfortably fit within the tone, we won't scale larger than
+    // maxFactor. This makes most labels be of the same size, and have the size
+    // decrease from maxFactor only when necessary.
+    const maxFactor = toneRadius/16;
+    const scaleFactor = Math.min(maxFactor, targetFactor);
+    // TODO Why on earth do we need to call center before scale? I would have
+    // thought that either it doesn't matter, or it needs to be done the other
+    // way around, but that doesn't work.
     svgLabel.center(0, 0);
+    svgLabel.scale(scaleFactor);
   }
 
   colorSvgTone() {

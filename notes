@@ -19,9 +19,7 @@ Possibilities:
 TODO:
 
 Next:
-- Fix base tone border not showing.
 - A UI element for adding and removing base tones.
-- Add a dial with three options: No names; note names (A, F#, etc.); intervals (fractions). Have them float next to the buttons, maybe directly above.
 - Highlight the tone and the pitchline of tones that are playing. Maybe have the edges of the tone vibrate with a frequency proportional to the tone frequency?
 - Make both keys and tones display if they are being played, maybe with fill color and/or border style.
 
