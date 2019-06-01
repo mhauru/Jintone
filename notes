@@ -19,7 +19,6 @@ Possibilities:
 TODO:
 
 Next:
-- Fix origin frequency refering to C, not to A.
 - Fix base tone border not showing.
 - A UI element for adding and removing base tones.
 - Add a dial with three options: No names; note names (A, F#, etc.); intervals (fractions). Have them float next to the buttons, maybe directly above.

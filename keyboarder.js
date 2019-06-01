@@ -987,7 +987,7 @@ class ToneObject {
   }
 
   get isBase() {
-    return this.IsBase_;
+    return this._isBase_;
   }
 
   get pitchFactor() {
