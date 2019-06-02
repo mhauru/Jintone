@@ -41,7 +41,7 @@ Possible improvements:
 - Could we somehow color the tones based on their prime decomposition, with each prime associated with some color?
 - Could we output midi files on request?
 - Add an option for tone labels in the Ben Johnston notation: https://kylegann.com/BJNotation.html
-- Somehow animate the notes that playing. Vibrating edge, or maybe vibrating pitchline, vibrating with a frequency proportional to pitch?
+- Somehow animate the notes that are playing. Vibrating edge, or maybe vibrating pitchline, vibrating with a frequency proportional to pitch?
 - For origin frequency, also have some method of picking 12-EDO tones without knowing their frequency. Maybe a dropdown menu?
 
 Help:
@@ -53,9 +53,9 @@ Style:
 - Make a common way for inputting intervals and base tones.
 - Redo the representation of intervals in the UI.
 - Redo the representation of axes in the UI.
-- When ever an interval in the UI is given as a decimal, also give the cents.
+- Whenever an interval in the UI is given as a decimal, also give the cents.
 - Make the linestyles of pitchlines, intervals, and base tone borders adjustable.
-- Make the background color adjustable, and set it to black by default.
+- Make the background color adjustable, and maybe set it to black by default.
 - Create color presets, at least one dark and one light.
 - Create a checkbox for setting all the settings stuff either light or dark.
 - Style Settings with nice fonts etc.
