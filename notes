@@ -20,13 +20,13 @@ TODO:
 
 Next:
 - A UI element for adding and removing base tones.
-- Shift+click on tones to leave them on until next click on the same tone? Maybe have a touchable button on the screen that does the same thing too? Or make it work like a piano pedal, where the tones stop playing ones that button/shift is released?
 
 Convenience:
 - Make the height of the keyboard adjustable.
-- Add a dropdown menu with preset options. (Note: Pythogorean should be one.)
+- Add a dropdown menu with preset options. (Note: Pythagorean should be one.)
 - Add a volume slider.
 - Make pitchlines not show under tones.
+- Create a visual, touchable sustain "pedal".
 
 Zoom:
 - Implement vertical zoom.

@@ -208,6 +208,9 @@ const scaleFig = {
 
   'maxHarmNorm': 1.0,
 
+  'shiftDown': false,
+  'sustainedTones': [],
+
   'tones': {},
   'boundaryTones': {},
   'steps': [],
@@ -662,6 +665,24 @@ function deleteStepInterval(label) {
   writeURL();
 }
 
+window.onkeydown = (e) => {
+  // 16 is the code for shift
+  if (e.keyCode == 16) {
+    scaleFig.shiftDown = true;
+  }
+};
+
+window.onkeyup = (e) => {
+  // 16 is the code for shift
+  if (e.keyCode == 16) {
+    scaleFig.shiftDown = false;
+    scaleFig.sustainedTones.forEach((tone) => {
+      tone.toneOff();
+    });
+    scaleFig.sustainedTones = [];
+  }
+};
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 class StepInterval {
@@ -968,7 +989,8 @@ class ToneObject {
   // store.  This is easy, but slow. Optimize if necessary by storing some of
   // the data, avoiding recomputation if nothing has changed.
   constructor(coordinates, isBase) {
-    this.isDown = false;
+    this.isOn = false;
+    this.isBeingClicked = false;
     this.coords = coordinates;
     this._isBase_ = isBase;
     this.steps = {};
@@ -988,36 +1010,52 @@ class ToneObject {
     this.addSteps();
   }
 
+  toneOn() {
+    if (!this.isOn) {
+      this.isOn = true;
+      const toneColorActive = scaleFig.style['toneColorActive'];
+      this.svgCircle.attr('fill', toneColorActive);
+      const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
+      this.svgPitchline.attr('stroke', pitchlineColorActive);
+      startTone(this.frequency);
+    }
+  }
+
+  toneOff() {
+    if (scaleFig.shiftDown) {
+      scaleFig.sustainedTones.push(this);
+    } else if (!this.isBeingClicked) {
+      this.isOn = false;
+      const toneColor = scaleFig.style['toneColor'];
+      this.svgCircle.attr('fill', toneColor);
+      const pitchlineColor = scaleFig.style['pitchlineColor'];
+      this.svgPitchline.attr('stroke', pitchlineColor);
+      stopTone(this.frequency);
+    }
+  }
+
   setListeners() {
     const t = this;
-    function toneOn(ev) {
+    function eventOn(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.isDown = true;
-      const toneColorActive = scaleFig.style['toneColorActive'];
-      t.svgCircle.attr('fill', toneColorActive);
-      const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
-      t.svgPitchline.attr('stroke', pitchlineColorActive);
-      startTone(t.frequency);
+      t.isBeingClicked = true;
+      t.toneOn();
     };
-    function toneOff(ev) {
+    function eventOff(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.isDown = false;
-      const toneColor = scaleFig.style['toneColor'];
-      t.svgCircle.attr('fill', toneColor);
-      const pitchlineColor = scaleFig.style['pitchlineColor'];
-      t.svgPitchline.attr('stroke', pitchlineColor);
-      stopTone(t.frequency);
+      t.isBeingClicked = false;
+      t.toneOff();
     };
     const svgTone = this.svgTone;
-    svgTone.mousedown(toneOn);
-    svgTone.mouseup(toneOff);
-    svgTone.mouseleave(toneOff);
-    svgTone.touchstart(toneOn);
-    svgTone.touchend(toneOff);
-    svgTone.touchleave(toneOff);
-    svgTone.touchcancel(toneOff);
+    svgTone.mousedown(eventOn);
+    svgTone.mouseup(eventOff);
+    svgTone.mouseleave(eventOff);
+    svgTone.touchstart(eventOn);
+    svgTone.touchend(eventOff);
+    svgTone.touchleave(eventOff);
+    svgTone.touchcancel(eventOff);
   }
 
   set isBase(value) {
@@ -1233,7 +1271,7 @@ class ToneObject {
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
     let toneColor;
-    if (this.isDown) {
+    if (this.isOn) {
       toneColor = style['toneColorActive'];
     } else {
       toneColor = style['toneColor'];
@@ -1277,7 +1315,7 @@ class ToneObject {
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
     let pitchlineColor;
-    if (this.isDown) {
+    if (this.isOn) {
       pitchlineColor = style['pitchlineColorActive'];
     } else {
       pitchlineColor = style['pitchlineColor'];
@@ -1778,7 +1816,8 @@ function readURL() {
 
 class Key {
   constructor(frequency, type) {
-    this.isDown = false;
+    this.isOn = false;
+    this.isBeingClicked = false;
     this.frequency = frequency;
     this.type = type;
     this.createSvg();
@@ -1862,32 +1901,48 @@ class Key {
     this.svgKey = svgKey;
   }
 
+  toneOn() {
+    if (!this.isOn) {
+      this.isOn = true;
+      const toneColorActive = scaleFig.style['toneColorActive'];
+      this.svgKey.attr('fill', toneColorActive);
+      startTone(this.frequency);
+    }
+  }
+
+  toneOff() {
+    if (scaleFig.shiftDown) {
+      scaleFig.sustainedTones.push(this);
+    } else if (!this.isBeingClicked) {
+      this.isOn = false;
+      const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
+      this.svgKey.attr('fill', keyColor);
+      stopTone(this.frequency);
+    }
+  }
+
   setListeners() {
     const t = this;
-    function toneOn(ev) {
+    function eventOn(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.isDown = true;
-      const toneColorActive = scaleFig.style['toneColorActive'];
-      t.svgKey.attr('fill', toneColorActive);
-      startTone(t.frequency);
+      t.toneOn();
+      t.isBeingClicked = true;
     };
-    function toneOff(ev) {
+    function eventOff(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.isDown = false;
-      const keyColor = (t.type == 'black') ? '#000000' : '#FFFFFF';
-      t.svgKey.attr('fill', keyColor);
-      stopTone(t.frequency);
+      t.toneOff();
+      t.isBeingClicked = false;
     };
     const svg = this.svg;
-    svg.mousedown(toneOn);
-    svg.mouseup(toneOff);
-    svg.mouseleave(toneOff);
-    svg.touchstart(toneOn);
-    svg.touchend(toneOff);
-    svg.touchleave(toneOff);
-    svg.touchcancel(toneOff);
+    svg.mousedown(eventOn);
+    svg.mouseup(eventOff);
+    svg.mouseleave(eventOff);
+    svg.touchstart(eventOn);
+    svg.touchend(eventOff);
+    svg.touchleave(eventOff);
+    svg.touchcancel(eventOff);
   }
 
   get pos() {
