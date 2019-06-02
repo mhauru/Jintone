@@ -60,6 +60,7 @@ Style:
 - Create a checkbox for setting all the settings stuff either light or dark.
 - Style Settings with nice fonts etc.
 - Give choice for having tones be something other than circles. Diamonds for instance could work well.
+- Come up with a better name.
 
 Code style and performance:
 - Use more CSS classes.
