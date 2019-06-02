@@ -19,8 +19,8 @@ Possibilities:
 TODO:
 
 Next:
-- Fix the origin tone not moving when changing its frequency.
 - A UI element for adding and removing base tones.
+- Shift+click on tones to leave them on until next click on the same tone? Maybe have a touchable button on the screen that does the same thing too? Or make it work like a piano pedal, where the tones stop playing ones that button/shift is released?
 
 Convenience:
 - Make the height of the keyboard adjustable.
@@ -41,7 +41,8 @@ Possible improvements:
 - Could we somehow color the tones based on their prime decomposition, with each prime associated with some color?
 - Could we output midi files on request?
 - Add an option for tone labels in the Ben Johnston notation: https://kylegann.com/BJNotation.html
-- Shift+click on tones to leave them on until next click on the same tone? Maybe have a touchable button on the screen that does the same thing too? Or make it work like a piano pedal, where the tones stop playing ones that button/shift is released?
+- Somehow animate the notes that playing. Vibrating edge, or maybe vibrating pitchline, vibrating with a frequency proportional to pitch?
+- For origin frequency, also have some method of picking 12-EDO tones without knowing their frequency. Maybe a dropdown menu?
 
 Help:
 - Implement the help/info page/overlay.

@@ -311,6 +311,10 @@ const numOriginFreq = document.getElementById('numOriginFreq');
 function numOriginFreqOninput(value) {
   scaleFig.originFreq = value;
   numOriginFreq.value = value;
+  scaleFig.keys.forEach((key) => {
+    key.positionSvg();
+  });
+  relabelTones();
   writeURL();
 }
 numOriginFreq.oninput = function() {
