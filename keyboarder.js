@@ -1926,14 +1926,14 @@ class Key {
     function eventOn(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.toneOn();
       t.isBeingClicked = true;
+      t.toneOn();
     };
     function eventOff(ev) {
       // Prevent a touch event from also generating a mouse event.
       ev.preventDefault();
-      t.toneOff();
       t.isBeingClicked = false;
+      t.toneOff();
     };
     const svg = this.svg;
     svg.mousedown(eventOn);
