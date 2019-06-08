@@ -11,7 +11,7 @@ const ALLPRIMES = [
 ];
 const edofactor = Math.pow(2, 1/12);
 const edofactorlog = Math.log2(edofactor);
-const synth = new Tone.PolySynth(4, Tone.Synth).toMaster();
+const synth = new Tone.PolySynth(10, Tone.Synth).toMaster();
 
 const EDOTones = [];
 
@@ -2126,7 +2126,7 @@ function writeURL() {
 // const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
 
 const DEFAULT_URLPARAMS = {
-  'originFreq': 440,
+  'originFreq': 261.626,
   'maxHarmNorm': 8.0,
   'pitchlineColor': '#c7c7c7',
   'pitchlineColorActive': '#000000',
