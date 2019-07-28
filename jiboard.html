@@ -2,22 +2,23 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <link href="jiboard.css" rel="stylesheet">
     <title>JIBoard</title>
 </head>
 <body>
-    <div id="divCanvas" style="-webkit-touch-callout: none;-webkit-user-select: none;-khtml-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;touch-action: none;box-sizing: border-box;overflow: hidden;width: 80%;height: 80%;border: 0px;position: absolute;top: 0;left: 0; margin: 0;padding: 0;"></div>
+    <div id="divCanvas" class="unselectable"></div>
 
-    <div id="divKeyCanvas" style="touch-action: none;box-sizing: border-box;overflow: hidden;width: 80%;height: 20%;border: 0px;position: absolute;top: 80%;left: 0; margin: 0;padding: 0;"></div>
+    <div id="divKeyCanvas" class="unselectable"></div>
 
-    <h2 id="buttToggleSettings", style="background: white;position: absolute;top: 0; right: 20%;border: 1px solid black;padding:15px;margin:0px;border-right: none;border-top: none">
-      <img id="iconSettings" style="vertical-align:middle;height: 1em;width: 1em;transform:;" src="arrowheads.svg"/>
+    <h2 id="buttToggleSettings">
+      <img id="iconSettings" src="arrowheads.svg"/>
     </h2>
-    <div id="divSettings" style="box-sizing: border-box;overflow: hidden;width: 20%;height: 100%;border: none;margin: 0;padding: 0;position: absolute;top: 0;right: 0;background: white;">
-      <h2 id="settingsHeader" style="box-sizing: border-box;padding-top:15px;padding-bottom:15px;padding-left:5px;margin:0px;border-bottom: 1px solid black;">Settings</h2>
-      <div id="divSettingsInner" style="box-sizing: border-box;margin: 0;padding: 0;overflow: auto;height: 80%;border-left: 1px solid black">
-        <div id="divGeneral" style="padding-top: 0px;border: none;padding: 10px">
-          <h3 id="headGeneral" style="margin-top: 5px;margin-bottom: 5px;">
-            <img id="iconGeneral" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
+    <div id="divSettings">
+      <h2 id="settingsHeader">Settings</h2>
+      <div id="divSettingsInner">
+        <div id="divGeneral" class="divSubSettings">
+          <h3 id="headGeneral" class="headSubSettings">
+            <img id="iconGeneral" class="iconSubSettings" src="arrowheads.svg"/>
             General
           </h3>
           <div id="contentGeneral">
@@ -29,34 +30,34 @@
 
             <p>
             <label> Origin frequency:
-              <input id="numOriginFreq" style="width: 80px" type="number" min="1" max="20000" step="0.01">
+              <input id="numOriginFreq" class="num" type="number" min="1" max="20000" step="0.01">
               Hz
             </label>
             </p>
 
             <p>
             <label> Maximum visible harmonic norm
-              <input id="numMaxHarmNorm" type="number" style="width: 80px" min="0.01" max="100" step="0.01">
+              <input id="numMaxHarmNorm" type="number" class="num" min="0.01" max="100" step="0.01">
             </label>
             </p>
 
             <p>
             <label> Tone radius:
-              <input id="numToneRadius" type="number" style="width: 80px" min="0.01" max="100" step="0.01">
+              <input id="numToneRadius" type="number" class="num" min="0.01" max="100" step="0.01">
             </label><br>
             <span> Tone labels:</span>
             <br>
-            <label style="margin-left: 40px">
+            <label class="radioIndent">
               <input id="radioToneLabelNone" type="radio" name="label" value="none">
               None
             </label>
             <br>
-            <label style="margin-left: 40px">
+            <label class="radioIndent">
               <input id="radioToneLabelEDO" type="radio" name="label" value="EDO">
               12-EDO
             </label>
             <br>
-            <label style="margin-left: 40px">
+            <label class="radioIndent">
               <input id="radioToneLabelFrac" type="radio" name="label" value="fractions">
               Fractions
             </label>
@@ -89,9 +90,9 @@
           </div>
         </div>
 
-        <div id="divTones" style="border: none;padding: 10px">
-          <h3 id="headTones" style="margin-top: 5px;margin-bottom: 5px;">
-            <img id="iconTones" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
+        <div id="divTones" class="divSubSettings">
+          <h3 id="headTones" class="headSubSettings">
+            <img id="iconTones" class="iconSubSettings" src="arrowheads.svg"/>
             Tones
           </h3>
           <div id="contentTones">
@@ -108,21 +109,21 @@
           </div>
         </div>
 
-        <div id="divStepIntervals" style="border: none;padding: 10px">
-          <h3 id="headStepIntervals" style="margin-top: 5px;margin-bottom: 5px;">
-            <img id="iconStepIntervals" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
+        <div id="divStepIntervals" class="divSubSettings">
+          <h3 id="headStepIntervals" class="headSubSettings">
+            <img id="iconStepIntervals" class="iconSubSettings" src="arrowheads.svg"/>
             Intervals
           </h3>
-          <div id="contentStepIntervals" style="margin: 0;padding: 0;">
-            <div id="divGeneratedStepIntervals" style="margin: 0;padding: 0;">
+          <div id="contentStepIntervals">
+            <div id="divGeneratedStepIntervals">
             </div>
             <button id="buttAddInterval">Add interval</button>
           </div>
         </div>
 
-        <div id="divStyle" style="border: none;padding: 10px">
-          <h3 id="headStyle" style="margin-top: 5px;margin-bottom: 5px;">
-            <img id="iconStyle" style="vertical-align:middle;height: 1em;width: 1em;" src="arrowheads.svg"/>
+        <div id="divStyle" class="divSubSettings">
+          <h3 id="headStyle" class="headSubSettings">
+            <img id="iconStyle" class="iconSubSettings" src="arrowheads.svg"/>
             Aesthetics
           </h3>
           <div id="contentStyle">
@@ -137,7 +138,7 @@
               <input id="baseToneBorderColor" type="color">
             </label><br>
             <label> Base tone border size:
-              <input id="numBaseToneBorderSize" type="number" style="width: 80px" min="0.0" max="10" step="0.01">
+              <input id="numBaseToneBorderSize" type="number" class="num" min="0.0" max="10" step="0.01">
             </label>
           </p>
 

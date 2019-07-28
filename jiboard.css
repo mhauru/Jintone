@@ -1,0 +1,125 @@
+.unselectable {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.num {
+  width: 80px;
+}
+
+.radioIndent {
+  margin-left: 40px;
+}
+
+.divSubSettings {
+  border: none;
+  padding: 10px
+}
+
+.headSubSettings {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.iconSubSettings {
+  vertical-align:middle;
+  height: 1em;
+  width: 1em;
+}
+
+#divCanvas {
+  touch-action: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 80%;
+  height: 80%;
+  border: 0px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+}
+
+#divKeyCanvas {
+  touch-action: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 80%;
+  height: 20%;
+  border: 0px;
+  position: absolute;
+  top: 80%;
+  left: 0;
+  margin: 0;
+  padding: 0;
+}
+
+#buttToggleSettings {
+  background: white;
+  position: absolute;
+  top: 0;
+  right: 20%;
+  border: 1px solid black;
+  padding:15px;
+  margin:0px;
+  border-right: none;
+  border-top: none
+}
+
+#iconSettings {
+  vertical-align:middle;
+  height: 1em;
+  width: 1em;
+  transform:;
+}
+
+#divSettings {
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 20%;
+  height: 100%;
+  border: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: white;
+}
+
+#settingsHeader {
+  box-sizing: border-box;
+  padding-top:15px;
+  padding-bottom:15px;
+  padding-left:5px;
+  margin:0px;
+  border-bottom: 1px solid black;
+}
+
+#divSettingsInner {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  height: 80%;
+  border-left: 1px solid black
+}
+
+#divGeneral {
+  padding-top: 0px;
+}
+
+#contentStepIntervals {
+  margin: 0px;
+  padding: 0px;
+}
+
+#divGeneratedStepIntervals {
+  margin: 0px;
+  padding: 0px;
+}
