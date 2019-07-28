@@ -11,10 +11,6 @@
 15/8    major seventh
 2/1     octave
 
-Possibilities:
-- Should harmonic distance work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
-- Arc the interval lines?
-- In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi). What should the draw order be when it's not rectilinear?
 
 TODO:
 
@@ -36,7 +32,6 @@ Zoom:
 
 Possible improvements:
 - When sustaining, should cliking a tone again turn it off?
-- Make a tone play if the mouse key is held down and I move the cursor over to it.
 - Should the keyboard carry tone names?
 - Make every number selector be such that when it's active, it spawns a hovering slider next to it. Get rid of ranges inputs.
 - Could we give up drawing open-ended steps? Would simplify things. (Would it?) Besides, the gradients for them are wrong anyway, since they always draw as if the rel_hn of the endpoint is 0, even though it could be negative. Actually, even drawing steps to tones outside the viewbox is problematic, since those tones may not be generated. There's more thoughts in a TODO note in the .js.
@@ -52,6 +47,9 @@ Possible improvements:
 - Alternatively to the above, as Henri proposed, just pan and zoom whenever touchpoints are moved, regardless of if those touchpoints also play tones. May cause some touchpoints to no longer lie on the tones that they play, but who cares. Possible problem: Accidental, annoying small moves. I still currently think this is the best option.
 - Maybe there could also be a third button for dragging around y-shifts by just grab-and-drag. Doesn't sound very important though, and maybe not worth it.
 - Would it possible to make the tones behave such that if two are about to overlap, they change both change shape to prevent, creating a boundary half way in between?
+- Arc the interval lines?
+- Should harmonic distance work like this instead?: There are generating intervals, and each generating interval comes with a distance. The distance to a note is the shortest harmonic distance found.
+- In rectilinear, make the draw order follow the distance from the viewer, i.e. sum of terms like  n2*np.log(2) * k * np.sin(phi)? What should the draw order be when it's not rectilinear?
 
 Help:
 - Implement the help/info page/overlay.

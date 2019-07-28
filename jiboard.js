@@ -1035,27 +1035,72 @@ class ToneObject {
   }
 
   setListeners() {
+    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
+    // on the browser, the same click or touch may fire several, e.g. both
+    // touch and mouse or both pointer and mouse. This ensures maximum
+    // compatibility with different browsers, but probably costs something in
+    // performance. Note though that the same tone isn't played twice. Come
+    // back to this later and check whether we could switch for instance using
+    // only PointerEvents, once they have widespread support.
     const t = this;
     function eventOn(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       t.isBeingClicked = true;
       t.toneOn();
     };
     function eventOff(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       t.isBeingClicked = false;
       t.toneOff();
     };
+    function eventOnMouse(ev) {
+      if (ev.buttons == 1) {
+        eventOn(ev);
+      }
+    };
+    function eventOffMouse(ev) {
+      eventOff(ev);
+    };
+    function eventOnTouch(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      eventOn(ev);
+    };
+    function eventOffTouch(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      eventOff(ev);
+    };
+    function eventOnPointer(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      // Allow pointer event target to jump between objects when pointer is
+      // moved.
+      ev.target.releasePointerCapture(ev.pointerId);
+      if (ev.buttons == 1) {
+        eventOn(ev);
+      }
+    };
+    function eventOffPointer(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      // Allow pointer event target to jump between objects when pointer is
+      // moved.
+      ev.target.releasePointerCapture(ev.pointerId);
+      eventOff(ev);
+    };
+    // TODO Could switch to PointerEvents once they have a bit more support
+    // across different browsers: https://caniuse.com/#feat=pointer
     const svgTone = this.svgTone;
-    svgTone.mousedown(eventOn);
-    svgTone.mouseup(eventOff);
-    svgTone.mouseleave(eventOff);
-    svgTone.touchstart(eventOn);
-    svgTone.touchend(eventOff);
-    svgTone.touchleave(eventOff);
-    svgTone.touchcancel(eventOff);
+    svgTone.mousedown(eventOnMouse);
+    svgTone.mouseup(eventOffMouse);
+    svgTone.mouseleave(eventOffMouse);
+    svgTone.mouseenter(eventOnMouse);
+    svgTone.touchstart(eventOnTouch);
+    svgTone.touchend(eventOffTouch);
+    svgTone.touchcancel(eventOffTouch);
+    svgTone.on('pointerdown', eventOnPointer);
+    svgTone.on('pointerup', eventOffPointer);
+    svgTone.on('pointerleave', eventOffPointer);
+    svgTone.on('pointerenter', eventOnPointer);
   }
 
   set isBase(value) {
@@ -1922,27 +1967,72 @@ class Key {
   }
 
   setListeners() {
+    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
+    // on the browser, the same click or touch may fire several, e.g. both
+    // touch and mouse or both pointer and mouse. This ensures maximum
+    // compatibility with different browsers, but probably costs something in
+    // performance. Note though that the same tone isn't played twice. Come
+    // back to this later and check whether we could switch for instance using
+    // only PointerEvents, once they have widespread support.
     const t = this;
     function eventOn(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       t.isBeingClicked = true;
       t.toneOn();
     };
     function eventOff(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       t.isBeingClicked = false;
       t.toneOff();
     };
+    function eventOnMouse(ev) {
+      if (ev.buttons == 1) {
+        eventOn(ev);
+      }
+    };
+    function eventOffMouse(ev) {
+      eventOff(ev);
+    };
+    function eventOnTouch(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      eventOn(ev);
+    };
+    function eventOffTouch(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      eventOff(ev);
+    };
+    function eventOnPointer(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      // Allow pointer event target to jump between objects when pointer is
+      // moved.
+      ev.target.releasePointerCapture(ev.pointerId);
+      if (ev.buttons == 1) {
+        eventOn(ev);
+      }
+    };
+    function eventOffPointer(ev) {
+      // Prevent a touch event from also generating a mouse event.
+      ev.preventDefault();
+      // Allow pointer event target to jump between objects when pointer is
+      // moved.
+      ev.target.releasePointerCapture(ev.pointerId);
+      eventOff(ev);
+    };
+    // TODO Could switch to PointerEvents once they have a bit more support
+    // across different browsers: https://caniuse.com/#feat=pointer
     const svg = this.svg;
-    svg.mousedown(eventOn);
-    svg.mouseup(eventOff);
-    svg.mouseleave(eventOff);
-    svg.touchstart(eventOn);
-    svg.touchend(eventOff);
-    svg.touchleave(eventOff);
-    svg.touchcancel(eventOff);
+    svg.mousedown(eventOnMouse);
+    svg.mouseup(eventOffMouse);
+    svg.mouseleave(eventOffMouse);
+    svg.mouseenter(eventOnMouse);
+    svg.touchstart(eventOnTouch);
+    svg.touchend(eventOffTouch);
+    svg.touchcancel(eventOffTouch);
+    svg.on('pointerdown', eventOnPointer);
+    svg.on('pointerup', eventOffPointer);
+    svg.on('pointerleave', eventOffPointer);
+    svg.on('pointerenter', eventOnPointer);
   }
 
   get pos() {
