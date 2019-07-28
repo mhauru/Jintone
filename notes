@@ -22,7 +22,6 @@ Convenience:
 - Make the height of the keyboard adjustable.
 - Add a dropdown menu with preset options. (Note: Pythagorean should be one.)
 - Add a volume slider.
-- Make pitchlines not show under tones.
 - Create a visual, touchable sustain "pedal". The text on it should say "Sustain [Shift]".
 
 Zoom:
@@ -68,7 +67,6 @@ Style:
 - Style Settings with nice fonts etc.
 - Give choice for having tones be something other than circles. Diamonds for instance could work well.
 - Come up with a better name.
-- Stop the cursor from becoming a text cursor over the labels, and maybe prevent selecting the text in the labels.
 
 Code style and performance:
 - Use more CSS classes.
