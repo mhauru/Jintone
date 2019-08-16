@@ -22,11 +22,9 @@ Convenience:
 - Make the height of the keyboard adjustable.
 - Add a dropdown menu with preset options. (Note: Pythagorean should be one.)
 - Add a volume slider.
-- Create a visual, touchable sustain "pedal". The text on it should say "Sustain [Shift]".
 
 Zoom:
-- Implement vertical zoom.
-- Reposition the zoom slider(s) to be along the axes of the canvas somehow.
+- Reposition the zoom slider(s) to be along the axes of the canvas somehow?
 - Put limits on horizontal zoom at the hearing thresholds.
 
 Possible improvements:
@@ -73,3 +71,4 @@ Code style and performance:
 - Go through TODOs in source.
 - Optimize performance by storing data to avoid recomputation.
 - Document and pretty the code: Maybe separate JS files, certainly a separate CSS file, ...
+- Should I load Tone.js and SVG.js from some CDN or other external source?

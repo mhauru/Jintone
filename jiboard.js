@@ -693,27 +693,6 @@ function deleteStepInterval(label) {
   writeURL();
 }
 
-window.onkeydown = (e) => {
-  if (e.keyCode == 16) { // shift
-    scaleFig.shiftDown = true;
-  } else if (e.keyCode == 17) { // ctrl
-    scaleFig.ctrlDown = true;
-  }
-};
-
-window.onkeyup = (e) => {
-  if (e.keyCode == 16) { // shift
-    scaleFig.shiftDown = false;
-    scaleFig.sustainedTones.forEach((tone) => {
-      tone.toneOff();
-    });
-    scaleFig.sustainedTones = [];
-  } else if (e.keyCode == 17) { // ctrl
-    scaleFig.ctrlDown = false;
-    scaleFig.panning = false;
-  }
-};
-
 function canvasOn(ev) {
   if (scaleFig.ctrlDown) {
     const evHasCoords = ('clientX' in ev && 'clientY' in ev &&
@@ -722,7 +701,12 @@ function canvasOn(ev) {
       scaleFig.clientXOnClick = ev.clientX;
       scaleFig.clientYOnClick = ev.clientY;
     } else if ('touches' in ev) {
-      const touch = ev.touches[0];
+      // TODO This length-1 thing makes it pick the coordinates of the last
+      // touch point. What we should really do is take the first touch point
+      // that is not the one holding the pan modifier div down. This would be
+      // either [0] or [1] depending on whether we are using touch or keyboard
+      // to toggle panning.
+      const touch = ev.touches[ev.touches.length-1];
       const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
         !isNaN(touch.clientX) && !isNaN(touch.clientY));
       if (touchHasCoords) {
@@ -782,7 +766,12 @@ function canvasMove(ev) {
       moveX = ev.clientX - scaleFig.clientXOnClick;
       moveY = ev.clientY - scaleFig.clientYOnClick;
     } else if ('touches' in ev) {
-      const touch = ev.touches[0];
+      // TODO This length-1 thing makes it pick the coordinates of the last
+      // touch point. What we should really do is take the first touch point
+      // that is not the one holding the pan modifier div down. This would be
+      // either [0] or [1] depending on whether we are using touch or keyboard
+      // to toggle panning.
+      const touch = ev.touches[ev.touches.length-1];
       const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
         !isNaN(touch.clientX) && !isNaN(touch.clientY));
       if (touchHasCoords) {
@@ -816,6 +805,97 @@ canvas.on('pointerdown', canvasOnPointer);
 canvas.on('pointerup', canvasOffPointer);
 canvas.on('pointerleave', canvasOffPointer);
 canvas.on('pointermove', canvasMove);
+
+const divPanMod = document.getElementById('divPanMod');
+function divPanModOn() {
+  scaleFig.ctrlDown = true;
+  divPanMod.style.background = '#FF3900';
+}
+
+function divPanModOff() {
+  scaleFig.ctrlDown = false;
+  scaleFig.panning = false;
+  divPanMod.style.background = '#FF9273';
+}
+
+function divPanModOnPointer(ev) {
+  // Allow pointer event target to jump between objects when pointer is
+  // moved.
+  ev.target.releasePointerCapture(ev.pointerId);
+  divPanModOn();
+}
+
+function divPanModOffPointer(ev) {
+  // Allow pointer event target to jump between objects when pointer is
+  // moved.
+  ev.target.releasePointerCapture(ev.pointerId);
+  divPanModOff();
+}
+
+divPanMod.addEventListener('mousedown', divPanModOn);
+divPanMod.addEventListener('mouseup', divPanModOff);
+divPanMod.addEventListener('mouseleave', divPanModOff);
+divPanMod.addEventListener('touchstart', divPanModOn);
+divPanMod.addEventListener('touchend', divPanModOff);
+divPanMod.addEventListener('touchcancel', divPanModOff);
+divPanMod.addEventListener('pointerdown', divPanModOnPointer);
+divPanMod.addEventListener('pointerup', divPanModOffPointer);
+divPanMod.addEventListener('pointerleave', divPanModOffPointer);
+
+const divSustainMod = document.getElementById('divSustainMod');
+function divSustainModOn() {
+  scaleFig.shiftDown = true;
+  divSustainMod.style.background = '#FFAA00';
+}
+
+function divSustainModOff() {
+  scaleFig.shiftDown = false;
+  scaleFig.sustainedTones.forEach((tone) => {
+    tone.toneOff();
+  });
+  scaleFig.sustainedTones = [];
+  divSustainMod.style.background = '#FFD073';
+}
+
+function divSustainModOnPointer(ev) {
+  // Allow pointer event target to jump between objects when pointer is
+  // moved.
+  ev.target.releasePointerCapture(ev.pointerId);
+  divSustainModOn();
+}
+
+function divSustainModOffPointer(ev) {
+  // Allow pointer event target to jump between objects when pointer is
+  // moved.
+  ev.target.releasePointerCapture(ev.pointerId);
+  divSustainModOff();
+}
+
+divSustainMod.addEventListener('mousedown', divSustainModOn);
+divSustainMod.addEventListener('mouseup', divSustainModOff);
+divSustainMod.addEventListener('mouseleave', divSustainModOff);
+divSustainMod.addEventListener('touchstart', divSustainModOn);
+divSustainMod.addEventListener('touchend', divSustainModOff);
+divSustainMod.addEventListener('touchcancel', divSustainModOff);
+divSustainMod.addEventListener('pointerdown', divSustainModOnPointer);
+divSustainMod.addEventListener('pointerup', divSustainModOffPointer);
+divSustainMod.addEventListener('pointerleave', divSustainModOffPointer);
+
+window.onkeydown = (e) => {
+  if (e.keyCode == 16) { // shift
+    divSustainModOn();
+  } else if (e.keyCode == 17) { // ctrl
+    divPanModOn();
+  }
+};
+
+window.onkeyup = (e) => {
+  if (e.keyCode == 16) { // shift
+    divSustainModOff();
+  } else if (e.keyCode == 17) { // ctrl
+    divPanModOff();
+  }
+};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
