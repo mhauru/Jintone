@@ -199,6 +199,8 @@ const scaleFig = {
   'svgGroups': svgGroups,
   'horizontalZoom': 1,
   'verticalZoom': 1,
+  'midX': 0.0,
+  'midY': 0.0,
   'yShifts': {},
   'style': {},
   'originFreq': 1,
@@ -211,6 +213,12 @@ const scaleFig = {
 
   'shiftDown': false,
   'sustainedTones': [],
+  'ctrlDown': false,
+  'clientXOnClick': 0.0,
+  'clientYOnClick': 0.0,
+  'midXOnClick': 0.0,
+  'midYOnClick': 0.0,
+  'panning': false,
 
   'tones': {},
   'boundaryTones': {},
@@ -222,14 +230,14 @@ function resizeCanvas() {
   const h = divCanvas.clientHeight;
   const w = divCanvas.clientWidth;
   const canvas = scaleFig.canvas;
-  canvas.viewbox(-w/2, -h/2, w, h);
+  canvas.viewbox(-w/2+scaleFig.midX, -h/2+scaleFig.midY, w, h);
 }
 
 function resizeKeyCanvas() {
   const divKeyCanvas = document.getElementById('divKeyCanvas');
   const w = divKeyCanvas.clientWidth;
   const keyCanvas = scaleFig.keyCanvas;
-  keyCanvas.viewbox(-w/2, 0, w, 1);
+  keyCanvas.viewbox(-w/2+scaleFig.midX, 0, w, 1);
 }
 
 function resizeSettings() {
@@ -294,7 +302,6 @@ function rangeHorzZoomOninput(value) {
   scaleFig.horizontalZoom = value;
   rangeHorzZoom.value = value;
   repositionAll(scaleFig);
-  // TODO We assume here that the viewbox is always centered at the origin.
   if (Math.abs(oldValue) > Math.abs(value)) {
     generateTones();
   } else {
@@ -318,7 +325,6 @@ function rangeVertZoomOninput(value) {
   scaleFig.verticalZoom = value;
   rangeVertZoom.value = value;
   repositionAll(scaleFig);
-  // TODO We assume here that the viewbox is always centered at the origin.
   if (Math.abs(oldValue) > Math.abs(value)) {
     generateTones();
   } else {
@@ -688,22 +694,128 @@ function deleteStepInterval(label) {
 }
 
 window.onkeydown = (e) => {
-  // 16 is the code for shift
-  if (e.keyCode == 16) {
+  if (e.keyCode == 16) { // shift
     scaleFig.shiftDown = true;
+  } else if (e.keyCode == 17) { // ctrl
+    scaleFig.ctrlDown = true;
   }
 };
 
 window.onkeyup = (e) => {
-  // 16 is the code for shift
-  if (e.keyCode == 16) {
+  if (e.keyCode == 16) { // shift
     scaleFig.shiftDown = false;
     scaleFig.sustainedTones.forEach((tone) => {
       tone.toneOff();
     });
     scaleFig.sustainedTones = [];
+  } else if (e.keyCode == 17) { // ctrl
+    scaleFig.ctrlDown = false;
+    scaleFig.panning = false;
   }
 };
+
+function canvasOn(ev) {
+  if (scaleFig.ctrlDown) {
+    const evHasCoords = ('clientX' in ev && 'clientY' in ev &&
+      !isNaN(ev.clientX) && !isNaN(ev.clientY));
+    if (evHasCoords) {
+      scaleFig.clientXOnClick = ev.clientX;
+      scaleFig.clientYOnClick = ev.clientY;
+    } else if ('touches' in ev) {
+      const touch = ev.touches[0];
+      const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
+        !isNaN(touch.clientX) && !isNaN(touch.clientY));
+      if (touchHasCoords) {
+        scaleFig.clientXOnClick = touch.clientX;
+        scaleFig.clientYOnClick = touch.clientY;
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+    scaleFig.midXOnClick = scaleFig.midX;
+    scaleFig.midYOnClick = scaleFig.midY;
+    scaleFig.panning = true;
+  }
+}
+
+function canvasOff(ev) {
+  scaleFig.panning = false;
+}
+
+function canvasOnMouse(ev) {
+  if (ev.buttons == 1) {
+    canvasOn(ev);
+  }
+};
+function canvasOffMouse(ev) {
+  canvasOff(ev);
+};
+function canvasOnTouch(ev) {
+  canvasOn(ev);
+};
+function canvasOffTouch(ev) {
+  canvasOff(ev);
+};
+function canvasOnPointer(ev) {
+  if (ev.buttons == 1) {
+    canvasOn(ev);
+  }
+};
+function canvasOffPointer(ev) {
+  canvasOff(ev);
+};
+
+function canvasMove(ev) {
+  // TODO Instead of having this get called on every move, we could just create
+  // the listener for this whenever panning is set to true, and remove it when
+  // its set to false. Could be faster?
+  // To not duplicate events as touch/pointer/mouse.
+  ev.preventDefault();
+  if (scaleFig.panning) {
+    let moveX;
+    let moveY;
+    const evHasCoords = ('clientX' in ev && 'clientY' in ev &&
+      !isNaN(ev.clientX) && !isNaN(ev.clientY));
+    if (evHasCoords) {
+      moveX = ev.clientX - scaleFig.clientXOnClick;
+      moveY = ev.clientY - scaleFig.clientYOnClick;
+    } else if ('touches' in ev) {
+      const touch = ev.touches[0];
+      const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
+        !isNaN(touch.clientX) && !isNaN(touch.clientY));
+      if (touchHasCoords) {
+        moveX = touch.clientX - scaleFig.clientXOnClick;
+        moveY = touch.clientY - scaleFig.clientYOnClick;
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+    scaleFig.midX = scaleFig.midXOnClick - moveX;
+    scaleFig.midY = scaleFig.midYOnClick - moveY;
+    resizeCanvas();
+    resizeKeyCanvas();
+    generateTones();
+    deleteTones();
+    writeURL();
+  }
+}
+
+canvas.mousedown(canvasOnMouse);
+canvas.mouseup(canvasOffMouse);
+canvas.mouseleave(canvasOffMouse);
+canvas.mousemove(canvasMove);
+canvas.touchstart(canvasOnTouch);
+canvas.touchend(canvasOffTouch);
+canvas.touchcancel(canvasOffTouch);
+canvas.touchmove(canvasMove);
+canvas.on('pointerdown', canvasOnPointer);
+canvas.on('pointerup', canvasOffPointer);
+canvas.on('pointerleave', canvasOffPointer);
+canvas.on('pointermove', canvasMove);
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1066,8 +1178,13 @@ class ToneObject {
     // only PointerEvents, once they have widespread support.
     const t = this;
     function eventOn(ev) {
-      t.isBeingClicked = true;
-      t.toneOn();
+      if (!scaleFig.ctrlDown) {
+        t.isBeingClicked = true;
+        t.toneOn();
+        // preventDefault stops touch events from also generating mouse events,
+        // causing duplication of events.
+        ev.preventDefault();
+      }
     };
     function eventOff(ev) {
       t.isBeingClicked = false;
@@ -1082,18 +1199,12 @@ class ToneObject {
       eventOff(ev);
     };
     function eventOnTouch(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       eventOn(ev);
     };
     function eventOffTouch(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       eventOff(ev);
     };
     function eventOnPointer(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       ev.target.releasePointerCapture(ev.pointerId);
@@ -1102,8 +1213,6 @@ class ToneObject {
       }
     };
     function eventOffPointer(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       ev.target.releasePointerCapture(ev.pointerId);
@@ -1999,10 +2108,16 @@ class Key {
     // only PointerEvents, once they have widespread support.
     const t = this;
     function eventOn(ev) {
+      // preventDefault tries to avoid duplicating touch events as mouse or
+      // pointer events.
+      ev.preventDefault();
       t.isBeingClicked = true;
       t.toneOn();
     };
     function eventOff(ev) {
+      // preventDefault tries to avoid duplicating touch events as mouse or
+      // pointer events.
+      ev.preventDefault();
       t.isBeingClicked = false;
       t.toneOff();
     };
@@ -2015,18 +2130,12 @@ class Key {
       eventOff(ev);
     };
     function eventOnTouch(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       eventOn(ev);
     };
     function eventOffTouch(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       eventOff(ev);
     };
     function eventOnPointer(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       ev.target.releasePointerCapture(ev.pointerId);
@@ -2035,8 +2144,6 @@ class Key {
       }
     };
     function eventOffPointer(ev) {
-      // Prevent a touch event from also generating a mouse event.
-      ev.preventDefault();
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       ev.target.releasePointerCapture(ev.pointerId);
@@ -2059,8 +2166,6 @@ class Key {
   }
 
   get pos() {
-    // TODO This assumes that the originTone is always in the middle of the SVG
-    // drawing. I think this will change at some point.
     const frequencyRatio = this.frequency/scaleFig.originFreq;
     return scaleFig.horizontalZoom * Math.log2(frequencyRatio);
   }
@@ -2255,6 +2360,8 @@ const DEFAULT_URLPARAMS = {
   'opacityHarmNorm': true,
   'horizontalZoom': 300,
   'verticalZoom': 100,
+  'midX': 0.0,
+  'midY': 0.0,
   'axes': [
     {'yShift': 1.2, 'harmDistStep': 0.0},
     {'yShift': 1.8, 'harmDistStep': 1.5},
@@ -2290,6 +2397,19 @@ const URLParamSetters = {
   'opacityHarmNorm': cboxOpacityHarmNormOnclick,
   'horizontalZoom': rangeHorzZoomOninput,
   'verticalZoom': rangeVertZoomOninput,
+  'midX': (midX) => {
+    scaleFig.midX = midX;
+    resizeCanvas();
+    resizeKeyCanvas();
+    generateTones();
+    deleteTones();
+  },
+  'midY': (midY) => {
+    scaleFig.midY = midY;
+    resizeCanvas();
+    generateTones();
+    deleteTones();
+  },
   // TODO The way this is done with what are essentially "AxisObjects" is a
   // stylistically different from how scaleFig just stores a dictionary of
   // yShifts and hamrDistSteps. Don't know if this really is an issue.
@@ -2369,6 +2489,12 @@ const URLParamGetters = {
   },
   'horizontalZoom': () => {
     return scaleFig.horizontalZoom;
+  },
+  'midX': () => {
+    return scaleFig.midX;
+  },
+  'midY': () => {
+    return scaleFig.midY;
   },
   'verticalZoom': () => {
     return scaleFig.verticalZoom;
