@@ -198,6 +198,7 @@ const scaleFig = {
   'keys': [],
   'svgGroups': svgGroups,
   'horizontalZoom': 1,
+  'verticalZoom': 1,
   'yShifts': {},
   'style': {},
   'originFreq': 1,
@@ -263,7 +264,8 @@ function isInViewclosure(scaleFig, x, y) {
   const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
   const maxPrime = Math.max(...scaleFig.primes);
   const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
-  const maxYjump = Math.max(...Object.values(scaleFig.yShifts));
+  const maxYshift = Math.max(...Object.values(scaleFig.yShifts));
+  const maxYjump = scaleFig.verticalZoom * maxYshift;
   // const closureLeft = Math.min(viewboxLeft, viewboxRight - maxXjump);
   // const closureRight = Math.max(viewboxRight, viewboxLeft + maxXjump);
   // const closureTop = Math.min(viewboxTop, viewboxBottom - maxYjump);
@@ -286,11 +288,11 @@ function stopTone(tone) {
   synth.triggerRelease(tone);
 }
 
-const rangeZoom = document.getElementById('rangeZoom');
-function rangeZoomOninput(value) {
+const rangeHorzZoom = document.getElementById('rangeHorzZoom');
+function rangeHorzZoomOninput(value) {
   const oldValue = scaleFig.horizontalZoom;
   scaleFig.horizontalZoom = value;
-  rangeZoom.value = value;
+  rangeHorzZoom.value = value;
   repositionAll(scaleFig);
   // TODO We assume here that the viewbox is always centered at the origin.
   if (Math.abs(oldValue) > Math.abs(value)) {
@@ -306,9 +308,29 @@ function rangeZoomOninput(value) {
 
   writeURL();
 }
-rangeZoom.oninput = function() {
-  rangeZoomOninput(this.value);
+rangeHorzZoom.oninput = function() {
+  rangeHorzZoomOninput(this.value);
 };
+
+const rangeVertZoom = document.getElementById('rangeVertZoom');
+function rangeVertZoomOninput(value) {
+  const oldValue = scaleFig.verticalZoom;
+  scaleFig.verticalZoom = value;
+  rangeVertZoom.value = value;
+  repositionAll(scaleFig);
+  // TODO We assume here that the viewbox is always centered at the origin.
+  if (Math.abs(oldValue) > Math.abs(value)) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
+
+  writeURL();
+}
+rangeVertZoom.oninput = function() {
+  rangeVertZoomOninput(this.value);
+};
+
 
 const numOriginFreq = document.getElementById('numOriginFreq');
 function numOriginFreqOninput(value) {
@@ -1138,6 +1160,7 @@ class ToneObject {
         y += -scaleFig.yShifts[pStr] * c;
       }
     }
+    y *= scaleFig.verticalZoom;
     return y;
   }
 
@@ -2231,10 +2254,11 @@ const DEFAULT_URLPARAMS = {
   'baseToneBorderSize': 5.0,
   'opacityHarmNorm': true,
   'horizontalZoom': 300,
+  'verticalZoom': 100,
   'axes': [
-    {'yShift': 120, 'harmDistStep': 0.0},
-    {'yShift': 180, 'harmDistStep': 1.5},
-    {'yShift': 100, 'harmDistStep': 1.7},
+    {'yShift': 1.2, 'harmDistStep': 0.0},
+    {'yShift': 1.8, 'harmDistStep': 1.5},
+    {'yShift': 1.0, 'harmDistStep': 1.7},
   ],
   'baseTones': [[0, 0, 0]],
   'stepIntervals': [
@@ -2264,7 +2288,8 @@ const URLParamSetters = {
   'baseToneBorderColor': baseToneBorderColorOninput,
   'baseToneBorderSize': numBaseToneBorderSizeOninput,
   'opacityHarmNorm': cboxOpacityHarmNormOnclick,
-  'horizontalZoom': rangeZoomOninput,
+  'horizontalZoom': rangeHorzZoomOninput,
+  'verticalZoom': rangeVertZoomOninput,
   // TODO The way this is done with what are essentially "AxisObjects" is a
   // stylistically different from how scaleFig just stores a dictionary of
   // yShifts and hamrDistSteps. Don't know if this really is an issue.
@@ -2344,6 +2369,9 @@ const URLParamGetters = {
   },
   'horizontalZoom': () => {
     return scaleFig.horizontalZoom;
+  },
+  'verticalZoom': () => {
+    return scaleFig.verticalZoom;
   },
   'axes': () => {
     const axes = [];
