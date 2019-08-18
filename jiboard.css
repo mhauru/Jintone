@@ -111,6 +111,8 @@ body {
   position: absolute;
   top: 50%;
   transform: translateY(-50%) rotate(-90deg);
+  padding: 0;
+  margin: 0;
 }
 
 #buttToggleSettings {

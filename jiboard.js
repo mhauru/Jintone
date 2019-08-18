@@ -571,7 +571,7 @@ const colorPitchlines = document.getElementById('colorPitchlines');
 function colorPitchlinesOninput(value) {
   scaleFig.style['pitchlineColor'] = value;
   colorPitchlines.value = value;
-  recolorPitchlines(scaleFig);
+  recolorPitchlines();
   writeURL();
 }
 colorPitchlines.oninput = function() {
@@ -681,6 +681,12 @@ function recolorPitchlines() {
   });
 }
 
+function setPitchlinesVisibility() {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    tone.setSvgPitchlineVisibility();
+  });
+}
+
 function deleteStepInterval(label) {
   Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
     if (label in tone.steps) tone.steps[label].destroy();
@@ -787,6 +793,7 @@ function canvasMove(ev) {
     scaleFig.midY = scaleFig.midYOnClick - moveY;
     resizeCanvas();
     resizeKeyCanvas();
+    setPitchlinesVisibility();
     generateTones();
     deleteTones();
     writeURL();
@@ -2481,12 +2488,14 @@ const URLParamSetters = {
     scaleFig.midX = midX;
     resizeCanvas();
     resizeKeyCanvas();
+    setPitchlinesVisibility();
     generateTones();
     deleteTones();
   },
   'midY': (midY) => {
     scaleFig.midY = midY;
     resizeCanvas();
+    setPitchlinesVisibility();
     generateTones();
     deleteTones();
   },
