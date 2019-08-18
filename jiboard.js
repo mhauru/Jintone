@@ -416,7 +416,7 @@ const toneColor = document.getElementById('toneColor');
 function toneColorOninput(value) {
   scaleFig.style['toneColor'] = value;
   toneColor.value = value;
-  recolorTones(scaleFig);
+  recolorTones();
   writeURL();
 }
 toneColor.oninput = function() {
@@ -437,7 +437,7 @@ const baseToneBorderColor = document.getElementById('baseToneBorderColor');
 function baseToneBorderColorOninput(value) {
   scaleFig.style['baseToneBorderColor'] = value;
   baseToneBorderColor.value = value;
-  recolorTones(scaleFig);
+  recolorTones();
   writeURL();
 }
 baseToneBorderColor.oninput = function() {
@@ -448,7 +448,7 @@ const numBaseToneBorderSize = document.getElementById('numBaseToneBorderSize');
 function numBaseToneBorderSizeOninput(value) {
   scaleFig.style['baseToneBorderSize'] = value;
   numBaseToneBorderSize.value = value;
-  recolorTones(scaleFig); // TODO This is heavy-handed.
+  recolorTones(); // TODO This is heavy-handed.
   writeURL();
 }
 numBaseToneBorderSize.oninput = function() {
@@ -1534,6 +1534,13 @@ class ToneObject {
     const svgCircle = this.svgCircle;
     const relHn = this.relHarmNorm;
     const style = scaleFig.style;
+    if (relHn <= 0.0) {
+      svgTone.attr('visibility', 'hidden');
+      // The other stuff doesn't matter if its hidden, so may as well return.
+      return;
+    } else {
+      svgTone.attr('visibility', 'inherit');
+    }
     let toneColor;
     if (this.isOn) {
       toneColor = style['toneColorActive'];
