@@ -17,6 +17,7 @@ TODO:
 Next:
 - Investigate why Safari on iPhone doesn't produce sound (Ismo reports).
 - A UI element for adding and removing base tones.
+- Ismo says: Give it an option of having labels that are like the usual fractions, but they are all octave-moved to be between 0 and 1. Makes for duplicate labels but that's okay, and makes their harmonic meaning clearer.
 
 Convenience:
 - Make the height of the keyboard adjustable.
