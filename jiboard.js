@@ -1,8 +1,26 @@
 'use strict';
+//import './node_modules/rxjs/Rx.js';
+//import './node_modules/rxjs/index.js';
+//import './node_modules/rxjs/bundles/rxjs.umd.min.js';
+//import 'https://unpkg.com/rxjs/bundles/rxjs.umd.min.js';
+import ResizeObserver from './node_modules/@juggle/resize-observer/lib/ResizeObserver.js';
+//import('https://unpkg.com/rxjs/bundles/rxjs.umd.min.js').then((module) => {
+//  console.log(module);
+//});
+//import './node_modules/tone/build/Tone.js';
+//import('./node_modules/svgjs/dist/svg.min.js').then((module) => {
+//  console.log(module);
+//});
+
+console.log('Done importing') // DEBUG
+// TODO:
+// - Should we change all the objects that really work only as dictonaries into
+//   Maps?
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
+/*
 // TODO Turn this into a generator that actually returns arbitrarily many
 // primes.
 const ALLPRIMES = [
@@ -12,6 +30,14 @@ const ALLPRIMES = [
 const edofactor = Math.pow(2, 1/12);
 const edofactorlog = Math.log2(edofactor);
 const synth = new Tone.PolySynth(10, Tone.Synth).toMaster();
+
+function startTone(tone) {
+  synth.triggerAttack(tone);
+}
+
+function stopTone(tone) {
+  synth.triggerRelease(tone);
+}
 
 const EDOTones = [];
 
@@ -44,193 +70,432 @@ function generateEDOTones() {
 generateEDOTones();
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Read the URL for parameter values to start with, and define a function for
+// writing the URL.
+
+// A global constant that holds the values of various parameters at the very
+// start. These values will be either hard-coded default values, or values read
+// from the URL query string.
+const startingParams = {};
+
+// Hard-coded defaults.
+const DEFAULT_URLPARAMS = {
+  'originFreq': 261.626,
+  'maxHarmNorm': 8.0,
+  'pitchlineColor': '#c7c7c7',
+  'pitchlineColorActive': '#000000',
+  'showPitchlines': true,
+  'showKeys': true,
+  'showSteps': false,
+  'toneRadius': 22.0,
+  'toneLabelTextStyle': 'fractions',
+  'toneColor': '#D82A1E',
+  'toneColorActive': '#D8B71E',
+  'baseToneBorderColor': '#000000',
+  'baseToneBorderSize': 5.0,
+  'opacityHarmNorm': true,
+  'horizontalZoom': 300,
+  'verticalZoom': 100,
+  'midX': 0.0,
+  'midY': 0.0,
+  'axes': [
+    {'yShift': 1.2, 'harmDistStep': 0.0},
+    {'yShift': 1.8, 'harmDistStep': 1.5},
+    {'yShift': 1.0, 'harmDistStep': 1.7},
+  ],
+  'baseTones': [new Map()],
+  'stepIntervals': [
+    {'interval': [1, 0, 0], 'color': '#1d181e', 'show': true},
+    {'interval': [-1, 1, 0], 'color': '#17726F', 'show': true},
+    {'interval': [-2, 0, 1], 'color': '#774579', 'show': true},
+  ],
+  'settingsExpanded': true,
+  'generalExpanded': true,
+  'tonesExpanded': false,
+  'stepIntervalsExpanded': false,
+  'styleExpanded': false,
+};
+
+function readURL() {
+  const params = new URLSearchParams(decodeURIComponent(location.search));
+  Object.entries(DEFAULT_URLPARAMS).forEach(([key, value]) => {
+    if (params.has(key) && params.get(key) != 'undefined') {
+      value = JSON.parse(params.get(key));
+    }
+    startingParams[key] = value;
+  });
+}
+
+function updateURL(key, value) {
+  const current = new URLSearchParams(decodeURIComponent(location.search));
+  current.set(key, JSON.stringify(value));
+  let queryStr = '';
+  for (const [key, valueStr] of current.entries()) {
+    queryStr += `${key}=${valueStr}&`;
+  }
+  queryStr = encodeURIComponent(queryStr);
+  const newURL = window.location.pathname + '?' + queryStr;
+  window.history.replaceState(null, '', newURL);
+}
+
+readURL();
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Generic utility functions and classes.
+
+function iteratorUnion(it1, it2) {
+  return new Set([...it1, ...it2]);
+}
+
+function toneToString(tone) {
+  return [...tone.entries()].sort().toString();
+}
+
+class VariableSourceSubject extends rxjs.Subject {
+  constructor(joinFunction) {
+    super();
+    this.joinFunction = joinFunction;
+    this.sources = new Set();
+  }
+
+  addSource(source) {
+    this.sources.add(source);
+    this.renewInnerSubscription();
+  }
+
+  removeSource(source) {
+    this.sources.delete(source);
+    this.renewInnerSubscription();
+  }
+
+  hasSource(source) {
+    return this.sources.has(source);
+  }
+
+  renewInnerSubscription() {
+    const innerObservable = this.joinFunction(...this.sources);
+    if (this.innerSubscription) {
+      this.innerSubscription.unsubscribe();
+    }
+    this.innerSubscription = innerObservable.subscribe(this);
+  }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Functions for arithmetic with coordinate representations of tones.
 
-// TODO Remove if not used.
-// function tonesEqual(tone1, tone2) {
-//   // Ensure that if there's a length difference, tone1 is longer.
-//   if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
-//   for (let i = 0; i < tone1.length; i++) {
-//     const c1 = tone1[i];
-//     // If tone2 has less values, assume it's padded with zeros at the end.
-//     const c2 = (i < tone2.length ? tone2[i] : 0.0);
-//     if (c1 !== c2) return false;
-//   }
-//   return true;
-// }
-
-// TODO Remove if not used.
-// function negTone(tone) {
-//   return tone.map((a) => -a);
-// }
-
+// Check whether two tones are equal.
 function tonesEqual(tone1, tone2) {
-  // Ensure that if there's a length difference, tone1 is longer.
-  if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
-  for (let i = 0; i < tone1.length; i++) {
-    const c1 = tone1[i];
-    // If tone2 has less values, assume it's padded with zeros at the end.
-    const c2 = (i < tone2.length ? tone2[i] : 0.0);
-    if (c1 !== c2) return false;
-  }
-  return true;
+  return [...subtractTone(tone1, tone2).values()].every((d) => d == 0);
 }
 
+// Take the difference tone1 - tone2.
 function subtractTone(tone1, tone2) {
-  // Ensure that if there's a length difference, tone1 is longer.
-  const flip = (tone1.length < tone2.length);
-  if (flip) [tone1, tone2] = [tone2, tone1];
-  const res = new Array(tone1.length);
-  for (let i = 0; i < res.length; i++) {
-    const c1 = tone1[i];
-    // If tone2 has less values, assume it's padded with zeros at the end.
-    const c2 = (i < tone2.length ? tone2[i] : 0.0);
-    res[i] = c1 - c2;
-    if (flip) res[i] = -res[i];
-  }
-  return res;
+  const diff = new Map();
+  iteratorUnion(tone1.keys(), tone2.keys()).forEach((key) => {
+    const c1 = tone1.get(key) || 0;
+    const c2 = tone2.get(key) || 0;
+    const d = c1 - c2;
+    if (d != 0) diff.set(key, d);
+  });
+  return diff;
 }
 
+// Sum tone1 + tone2.
 function sumTones(tone1, tone2) {
-  // Ensure that if there's a length difference, tone1 is longer.
-  if (tone1.length < tone2.length) [tone1, tone2] = [tone2, tone1];
-  const res = new Array(tone1.length);
-  for (let i = 0; i < res.length; i++) {
-    const c1 = tone1[i];
-    // If tone2 has less values, assume it's padded with zeros at the end.
-    const c2 = (i < tone2.length ? tone2[i] : 0.0);
-    res[i] = c1 + c2;
-  }
-  return res;
+  const sum = new Map();
+  iteratorUnion(tone1.keys(), tone2.keys()).forEach((key) => {
+    const c1 = tone1.get(key) || 0;
+    const c2 = tone2.get(key) || 0;
+    const d = c1 + c2;
+    if (d != 0) sum.set(key, d);
+  });
+  return sum;
 }
 
+// Given an interval, compute the fraction representation as [num, denom].
 function fraction(interval) {
   let num = 1.0;
   let denom = 1.0;
-  for (let i = 0; i < interval.length; i += 1) {
-    const p = scaleFig.primes[i];
-    const c = interval[i];
+  interval.forEach(([p, c]) => {
+    // TODO Could we rely on always assuming that c != 0?
     if (c > 0) num *= Math.pow(p, c);
     else denom *= Math.pow(p, -c);
-  }
+  });
   return [num, denom];
 }
 
+// Find the unique prime decomposition of a fraction, and return the
+// corresponding tone.
 function primeDecompose(num, denom) {
-  const tone = [0];
+  const tone = new Map();
   let i = 0;
-  while (i < scaleFig.primes.length) {
+  // Go through primes p, one by one starting from the smallest, taking out
+  // factors of p from both the numerator and denominator. Once neither is
+  // divisible by p any more, move to the next prime. Return once the numerator
+  // and denominator have both been reduced to 1.
+  while (i < ALLPRIMES.length) {
     const p = scaleFig.primes[i];
     const numDivisible = (num % p == 0);
     const denomDivisible = (denom % p == 0);
     if (numDivisible) {
       num = num / p;
-      tone[tone.length-1] += 1;
+      const newValue = (tone.get(p) || 0) + 1;
+      if (newValue != 0) tone.set(p, newValue);
+      else tone.delete(p);
     }
     if (denomDivisible) {
       denom = denom / p;
-      tone[tone.length-1] -= 1;
+      const newValue = (tone.get(p) || 0) - 1;
+      if (newValue != 0) tone.set(p, newValue);
+      else tone.delete(p);
     }
     if (num == 1 && denom == 1) return tone;
     if (!numDivisible && !denomDivisible) {
+      // We've exhausted this prime, go to the next one.
       i += 1;
-      tone.push(0);
     }
   }
-  // TODO We should actually raise an error or something, because too large
-  // primes were involved.
+  // TODO We should actually raise an error or something if we get here,
+  // because too large primes were involved.
   return tone;
 }
 
-function harmDist(scaleFig, tone1, tone2) {
-  const interval = subtractTone(tone1, tone2);
-  let d = 0.0;
-  for (let i = 0; i < interval.length; i++) {
-    const p = scaleFig.primes[i];
-    const c = interval[i];
-    const pStr = p.toString();
-    let step;
-    if (scaleFig.harmDistSteps.hasOwnProperty(pStr)) {
-      step = scaleFig.harmDistSteps[pStr];
-    } else {
-      step = +Infinity;
-    }
-    if (c != 0.0) d += step * Math.abs(c);
-  }
-  return d;
-}
-
+// Given an interval, compute the corresponding multiplicative factor for the
+// pitch, as a float.
 function pitchFactor(interval) {
   let pf = 1.0;
-  for (let i = 0; i < interval.length; i += 1) {
-    const p = scaleFig.primes[i];
-    const c = interval[i];
+  interval.forEach(([p, c]) => {
     pf *= Math.pow(p, c);
-  }
+  });
   return pf;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// TODO Come up with a title.
+// Setting up the canvasses and related functions.
 
-// TODO This stuff about creating the scaleFig is the only part that is not
-// about constant, function or class declarations that is not at the very end
-// of the file. Where do I want this stuff to happen? Relates to whether
-// scaleFig should be a global constant.
+// scaleFig is a global object that essentially functions as a namespace.
+// Its fields are various global variables related to the SVG canvasses.
+const scaleFig = {};
 
-const canvas = new SVG('divCanvas');
-const keyCanvas = new SVG('divKeyCanvas');
-keyCanvas.attr('preserveAspectRatio', 'none');
+// Set up the SVG canvases.
+scaleFig.canvas = new SVG('divCanvas');
+scaleFig.keyCanvas = new SVG('divKeyCanvas');
+scaleFig.keyCanvas.attr('preserveAspectRatio', 'none');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
-const gPitchlines = canvas.group();
-const gSteps = canvas.group();
-const gTones = canvas.group();
-const svgGroups = {
-  'pitchlines': gPitchlines,
-  'steps': gSteps,
-  'tones': gTones,
+scaleFig.svgGroups = {
+  'pitchlines': scaleFig.canvas.group(),
+  'steps': scaleFig.canvas.group(),
+  'tones': scaleFig.canvas.group(),
 };
 
-const scaleFig = {
-  'canvas': canvas,
-  'keyCanvas': keyCanvas,
-  'keys': [],
-  'svgGroups': svgGroups,
-  'horizontalZoom': 1,
-  'verticalZoom': 1,
-  'midX': 0.0,
-  'midY': 0.0,
-  'yShifts': {},
-  'style': {},
-  'originFreq': 1,
-  'baseTones': [],
-  'stepIntervals': {},
-  'harmDistSteps': {},
-  'primes': [],
+// Return a boolean for whether the coordinates (x, y) are in the current
+// viewbox of the SVG canvas.
+function isInViewbox(x, y) {
+  const viewboxLeft = scaleFig.canvas.viewbox().x;
+  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+  const viewboxTop = scaleFig.canvas.viewbox().y;
+  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+  const inBoxHor = (viewboxLeft < x && x < viewboxRight);
+  const inBoxVer = (viewboxTop < y && y < viewboxBottom);
+  const inBox = inBoxHor && inBoxVer;
+  return inBox;
+}
 
-  'maxHarmNorm': 1.0,
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Create event streams for key presses. By streams I mean rxjs Observables.
 
-  'shiftDown': false,
-  'sustainedTones': [],
-  'ctrlDown': false,
-  'clientXOnClick': 0.0,
-  'clientYOnClick': 0.0,
-  'midXOnClick': 0.0,
-  'midYOnClick': 0.0,
-  'panning': false,
+// streams is a global object that works as a namespace for all globally
+// available streams.
+const streams = {};
 
-  'tones': {},
-  'boundaryTones': {},
-  'steps': [],
-};
+const divPanMod = document.getElementById('divPanMod');
+const divSustainMod = document.getElementById('divSustainMod');
 
-function resizeCanvas() {
+const trueOnPanDown = rxjs.merge(
+  rxjs.fromEvent(divPanMod, 'mousedown'),
+  rxjs.fromEvent(divPanMod, 'touchstart'),
+  rxjs.fromEvent(divPanMod, 'pointerdown').pipe(map((ev) => {
+    // Allow pointer event target to jump between objects when pointer is
+    // moved.
+    ev.target.releasePointerCapture(ev.pointerId);
+    return ev;
+  })),
+  rxjs.fromEvent(window, 'keydown').pipe(filter((ev) => e.keyCode == 17)),
+).pipe(map((ev) => true));
+
+const falseOnPanUp = rxjs.merge(
+  rxjs.fromEvent(divPanMod, 'mouseup'),
+  rxjs.fromEvent(divPanMod, 'mouseleave'),
+  rxjs.fromEvent(divPanMod, 'touchend'),
+  rxjs.fromEvent(divPanMod, 'touchcancel'),
+  rxjs.fromEvent(divPanMod, 'pointerup'),
+  rxjs.fromEvent(divPanMod, 'pointerleave'),
+  rxjs.fromEvent(window, 'keyup').pipe(filter((ev) => e.keyCode == 17)),
+).pipe(map((ev) => false));
+
+streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
+  startWith(false)
+);
+
+const trueOnSustainDown = rxjs.merge(
+  rxjs.fromEvent(divSustainMod, 'mousedown'),
+  rxjs.fromEvent(divSustainMod, 'touchstart'),
+  rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(map((ev) => {
+    // Allow pointer event target to jump between objects when pointer is
+    // moved.
+    ev.target.releasePointerCapture(ev.pointerId);
+    return ev;
+  })),
+  rxjs.fromEvent(window, 'keydown').pipe(filter((ev) => e.keyCode == 16)),
+).pipe(map((ev) => true));
+
+const falseOnSustainUp = rxjs.merge(
+  rxjs.fromEvent(divSustainMod, 'mouseup'),
+  rxjs.fromEvent(divSustainMod, 'mouseleave'),
+  rxjs.fromEvent(divSustainMod, 'touchend'),
+  rxjs.fromEvent(divSustainMod, 'touchcancel'),
+  rxjs.fromEvent(divSustainMod, 'pointerup'),
+  rxjs.fromEvent(divSustainMod, 'pointerleave'),
+  rxjs.fromEvent(window, 'keyup').pipe(filter((ev) => e.keyCode == 16)),
+).pipe(map((ev) => false));
+
+streams.sustainDown = rxjs.merge(trueOnSustainDown, falseOnSustainUp).pipe(
+  startWith(false)
+);
+
+// TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
+// CSS class whether they are up or down?
+streams.panDown.subscribe((value) => {
+  if (value) {
+    divPanMod.style.background = '#FF3900';
+  } else {
+    divPanMod.style.background = '#FF9273';
+  }
+});
+
+streams.sustainDown.subscribe((value) => {
+  if (value) {
+    divSustainMod.style.background = '#FFAA00';
+  } else {
+    divSustainMod.style.background = '#FFD073';
+  }
+});
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Create event streams for panning the canvas.
+
+// Check whether a given event has clientX and clientY coordinates.
+function eventHasCoords(ev) {
+  return ('clientX' in ev && 'clientY' in ev
+    && !isNaN(ev.clientX) && !isNaN(ev.clientY));
+}
+
+// Get clientX and clientY from an event, if it has them, if not, return
+// [NaN, NaN]. The same function should work for mouse, touch and pointer
+// events, and in at least Firefox and Chrome.
+function eventClientCoords(ev) {
+  if (eventHasCoords(ev)) {
+    return [ev.clientX, ev.clientY];
+  } else if ('touches' in ev) {
+    // TODO This length-1 thing makes it pick the coordinates of the last
+    // touch point. What we should really do is take the first touch point
+    // that is not the one holding the pan modifier div down. This would be
+    // either [0] or [1] depending on whether we are using touch or keyboard
+    // to toggle panning.
+    const touch = ev.touches[ev.touches.length-1];
+    if (eventHasCoords(touch)) {
+      return [touch.clientX, touch.clientY];
+    }
+  }
+  return [NaN, NaN];
+}
+
+// A stream that returns a pair of x, y coordinates for a click of the canvas,
+// presuming that these coordinates exist for the type of click executed.
+// Events that don't have client coordinates well defined are filtered out.
+const clientCoordsOnClick = rxjs.merge(
+  rxjs.fromEvent(scaleFig.canvas, 'mousedown').pipe(filter(
+    (ev) => ev.buttons == 1)
+  ),
+  rxjs.fromEvent(scaleFig.canvas, 'touchstart'),
+  rxjs.fromEvent(scaleFig.canvas, 'pointerdown').pipe(filter(
+    (ev) => ev.buttons == 1)
+  ),
+).pipe(
+  map(eventClientCoords),
+  filter(([x, y]) => !isNaN(x) && !isNaN(y)),
+);
+
+const trueOnCanvasOn = streams.clientCoordsOnClick.pipe(map((ev) => true));
+const falseOnCanvasOff = rxjs.merge(
+  rxjs.fromEvent(scaleFig.canvas, 'mouseup'),
+  rxjs.fromEvent(scaleFig.canvas, 'mouseleave'),
+  rxjs.fromEvent(scaleFig.canvas, 'touchend'),
+  rxjs.fromEvent(scaleFig.canvas, 'touchcancel'),
+  rxjs.fromEvent(scaleFig.canvas, 'pointerup'),
+  rxjs.fromEvent(scaleFig.canvas, 'pointerleave'),
+).pipe(map((ev) => false));
+const canvasOn = rxjs.merge(falseOnCanvasOff, trueOnCanvasOn).pipe(
+  startWith(false)
+);
+
+streams.panning = rxjs.combineLatest(streams.panDown, canvasOn).pipe(map(
+  ([v1, v2]) => v1 && v2
+));
+
+streams.midCoords = new BehaviorSubject();
+midCoords.next(startingParams['midCoords']);
+
+const midCoordsOnClick = streams.midCoords(
+  rxjs.operators.sample(clientCoordsOnClick)
+);
+
+// TODO Instead of having this get called on every move, we could just create
+// the listener for this whenever panning is set to true, and remove it when
+// its set to false. Could be faster?
+const clientCoordsOnMove = rxjs.merge(
+  rxjs.fromEvent(scaleFig.canvas, 'mousemove'),
+  rxjs.fromEvent(scaleFig.canvas, 'touchmove'),
+  rxjs.fromEvent(scaleFig.canvas, 'pointermove')
+).pipe(
+  map((ev) => {
+    // To not duplicate events as touch/pointer/mouse.
+    ev.preventDefault();
+    return eventClientCoords(ev);
+  }),
+  filter(([x, y]) => !isNaN(x) && !isNaN(y)),
+);
+
+midCoords.subscribe(streams.clientCoordsOnMove.pipe(
+  rxjs.operators.withLatestFrom(
+    rxjs.combineLatest(streams.panning, clientCoordsOnClick, midCoordsOnClick)
+  ),
+  filter((arg) => arg[1]), // Filter out panning=false.
+  map(([ccOnMove, panning, ccOnClick, mcOnClick]) => {
+    const midX = mcOnClick[0] - ccOnMove[0] + ccOnClick[0];
+    const midY = mcOnClick[1] - ccOnMove[1] + ccOnClick[1];
+    return [midX, midY]
+  }),
+));
+
+// TODO CONTINUE HERE.
+// Fix the functions below, probably by using
+// https://github.com/juggle/resize-observer
+// and subscribing to combineLatest of some clientHeights and Widths, and
+// midCoords. Once this is done, the next section until the beginning of
+// comments is probably fine already.
+
+midCoords.subscribe((val) => resizeCanvas(val));
+resizeKeyCanvas();
+
+function resizeCanvas(midCoords) {
   const divCanvas = document.getElementById('divCanvas');
   const h = divCanvas.clientHeight;
   const w = divCanvas.clientWidth;
   const canvas = scaleFig.canvas;
-  canvas.viewbox(-w/2+scaleFig.midX, -h/2+scaleFig.midY, w, h);
+  canvas.viewbox(-w/2+midCoords[0], -h/2+scaleFig.midCoords[1], w, h);
 }
 
 function resizeKeyCanvas() {
@@ -254,138 +519,117 @@ window.onresize = function(evt) {
   resizeSettings();
 };
 
-function isInViewbox(scaleFig, x, y) {
-  const viewboxLeft = scaleFig.canvas.viewbox().x;
-  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
-  const viewboxTop = scaleFig.canvas.viewbox().y;
-  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
-  const inBoxHor = (viewboxLeft < x && x < viewboxRight);
-  const inBoxVer = (viewboxTop < y && y < viewboxBottom);
-  const inBox = inBoxHor && inBoxVer;
-  return inBox;
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Create event streams for various variables and settings.
 
-function isInViewclosure(scaleFig, x, y) {
-  const viewboxLeft = scaleFig.canvas.viewbox().x;
-  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
-  const viewboxTop = scaleFig.canvas.viewbox().y;
-  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
-  const maxPrime = Math.max(...scaleFig.primes);
-  const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
-  const maxYshift = Math.max(...Object.values(scaleFig.yShifts));
-  const maxYjump = scaleFig.verticalZoom * maxYshift;
-  // const closureLeft = Math.min(viewboxLeft, viewboxRight - maxXjump);
-  // const closureRight = Math.max(viewboxRight, viewboxLeft + maxXjump);
-  // const closureTop = Math.min(viewboxTop, viewboxBottom - maxYjump);
-  // const closureBottom = Math.max(viewboxBottom, viewboxTop + maxYjump);
-  const closureLeft = viewboxLeft - maxXjump;
-  const closureRight = viewboxRight + maxXjump;
-  const closureTop = viewboxTop - maxYjump;
-  const closureBottom = viewboxBottom + maxYjump;
-  const inClosureHor = (closureLeft < x && x < closureRight);
-  const inClosureVer = (closureTop < y && y < closureBottom);
-  const inClosure = inClosureHor && inClosureVer;
-  return inClosure;
-}
+// Each element of this array describes one UI element and a corresponding
+// parameter name and event. Each UI element will then be turned into an event
+// stream of the given name, and initialized with the appropriate value.
+const streamElements = [
+  {
+    'paramName': 'originFreq',
+    'elemName': 'numOriginFreq',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'toneRadius',
+    'elemName': 'numToneRadius',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'toneColor',
+    'elemName': 'toneColor',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'toneColorActive',
+    'elemName': 'toneColorActive',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'baseToneBorderColor',
+    'elemName': 'baseToneBorderColor',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'baseToneBorderSize',
+    'elemName': 'numBaseToneBorderSize',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'opacityHarmNorm',
+    'elemName': 'cboxOpacityHarmNorm',
+    'eventName': 'click',
+  },
+  {
+    'paramName': 'showPitchlines',
+    'elemName': 'cboxPitchlines',
+    'eventName': 'click',
+  },
+  {
+    'paramName': 'showKeys',
+    'elemName': 'cboxKeys',
+    'eventName': 'click',
+  },
+  {
+    'paramName': 'showSteps',
+    'elemName': 'cboxSteps',
+    'eventName': 'click',
+  },
+  {
+    'paramName': 'pitchlineColor',
+    'elemName': 'colorPitchlines',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'pitchlineColorActive',
+    'elemName': 'colorPitchlinesActive',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'horizontalZoom',
+    'elemName': 'rangeHorzZoom',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'verticalZoom',
+    'elemName': 'rangeVertZoom',
+    'eventName': 'input',
+  },
+  {
+    'paramName': 'maxHarmNorm',
+    'elemName': 'numMaxHarmNorm',
+    'eventName': 'input',
+  },
+];
 
-function startTone(tone) {
-  synth.triggerAttack(tone);
-}
+streamElements.forEach((e) => {
+  const elem = document.getElementById(e.elemName);
+  streams[e.paramName] = rxjs.fromEvent(elem, e.eventName).pipe(
+    rxjs.operators.pluck('target', 'value'),
+    rxjs.operators.startWith(startingParams[e.paramName])
+  );
 
-function stopTone(tone) {
-  synth.triggerRelease(tone);
-}
-
-const rangeHorzZoom = document.getElementById('rangeHorzZoom');
-function rangeHorzZoomOninput(value) {
-  const oldValue = scaleFig.horizontalZoom;
-  scaleFig.horizontalZoom = value;
-  rangeHorzZoom.value = value;
-  repositionAll(scaleFig);
-  if (Math.abs(oldValue) > Math.abs(value)) {
-    generateTones();
-  } else {
-    deleteTones();
-  }
-
-  scaleFig.keys.forEach((key) => {
-    key.scaleSvg();
-    key.positionSvg();
+  // Every time a new value is emitted, update the UI element(s) and the URL.
+  streams[e.paramName].subscribe((value) => {
+    elem.value = value;
+    updateURL(e.paramName, value);
   });
+});
 
-  writeURL();
-}
-rangeHorzZoom.oninput = function() {
-  rangeHorzZoomOninput(this.value);
-};
-
-const rangeVertZoom = document.getElementById('rangeVertZoom');
-function rangeVertZoomOninput(value) {
-  const oldValue = scaleFig.verticalZoom;
-  scaleFig.verticalZoom = value;
-  rangeVertZoom.value = value;
-  repositionAll(scaleFig);
-  if (Math.abs(oldValue) > Math.abs(value)) {
-    generateTones();
-  } else {
-    deleteTones();
-  }
-
-  writeURL();
-}
-rangeVertZoom.oninput = function() {
-  rangeVertZoomOninput(this.value);
-};
-
-
-const numOriginFreq = document.getElementById('numOriginFreq');
-function numOriginFreqOninput(value) {
-  scaleFig.originFreq = value;
-  numOriginFreq.value = value;
-  scaleFig.keys.forEach((key) => {
-    key.positionSvg();
-  });
-  relabelTones();
-  writeURL();
-}
-numOriginFreq.oninput = function() {
-  numOriginFreqOninput(parseFloat(this.value));
-};
-
-const numMaxHarmNorm = document.getElementById('numMaxHarmNorm');
-function numMaxHarmNormOnchange(value) {
-  const oldValue = scaleFig.maxHarmNorm;
-  scaleFig.maxHarmNorm = value;
-  numMaxHarmNorm.value = value;
-  recolorTones();
-  reopacitateSteps();
-  if (value > oldValue) {
-    generateTones();
-  } else {
-    deleteTones();
-  }
-  writeURL();
-}
-numMaxHarmNorm.onchange = function() {
-  numMaxHarmNormOnchange(parseFloat(this.value));
-};
-
-const numToneRadius = document.getElementById('numToneRadius');
-function numToneRadiusOninput(value) {
-  scaleFig.style['toneRadius'] = value;
-  numToneRadius.value = value;
-  rescaleTones(scaleFig);
-  writeURL();
-}
-numToneRadius.oninput = function() {
-  numToneRadiusOninput(parseFloat(this.value));
-};
-
+// We do the toneLabel one manually, since it requires merging three streams.
 const radioToneLabelNone = document.getElementById('radioToneLabelNone');
 const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
 const radioToneLabelFrac = document.getElementById('radioToneLabelFrac');
-function radioToneLabelOnclick(value) {
-  scaleFig.labelTextStyle = value;
+streams.toneLabelTextStyle = rxjs.merge(
+  rxjs.fromEvent(radioToneLabelNone, 'click'),
+  rxjs.fromEvent(radioToneLabelEDO, 'click'),
+  rxjs.fromEvent(radioToneLabelFrac, 'click'),
+).pipe(
+  rxjs.operators.pluck('target', 'value'),
+  rxjs.operators.startWith(startingParams['toneLabelTextStyle'])
+);
+streams.toneLabelTextStyle.subscribe((value) => {
   if (value == 'EDO') {
     radioToneLabelEDO.checked = true;
   } else if (value == 'none') {
@@ -393,128 +637,16 @@ function radioToneLabelOnclick(value) {
   } else if (value == 'fractions') {
     radioToneLabelFrac.checked = true;
   }
-  relabelTones();
-  writeURL();
-}
-radioToneLabelEDO.onclick = function() {
-  radioToneLabelOnclick(this.value);
-};
-radioToneLabelNone.onclick = function() {
-  radioToneLabelOnclick(this.value);
-};
-radioToneLabelFrac.onclick = function() {
-  radioToneLabelOnclick(this.value);
-};
+  updateURL('toneLabelTextStyle', value);
+});
 
-function relabelTones() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.setLabelText();
-  });
-}
+// Set up some extra subscriptions for a few parameters that have a global
+// impact.
 
-const toneColor = document.getElementById('toneColor');
-function toneColorOninput(value) {
-  scaleFig.style['toneColor'] = value;
-  toneColor.value = value;
-  recolorTones();
-  writeURL();
-}
-toneColor.oninput = function() {
-  toneColorOninput(this.value);
-};
-
-const toneColorActive = document.getElementById('toneColorActive');
-function toneColorActiveOninput(value) {
-  scaleFig.style['toneColorActive'] = value;
-  toneColorActive.value = value;
-  writeURL();
-}
-toneColorActive.oninput = function() {
-  toneColorActiveOninput(this.value);
-};
-
-const baseToneBorderColor = document.getElementById('baseToneBorderColor');
-function baseToneBorderColorOninput(value) {
-  scaleFig.style['baseToneBorderColor'] = value;
-  baseToneBorderColor.value = value;
-  recolorTones();
-  writeURL();
-}
-baseToneBorderColor.oninput = function() {
-  baseToneBorderColorOninput(this.value);
-};
-
-const numBaseToneBorderSize = document.getElementById('numBaseToneBorderSize');
-function numBaseToneBorderSizeOninput(value) {
-  scaleFig.style['baseToneBorderSize'] = value;
-  numBaseToneBorderSize.value = value;
-  recolorTones(); // TODO This is heavy-handed.
-  writeURL();
-}
-numBaseToneBorderSize.oninput = function() {
-  numBaseToneBorderSizeOninput(parseFloat(this.value));
-};
-
-const cboxOpacityHarmNorm = document.getElementById('cboxOpacityHarmNorm');
-function cboxOpacityHarmNormOnclick(value) {
-  scaleFig.style['opacityHarmNorm'] = value;
-  cboxOpacityHarmNorm.checked = value;
-  reopacitateAll(scaleFig);
-  writeURL();
-}
-cboxOpacityHarmNorm.onclick = function() {
-  cboxOpacityHarmNormOnclick(this.checked);
-};
-
-function rescaleTones(scaleFig) {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.scaleSvgTone();
-  });
-}
-
-function setPitchlineGroupVisibility(scaleFig) {
-  if (scaleFig.style['drawPitchlines']) {
-    scaleFig.svgGroups.pitchlines.attr('visibility', 'inherit');
-  } else {
-    scaleFig.svgGroups.pitchlines.attr('visibility', 'hidden');
-  }
-}
-
-function setStepGroupVisibility(scaleFig) {
-  if (scaleFig.style['drawSteps']) {
-    scaleFig.svgGroups.steps.attr('visibility', 'inherit');
-  } else {
-    scaleFig.svgGroups.steps.attr('visibility', 'hidden');
-  }
-}
-
-const cboxPitchlines = document.getElementById('cboxPitchlines');
-function cboxPitchlinesOnclick(value) {
-  scaleFig.style['drawPitchlines'] = value;
-  cboxPitchlines.checked = value;
-  setPitchlineGroupVisibility(scaleFig);
-  writeURL();
-}
-cboxPitchlines.onclick = function() {
-  cboxPitchlinesOnclick(this.checked);
-};
-
-const cboxKeys = document.getElementById('cboxKeys');
-function cboxKeysOnclick(value) {
-  cboxKeys.checked = value;
-  scaleFig['showKeys'] = value;
-  setKeysExpanded();
-  writeURL();
-}
-cboxKeys.onclick = function() {
-  cboxKeysOnclick(this.checked);
-};
-
-function setKeysExpanded() {
-  const show = scaleFig['showKeys'];
+streams.showKeys.subscribe((value) => {
   const divCanvas = document.getElementById('divCanvas');
   const divKeyCanvas = document.getElementById('divKeyCanvas');
-  if (show) {
+  if (value) {
     divCanvas.style.height = '80%';
     divKeyCanvas.style.height = '20%';
   } else {
@@ -523,336 +655,28 @@ function setKeysExpanded() {
   }
   resizeCanvas();
   resizeKeyCanvas();
-}
+});
 
-const cboxSteps = document.getElementById('cboxSteps');
-function cboxStepsOnclick(value) {
-  scaleFig.style['drawSteps'] = value;
-  cboxSteps.checked = value;
-  setStepGroupVisibility(scaleFig);
-  writeURL();
-}
-cboxSteps.onclick = function() {
-  cboxStepsOnclick(this.checked);
-};
-
-
-const buttAddInterval = document.getElementById('buttAddInterval');
-function buttAddIntervalOnclick(value) {
-  const interval = new Array(scaleFig.primes.length).fill(0);
-  const color = '#000000';
-  const show = true;
-  addStepInterval(interval, color, show);
-  writeURL();
-}
-buttAddInterval.onclick = function() {
-  buttAddIntervalOnclick(this.checked);
-};
-
-const buttAddAxis = document.getElementById('buttAddAxis');
-function buttAddAxisOnclick(value) {
-  addAxis();
-  writeURL();
-}
-buttAddAxis.onclick = function() {
-  buttAddAxisOnclick(this.checked);
-};
-
-const buttRemoveAxis = document.getElementById('buttRemoveAxis');
-function buttRemoveAxisOnclick(value) {
-  removeAxis();
-  writeURL();
-}
-buttRemoveAxis.onclick = function() {
-  buttRemoveAxisOnclick(this.checked);
-};
-
-const colorPitchlines = document.getElementById('colorPitchlines');
-function colorPitchlinesOninput(value) {
-  scaleFig.style['pitchlineColor'] = value;
-  colorPitchlines.value = value;
-  recolorPitchlines();
-  writeURL();
-}
-colorPitchlines.oninput = function() {
-  colorPitchlinesOninput(this.value);
-};
-
-const colorPitchlinesActive = document.getElementById('colorPitchlinesActive');
-function colorPitchlinesActiveOninput(value) {
-  scaleFig.style['pitchlineColorActive'] = value;
-  colorPitchlinesActive.value = value;
-  writeURL();
-}
-colorPitchlinesActive.oninput = function() {
-  colorPitchlinesActiveOninput(this.value);
-};
-
-function yShiftOnchange(prime, shift) {
-  const pStr = prime.toString();
-  const inNum = document.getElementById(`inNumYshift_${prime}`);
-  const inRange = document.getElementById(`inRangeYshift_${prime}`);
-  if (inNum != null) inNum.value = shift;
-  if (inRange != null) inRange.value = shift.toString();
-  // TODO Reading scaleFig from global scope?
-  const oldShift = scaleFig.yShifts[pStr];
-  scaleFig.yShifts[pStr] = shift;
-  repositionAll(scaleFig);
-  // TODO We assume here that the viewbox is always centered at the origin.
-  if (Math.abs(oldShift) > Math.abs(shift)) {
-    generateTones();
+streams.showPitchlines.subscribe((value) => {
+  if (value) {
+    scaleFig.svgGroups.pitchlines.attr('visibility', 'inherit');
   } else {
-    deleteTones();
+    scaleFig.svgGroups.pitchlines.attr('visibility', 'hidden');
   }
-  writeURL();
-}
+});
 
-function harmDistStepOnchange(prime, dist) {
-  const pStr = prime.toString();
-  const oldDist = scaleFig.harmDistSteps[pStr];
-  scaleFig.harmDistSteps[pStr] = dist;
-  const inRange = document.getElementById(`inRangeHarmdiststep_${prime}`);
-  const inNum = document.getElementById(`inNumHarmdiststep_${prime}`);
-  if (inRange != null) inRange.value = dist;
-  if (inNum != null) inNum.value = dist;
-  recolorTones();
-  reopacitateSteps();
-  if (oldDist > dist) {
-    generateTones();
+streams.showSteps.subscribe((value) => {
+  if (value) {
+    scaleFig.svgGroups.steps.attr('visibility', 'inherit');
   } else {
-    deleteTones();
+    scaleFig.svgGroups.steps.attr('visibility', 'hidden');
   }
-  writeURL();
-}
+});
 
-function repositionAll(scaleFig) {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.positionSvg();
-  });
-}
 
-function recolorSteps() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    Object.entries(tone.steps).forEach(([label, step]) => {
-      step.color();
-    });
-  });
-}
-
-function updateStepEndpoints() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    Object.entries(tone.steps).forEach(([label, step]) => {
-      step.updateEndpoint();
-    });
-  });
-}
-
-function repositionSteps() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    Object.entries(tone.steps).forEach(([label, step]) => {
-      step.position();
-    });
-  });
-}
-
-function reopacitateSteps() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    Object.entries(tone.steps).forEach(([label, step]) => {
-      step.opacitate();
-    });
-  });
-}
-
-function reopacitateAll() {
-  reopacitateSteps();
-  recolorTones();
-  recolorPitchlines();
-}
-
-function recolorTones() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.colorSvg();
-  });
-}
-
-function recolorPitchlines() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.colorSvgPitchline();
-  });
-}
-
-function setPitchlinesVisibility() {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.setSvgPitchlineVisibility();
-  });
-}
-
-function deleteStepInterval(label) {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    if (label in tone.steps) tone.steps[label].destroy();
-  });
-  const stepInterval = scaleFig.stepIntervals[label];
-  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
-  divStepIntervals.removeChild(stepInterval.div);
-  stepInterval.svgGroup.remove();
-  delete scaleFig.stepIntervals[label];
-  writeURL();
-}
-
-function canvasOn(ev) {
-  if (scaleFig.ctrlDown) {
-    const evHasCoords = ('clientX' in ev && 'clientY' in ev &&
-      !isNaN(ev.clientX) && !isNaN(ev.clientY));
-    if (evHasCoords) {
-      scaleFig.clientXOnClick = ev.clientX;
-      scaleFig.clientYOnClick = ev.clientY;
-    } else if ('touches' in ev) {
-      // TODO This length-1 thing makes it pick the coordinates of the last
-      // touch point. What we should really do is take the first touch point
-      // that is not the one holding the pan modifier div down. This would be
-      // either [0] or [1] depending on whether we are using touch or keyboard
-      // to toggle panning.
-      const touch = ev.touches[ev.touches.length-1];
-      const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
-        !isNaN(touch.clientX) && !isNaN(touch.clientY));
-      if (touchHasCoords) {
-        scaleFig.clientXOnClick = touch.clientX;
-        scaleFig.clientYOnClick = touch.clientY;
-      } else {
-        return;
-      }
-    } else {
-      return;
-    }
-    scaleFig.midXOnClick = scaleFig.midX;
-    scaleFig.midYOnClick = scaleFig.midY;
-    scaleFig.panning = true;
-  }
-}
-
-function canvasOff(ev) {
-  scaleFig.panning = false;
-}
-
-function canvasOnMouse(ev) {
-  if (ev.buttons == 1) {
-    canvasOn(ev);
-  }
-};
-function canvasOffMouse(ev) {
-  canvasOff(ev);
-};
-function canvasOnTouch(ev) {
-  canvasOn(ev);
-};
-function canvasOffTouch(ev) {
-  canvasOff(ev);
-};
-function canvasOnPointer(ev) {
-  if (ev.buttons == 1) {
-    canvasOn(ev);
-  }
-};
-function canvasOffPointer(ev) {
-  canvasOff(ev);
-};
-
-function canvasMove(ev) {
-  // TODO Instead of having this get called on every move, we could just create
-  // the listener for this whenever panning is set to true, and remove it when
-  // its set to false. Could be faster?
-  // To not duplicate events as touch/pointer/mouse.
-  ev.preventDefault();
-  if (scaleFig.panning) {
-    let moveX;
-    let moveY;
-    const evHasCoords = ('clientX' in ev && 'clientY' in ev &&
-      !isNaN(ev.clientX) && !isNaN(ev.clientY));
-    if (evHasCoords) {
-      moveX = ev.clientX - scaleFig.clientXOnClick;
-      moveY = ev.clientY - scaleFig.clientYOnClick;
-    } else if ('touches' in ev) {
-      // TODO This length-1 thing makes it pick the coordinates of the last
-      // touch point. What we should really do is take the first touch point
-      // that is not the one holding the pan modifier div down. This would be
-      // either [0] or [1] depending on whether we are using touch or keyboard
-      // to toggle panning.
-      const touch = ev.touches[ev.touches.length-1];
-      const touchHasCoords = ('clientX' in touch && 'clientY' in touch &&
-        !isNaN(touch.clientX) && !isNaN(touch.clientY));
-      if (touchHasCoords) {
-        moveX = touch.clientX - scaleFig.clientXOnClick;
-        moveY = touch.clientY - scaleFig.clientYOnClick;
-      } else {
-        return;
-      }
-    } else {
-      return;
-    }
-    scaleFig.midX = scaleFig.midXOnClick - moveX;
-    scaleFig.midY = scaleFig.midYOnClick - moveY;
-    resizeCanvas();
-    resizeKeyCanvas();
-    setPitchlinesVisibility();
-    generateTones();
-    deleteTones();
-    writeURL();
-  }
-}
-
-canvas.mousedown(canvasOnMouse);
-canvas.mouseup(canvasOffMouse);
-canvas.mouseleave(canvasOffMouse);
-canvas.mousemove(canvasMove);
-canvas.touchstart(canvasOnTouch);
-canvas.touchend(canvasOffTouch);
-canvas.touchcancel(canvasOffTouch);
-canvas.touchmove(canvasMove);
-canvas.on('pointerdown', canvasOnPointer);
-canvas.on('pointerup', canvasOffPointer);
-canvas.on('pointerleave', canvasOffPointer);
-canvas.on('pointermove', canvasMove);
-
-const divPanMod = document.getElementById('divPanMod');
-function divPanModOn() {
-  scaleFig.ctrlDown = true;
-  divPanMod.style.background = '#FF3900';
-}
-
-function divPanModOff() {
-  scaleFig.ctrlDown = false;
-  scaleFig.panning = false;
-  divPanMod.style.background = '#FF9273';
-}
-
-function divPanModOnPointer(ev) {
-  // Allow pointer event target to jump between objects when pointer is
-  // moved.
-  ev.target.releasePointerCapture(ev.pointerId);
-  divPanModOn();
-}
-
-function divPanModOffPointer(ev) {
-  // Allow pointer event target to jump between objects when pointer is
-  // moved.
-  ev.target.releasePointerCapture(ev.pointerId);
-  divPanModOff();
-}
-
-divPanMod.addEventListener('mousedown', divPanModOn);
-divPanMod.addEventListener('mouseup', divPanModOff);
-divPanMod.addEventListener('mouseleave', divPanModOff);
-divPanMod.addEventListener('touchstart', divPanModOn);
-divPanMod.addEventListener('touchend', divPanModOff);
-divPanMod.addEventListener('touchcancel', divPanModOff);
-divPanMod.addEventListener('pointerdown', divPanModOnPointer);
-divPanMod.addEventListener('pointerup', divPanModOffPointer);
-divPanMod.addEventListener('pointerleave', divPanModOffPointer);
-
-const divSustainMod = document.getElementById('divSustainMod');
+/*
 function divSustainModOn() {
   scaleFig.shiftDown = true;
-  divSustainMod.style.background = '#FFAA00';
 }
 
 function divSustainModOff() {
@@ -861,47 +685,39 @@ function divSustainModOff() {
     tone.toneOff();
   });
   scaleFig.sustainedTones = [];
-  divSustainMod.style.background = '#FFD073';
 }
 
-function divSustainModOnPointer(ev) {
-  // Allow pointer event target to jump between objects when pointer is
-  // moved.
-  ev.target.releasePointerCapture(ev.pointerId);
-  divSustainModOn();
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Event listeners for adding new intervals and axes.
+
+const buttAddInterval = document.getElementById('buttAddInterval');
+function buttAddIntervalOnclick(value) {
+  const interval = new Array(scaleFig.primes.length).fill(0);
+  const color = '#000000';
+  const show = true;
+  addStepInterval(interval, color, show);
+  updateURL();
 }
-
-function divSustainModOffPointer(ev) {
-  // Allow pointer event target to jump between objects when pointer is
-  // moved.
-  ev.target.releasePointerCapture(ev.pointerId);
-  divSustainModOff();
-}
-
-divSustainMod.addEventListener('mousedown', divSustainModOn);
-divSustainMod.addEventListener('mouseup', divSustainModOff);
-divSustainMod.addEventListener('mouseleave', divSustainModOff);
-divSustainMod.addEventListener('touchstart', divSustainModOn);
-divSustainMod.addEventListener('touchend', divSustainModOff);
-divSustainMod.addEventListener('touchcancel', divSustainModOff);
-divSustainMod.addEventListener('pointerdown', divSustainModOnPointer);
-divSustainMod.addEventListener('pointerup', divSustainModOffPointer);
-divSustainMod.addEventListener('pointerleave', divSustainModOffPointer);
-
-window.onkeydown = (e) => {
-  if (e.keyCode == 16) { // shift
-    divSustainModOn();
-  } else if (e.keyCode == 17) { // ctrl
-    divPanModOn();
-  }
+buttAddInterval.onclick = function() {
+  buttAddIntervalOnclick(this.checked);
 };
 
-window.onkeyup = (e) => {
-  if (e.keyCode == 16) { // shift
-    divSustainModOff();
-  } else if (e.keyCode == 17) { // ctrl
-    divPanModOff();
-  }
+const buttAddAxis = document.getElementById('buttAddAxis');
+function buttAddAxisOnclick(value) {
+  addAxis();
+  updateURL();
+}
+buttAddAxis.onclick = function() {
+  buttAddAxisOnclick(this.checked);
+};
+
+const buttRemoveAxis = document.getElementById('buttRemoveAxis');
+function buttRemoveAxisOnclick(value) {
+  removeAxis();
+  updateURL();
+}
+buttRemoveAxis.onclick = function() {
+  buttRemoveAxisOnclick(this.checked);
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1051,7 +867,7 @@ class StepInterval {
     this.inColor.value = color;
     // TODO Should all these global calls happen here, in this class?
     recolorSteps();
-    writeURL();
+    updateURL();
   }
 
   get show() {
@@ -1065,7 +881,7 @@ class StepInterval {
     } else {
       this.svgGroup.attr('visibility', 'hidden');
     }
-    writeURL();
+    updateURL();
   }
 
   get interval() {
@@ -1084,7 +900,7 @@ class StepInterval {
     updateStepEndpoints();
     repositionSteps();
     reopacitateSteps();
-    writeURL();
+    updateURL();
   }
 }
 
@@ -1319,6 +1135,124 @@ class ToneObject {
     svgTone.on('pointerup', eventOffPointer);
     svgTone.on('pointerleave', eventOffPointer);
     svgTone.on('pointerenter', eventOnPointer);
+
+    // Reactive stuff
+    const pf = pitchFactor(this.coords);
+
+    const xpos = streams.horizontalZoom.pipe(
+      rxjs.operators.map((zoom) => {
+        return zoom * Math.log2(pf);
+      })
+    );
+
+    const ypos = streams.verticalZoom.pipe(
+      rxjs.operators.map((zoom) => {
+        let y = 0.0;
+        this.coords.forEach(([p, c]) => {
+          const pStr = p.toString();
+          // TODO Is the check necessary?
+          if (scaleFig.yShifts.hasOwnProperty(pStr)) {
+            y += -scaleFig.yShifts[pStr] * c;
+          }
+        });
+        y *= zoom;
+        return y;
+      })
+    );
+
+    const harmDistsCombined = new VariableSourceSubject(rxjs.combineLatest);
+    const harmDists = new Map();
+
+    streams.baseTones.subscribe((baseTones) => {
+      // Remove harmDists if the corresponding baseTone is no longer a
+      // baseTone.
+      for (const baseTone of harmDists.keys()) {
+        if (!(baseTone in baseTones)) {
+          harmDistsCombined.removeSource(harmDists.get(baseTone));
+          harmDists.delete(baseTone);
+        }
+      }
+
+      // Add new harmDists if new baseTones are present.
+      baseTones.forEach((baseTone) => {
+        if (!harmDists.has(baseTone)) {
+          const interval = subtractTone(this.coords, baseTone);
+          const primes = [...interval.keys()];
+          const facts = primes.map((p) => Math.abs(interval[p]));
+          const steps = primes.map((p) => streams.harmDistSteps[p]);
+          const dist = rxjs.combineLatest(...steps).pipe(rxjs.operators.map(
+            (...v) => {
+              let d = 0;
+              for (let i = 0; i < v.length; i++) {
+                const c = facts[i];
+                const s = v[i];
+                if (c != 0.0) d += s*c;
+              }
+              return d;
+            }));
+          harmDists.set(baseTone, dist);
+          harmDistsCombined.addSource(dist);
+        }
+      });
+    });
+
+    const harmNorm = harmDistsCombined.pipe(rxjs.operators.map(Math.min));
+
+    const inbounds = rxjs.combineLatest(
+      harmNorm, streams.maxHarmNorm, xpos, ypos
+    ).pipe(rxjs.operators.map(([hn, maxhn, inviewbox, x, y]) => {
+      // TODO Add note radius, to check if the edge of a note fits, rather
+      // than center?
+      const inViewbox = isInViewbox(this.xpos, this.ypos);
+      const harmClose = (hn <= maxhn);
+      return harmClose && inViewbox;
+    }));
+
+    const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
+      rxjs.operators.map(([hn, maxhn]) => {
+        let relHn = Math.max(1.0 - hn/maxhn, 0.0);
+        // TODO Should opacityHarmNorm really be checked here, and not in the
+        // drawing function?
+        if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
+          relHn = 1.0;
+        }
+        return relHn;
+      })
+    );
+
+    rxjs.combineLatest(xpos, ypos).subscribe(
+      ([x, y]) => this.svgTone.move(x, y)
+    );
+    xpos.subscribe((x) => this.svgPitchline.x(x));
+
+    rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
+      const svgPitchline = this.svgPitchline;
+      if (ib && hn > 0) {
+        svgPitchline.attr('visibility', 'inherit');
+      } else {
+        svgPitchline.attr('visibility', 'hidden');
+      }
+    });
+  }
+
+  colorSvgPitchline() {
+    const svgPitchline = this.svgPitchline;
+    const relHn = this.relHarmNorm;
+    const style = scaleFig.style;
+    let pitchlineColor;
+    if (this.isOn) {
+      pitchlineColor = style['pitchlineColorActive'];
+    } else {
+      pitchlineColor = style['pitchlineColor'];
+    }
+    svgPitchline.attr({
+      'stroke': pitchlineColor,
+      'stroke-width': '1.0',
+      'stroke-miterlimit': 4,
+      'stroke-dasharray': '0.5, 0.5',
+      'stroke-dashoffset': 0,
+      'stroke-opacity': relHn,
+    });
   }
 
   set isBase(value) {
@@ -1333,11 +1267,9 @@ class ToneObject {
 
   get pitchFactor() {
     let pf = 1.0;
-    for (let i = 0; i < this.coords.length; i += 1) {
-      const p = scaleFig.primes[i];
-      const c = this.coords[i];
+    this.coords.forEach(([p, c]) => {
       pf *= Math.pow(p, c);
-    }
+    });
     return pf;
   }
 
@@ -1347,15 +1279,13 @@ class ToneObject {
 
   get ypos() {
     let y = 0.0;
-    for (let i = 0; i < this.coords.length; i += 1) {
-      const p = scaleFig.primes[i];
-      const c = this.coords[i];
+    this.coords.forEach(([p, c]) => {
       const pStr = p.toString();
       // TODO Is the check necessary?
       if (scaleFig.yShifts.hasOwnProperty(pStr)) {
         y += -scaleFig.yShifts[pStr] * c;
       }
-    }
+    });
     y *= scaleFig.verticalZoom;
     return y;
   }
@@ -1403,15 +1333,28 @@ class ToneObject {
 
   get inclosure() {
     const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
-    // Remove explicit scaleFig reference?
-    const inViewclosure = isInViewclosure(scaleFig, this.xpos, this.ypos);
-    return harmClose && inViewclosure;
+    const viewboxLeft = scaleFig.canvas.viewbox().x;
+    const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+    const viewboxTop = scaleFig.canvas.viewbox().y;
+    const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+    const maxPrime = Math.max(...scaleFig.primes);
+    const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
+    const maxYshift = Math.max(...Object.values(scaleFig.yShifts));
+    const maxYjump = scaleFig.verticalZoom * maxYshift;
+    const closureLeft = viewboxLeft - maxXjump;
+    const closureRight = viewboxRight + maxXjump;
+    const closureTop = viewboxTop - maxYjump;
+    const closureBottom = viewboxBottom + maxYjump;
+    const inClosureHor = (closureLeft < this.xpos && this.xpos < closureRight);
+    const inClosureVer = (closureTop < this.ypos && this.ypos < closureBottom);
+    const inViewClosure = inClosureHor && inClosureVer;
+    return harmClose && inViewClosure;
   }
 
   setLabelText() {
     let labelText;
     const frequency = this.frequency;
-    if (scaleFig.labelTextStyle == 'EDO') {
+    if (scaleFig.toneLabelTextStyle == 'EDO') {
       let i = 0;
       // Note that we rely on EDOTones being in rising order of pitch.
       while (i < EDOTones.length - 2) {
@@ -1439,7 +1382,7 @@ class ToneObject {
           'font-size': subFontSize,
         });
       };
-    } else if (scaleFig.labelTextStyle == 'fractions') {
+    } else if (scaleFig.toneLabelTextStyle == 'fractions') {
       const [num, denom] = this.fraction;
       // These are just constant, figured out by trial and error, that seem to
       // do the job.
@@ -1460,7 +1403,7 @@ class ToneObject {
           'font-size': numFontSize,
         });
       };
-    } else if (scaleFig.labelTextStyle == 'none') {
+    } else if (scaleFig.toneLabelTextStyle == 'none') {
       labelText = '';
     } else {
       labelText = '';
@@ -1477,8 +1420,6 @@ class ToneObject {
   }
 
   positionSvg() {
-    this.positionSvgTone();
-    this.positionSvgPitchline();
     this.setSvgPitchlineVisibility();
     Object.entries(this.steps).forEach(([label, step]) => {
       step.position();
@@ -1492,7 +1433,7 @@ class ToneObject {
   }
 
   positionSvgTone() {
-    this.svgTone.move(this.xpos, this.ypos);
+    // this.svgTone.move(this.xpos, this.ypos); replaced by reactions
   }
 
   scaleSvgTone() {
@@ -1568,37 +1509,11 @@ class ToneObject {
   }
 
   positionSvgPitchline() {
-    this.svgPitchline.x(this.xpos);
+    // this.svgPitchline.x(this.xpos); replaced by reacions.
   }
 
   setSvgPitchlineVisibility() {
-    const svgPitchline = this.svgPitchline;
-    const relHn = this.relHarmNorm;
-    if (this.inbounds && relHn > 0) {
-      svgPitchline.attr('visibility', 'inherit');
-    } else {
-      svgPitchline.attr('visibility', 'hidden');
-    }
-  }
-
-  colorSvgPitchline() {
-    const svgPitchline = this.svgPitchline;
-    const relHn = this.relHarmNorm;
-    const style = scaleFig.style;
-    let pitchlineColor;
-    if (this.isOn) {
-      pitchlineColor = style['pitchlineColorActive'];
-    } else {
-      pitchlineColor = style['pitchlineColor'];
-    }
-    svgPitchline.attr({
-      'stroke': pitchlineColor,
-      'stroke-width': '1.0',
-      'stroke-miterlimit': 4,
-      'stroke-dasharray': '0.5, 0.5',
-      'stroke-dashoffset': 0,
-      'stroke-opacity': relHn,
-    });
+    // replaced by reactive stuff
   }
 
   destroy() {
@@ -1615,24 +1530,6 @@ class ToneObject {
       step.opacitate();
     });
   }
-}
-
-function addBaseTone(baseTone) {
-  scaleFig.baseTones.push(baseTone.slice());
-  const btStr = baseTone.toString();
-  if (btStr in scaleFig.tones) {
-    scaleFig.tones[btStr].isBase = true;
-  } else {
-    const toneObj = addTone(baseTone, true);
-    scaleFig.boundaryTones[btStr] = toneObj;
-  }
-
-  // Since harmonic distances may have changed, recolor existing tones.
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.colorSvg();
-  });
-
-  generateTones();
 }
 
 function checkTones() {
@@ -1810,7 +1707,7 @@ function generateTones() {
         stepIntervals.forEach(([label, stepInterval]) => {
           const interval = stepInterval.interval;
           const originCoords = subtractTone(newTone.coords, interval);
-          const originStr = originCoords.toString();
+          const originStr = toneToString(originCoords);
           if (!(originStr in scaleFig.tones)) return;
           const originTone = scaleFig.tones[originStr];
           const step = originTone.steps[label];
@@ -1839,9 +1736,6 @@ function deleteTones() {
     // inclosure would do the same and more.
     const inclosure = leafTone.inclosure;
     if (!inclosure) {
-      // The tone in question is close enough to the drawable tones, that
-      // we generate more tones starting from it. After this, it will no
-      // longer be a boundary tone.
       const [stillBoundary, marked] = markNeighbors(leafTone);
       leaves = leaves.concat(marked);
       if (!stillBoundary) {
@@ -1856,11 +1750,10 @@ function deleteTones() {
 function markNeighbors(tone) {
   const marked = [];
   let stillBoundary = false;
-  for (let i = 0; i < tone.coords.length; i += 1) {
+  for (let i = 0; i < scaleFig.primes.length; i += 1) {
     [-1, +1].forEach(function(increment) {
-      const neighCoords = tone.coords.slice();
-      neighCoords[i] += increment;
-      const neighStr = neighCoords.toString();
+      const neighCoords = sumTones(tone.coords, new Map([i, increment]));
+      const neighStr = toneToString(neighCoords);
       if (!(neighStr in scaleFig.tones)) {
         // This tone doesn't exist, moving on.
         return;
@@ -1879,11 +1772,10 @@ function markNeighbors(tone) {
 
 function addNeighbors(tone) {
   const added = [];
-  for (let i = 0; i < tone.coords.length; i += 1) {
+  for (let i = 0; i < scaleFig.primes.length; i += 1) {
     [-1, +1].forEach(function(increment) {
-      const neighCoords = tone.coords.slice();
-      neighCoords[i] += increment;
-      const neighStr = neighCoords.toString();
+      const neighCoords = sumTones(tone.coords, new Map([i, increment]));
+      const neighStr = toneToString(neighCoords);
       if (neighStr in scaleFig.tones) {
         // This tone exists already, moving on.
         return;
@@ -1897,10 +1789,41 @@ function addNeighbors(tone) {
 }
 
 function addTone(tone, isBase) {
-  const toneStr = tone.toString();
+  const toneStr = toneToString(tone);
   const newTone = new ToneObject(tone, isBase);
   scaleFig.tones[toneStr] = newTone;
   return newTone;
+}
+
+function yShiftOnchange(prime, shift) {
+  const pStr = prime.toString();
+  const inNum = document.getElementById(`inNumYshift_${prime}`);
+  const inRange = document.getElementById(`inRangeYshift_${prime}`);
+  if (inNum != null) inNum.value = shift;
+  if (inRange != null) inRange.value = shift.toString();
+  // TODO Reading scaleFig from global scope?
+  const oldShift = scaleFig.yShifts[pStr];
+  scaleFig.yShifts[pStr] = shift;
+  repositionAll(scaleFig);
+  // TODO We assume here that the viewbox is always centered at the origin.
+  if (Math.abs(oldShift) > Math.abs(shift)) {
+    generateTones();
+  } else {
+    deleteTones();
+  }
+  updateURL();
+}
+
+function deleteStepInterval(label) {
+  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
+    if (label in tone.steps) tone.steps[label].destroy();
+  });
+  const stepInterval = scaleFig.stepIntervals[label];
+  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
+  divStepIntervals.removeChild(stepInterval.div);
+  stepInterval.svgGroup.remove();
+  delete scaleFig.stepIntervals[label];
+  updateURL();
 }
 
 function addStepInterval(interval, color, show) {
@@ -1978,46 +1901,37 @@ function addAxis() {
   inRangeYshift.oninput = function() {
     yShiftOnchange(prime, this.value);
   };
-  inNumHarmdiststep.onchange = function() {
-    // TODO Check input to be a number
-    harmDistStepOnchange(prime, this.value);
-  };
-  inRangeHarmdiststep.oninput = function() {
-    harmDistStepOnchange(prime, this.value);
-  };
+
+  const numStepStream = rxjs.fromEvent(inNumHarmdiststep, 'change');
+  const rangeStepStream = rxjs.fromEvent(inRangeHarmdiststep, 'change');
+  harmDistStep = rxjs.operators.merge(numStepStream, rangeStepStream).pipe(
+    rxjs.operators.pluck('target', 'value'),
+    rxjs.operators.startWith() // TODO This should be the latest maxHarmNorm.
+  );
+  streams.harmDistSteps.set(prime, harmDistStep);
+  harmDistStep.subscribe((value) => {
+    inNumHarmdiststep.value = value;
+    inRangeHarmdiststep.value = value;
+  });
+  rxjs.operators.pairwise(harmDistStep).subscribe(
+    ([oldValue, value]) => {
+      if (oldValue > value) {
+        generateTones();
+      } else {
+        deleteTones();
+      }
+      updateURL();
+    }
+  );
 
   yShiftOnchange(prime, 0.0);
-  harmDistStepOnchange(prime, scaleFig.maxHarmNorm);
 
   scaleFig.primes.push(prime);
 
-  scaleFig.baseTones.forEach((baseTone) => {
-    baseTone.push(0);
-  });
-
   Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
-    const coords = tone.coords;
-    const newCoords = coords.slice();
-    newCoords.push(0);
-    const newCoordsStr = newCoords.toString();
-
-    delete scaleFig.tones[coordsStr];
-    scaleFig.tones[newCoordsStr] = tone;
-    if (coordsStr in scaleFig.boundaryTones) {
-      delete scaleFig.boundaryTones[coordsStr];
-    }
     // Now that there's a new axis, but every tone has coordinate 0 on it, all
     // of them are boundary.
     scaleFig.boundaryTones[newCoordsStr] = tone;
-
-    tone.coords = newCoords;
-  });
-
-  Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
-    const interval = stepInterval.interval;
-    const newInterval = interval.slice();
-    newInterval.push(0);
-    stepInterval.interval = newInterval;
   });
 
   // TODO Should we also call generateTones here? That harmDistStep is infinity
@@ -2034,54 +1948,26 @@ function removeAxis() {
   const divAxis = document.getElementById(`divAxis_${prime}`);
   document.getElementById('contentAxes').removeChild(divAxis);
 
+  // Remove any baseTones that have a non-zero component along this axis.
   let i = 0;
   while (i < scaleFig.baseTones.length) {
-    if (scaleFig.baseTones[i][numPrimes-1] != 0) {
+    if (scaleFig.baseTones[i].has(prime)) {
       scaleFig.baseTones.splice(i, 1);
     } else {
-      scaleFig.baseTones[i].splice(numPrimes - 1, 1);
       i++;
     }
   }
 
   Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
     const coords = tone.coords;
-    if (coords[numPrimes-1] != 0) {
+    if (coords.has(prime)) {
       // TODO Turn this into a function removeTone?
       tone.destroy();
       delete scaleFig.tones[coordsStr];
       if (coordsStr in scaleFig.boundaryTones) {
         delete scaleFig.boundaryTones[coordsStr];
       }
-    } else {
-      const newCoords = coords.slice(0, numPrimes-1);
-      const newCoordsStr = newCoords.toString();
-      delete scaleFig.tones[coordsStr];
-      scaleFig.tones[newCoordsStr] = tone;
-      if (coordsStr in scaleFig.boundaryTones) {
-        // TODO Is it an issue that after the removal of one axis a tone may no
-        // longer be boundary, but we still keep it in boundaryTones?
-        delete scaleFig.boundaryTones[coordsStr];
-        scaleFig.boundaryTones[newCoordsStr] = tone;
-      }
-      tone.coords = newCoords;
     }
-  });
-
-  Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
-    const interval = stepInterval.interval;
-    const newInterval = interval.slice(0, numPrimes-1);
-    stepInterval.interval = newInterval;
-  });
-}
-
-function readURL() {
-  const params = new URLSearchParams(decodeURIComponent(location.search));
-  Object.entries(DEFAULT_URLPARAMS).forEach(([key, value]) => {
-    if (params.has(key)) {
-      value = JSON.parse(params.get(key));
-    }
-    URLParamSetters[key](value);
   });
 }
 
@@ -2309,7 +2195,7 @@ function setSettingsExpanded(expanded) {
   }
   resizeCanvas();
   resizeKeyCanvas();
-  writeURL();
+  updateURL();
 }
 
 const buttToggleSettings = document.getElementById('buttToggleSettings');
@@ -2330,7 +2216,7 @@ function setGeneralExpanded(expanded) {
     iconGeneral.style.transform = 'rotate(90deg)';
     contentGeneral.style.display = 'none';
   }
-  writeURL();
+  updateURL();
 };
 
 const headGeneral = document.getElementById('headGeneral');
@@ -2349,7 +2235,7 @@ function setTonesExpanded(expanded) {
     iconTones.style.transform = 'rotate(90deg)';
     contentTones.style.display = 'none';
   }
-  writeURL();
+  updateURL();
 };
 
 const headTones = document.getElementById('headTones');
@@ -2368,7 +2254,7 @@ function setStepIntervalsExpanded(expanded) {
     iconStepIntervals.style.transform = 'rotate(90deg)';
     contentStepIntervals.style.display = 'none';
   }
-  writeURL();
+  updateURL();
 };
 
 const headStepIntervals = document.getElementById('headStepIntervals');
@@ -2387,254 +2273,31 @@ function setStyleExpanded(expanded) {
     iconStyle.style.transform = 'rotate(90deg)';
     contentStyle.style.display = 'none';
   }
-  writeURL();
+  updateURL();
 };
 
 const headStyle = document.getElementById('headStyle');
 headStyle.onclick = function() {
   setStyleExpanded(!scaleFig.style['styleExpanded']);
 };
+streams.baseTones = rxjs.from([startingParams['baseTones']]);
 
-function writeURL() {
-  let queryStr = '';
-  Object.entries(URLParamGetters).forEach(([key, func]) => {
-    const value = func();
-    const valueStr = JSON.stringify(value);
-    queryStr += `${key}=${valueStr}&`;
-  });
-  queryStr = encodeURIComponent(queryStr);
-  const newURL = window.location.pathname + '?' + queryStr;
-  window.history.replaceState(null, '', newURL);
-}
-
-// Manually chosen yShifts for nice spacing.
-// const verticalZoom = 250
-// const yShifts = {
-// '2': 0,
-// '3': horizontalZoom*Math.log2(4/3),
-// '5': horizontalZoom*Math.log2(5/4)},
-// '3': horizontalZoom*Math.sqrt(Math.log2(4/3)*Math.log2(3/2)),
-// '5': horizontalZoom*Math.sqrt(Math.log2(5/4)*Math.log2(8/5))},
-// '3': verticalZoom*Math.log2(3/2)-125,
-// '5': verticalZoom*Math.log2(5/4)+100,
-// }
-
-// Make y-distance match harmonic distance
-// const s = 30  // Scale
-// const yShifts = {
-//   '2': s*harmDistSteps[2],
-//   '3': s*harmDistSteps[3],
-//   '5': s*harmDistSteps[5],
-// }
-
-// Rectilinear projection of 3D lattice.
-// const phi = 2.0*Math.PI*0.75; // Angle of the lattice against the projection
-// const spios = Math.sin(Math.PI/6.0);
-// const k = 1.0/(1.0 + spios);
-// // TODO This constant 200.0 is just the default horizontalZoom.
-// const s = 200.0*(1.0+1.0/spios); // Scale
-// const shift2 = Math.log2(2.0) * s*k * Math.cos(phi);
-// const shift3 = Math.log2(3.0/2.0) * s*k * Math.cos(phi+2*Math.PI/3.0);
-// const shift5 = Math.log2(5.0/4.0) * s*k * Math.cos(phi+4*Math.PI/3.0);
-
-const DEFAULT_URLPARAMS = {
-  'originFreq': 261.626,
-  'maxHarmNorm': 8.0,
-  'pitchlineColor': '#c7c7c7',
-  'pitchlineColorActive': '#000000',
-  'showPitchlines': true,
-  'showKeys': true,
-  'showSteps': false,
-  'toneRadius': 22.0,
-  'toneLabelTextStyle': 'fractions',
-  'toneColor': '#D82A1E',
-  'toneColorActive': '#D8B71E',
-  'baseToneBorderColor': '#000000',
-  'baseToneBorderSize': 5.0,
-  'opacityHarmNorm': true,
-  'horizontalZoom': 300,
-  'verticalZoom': 100,
-  'midX': 0.0,
-  'midY': 0.0,
-  'axes': [
-    {'yShift': 1.2, 'harmDistStep': 0.0},
-    {'yShift': 1.8, 'harmDistStep': 1.5},
-    {'yShift': 1.0, 'harmDistStep': 1.7},
-  ],
-  'baseTones': [[0, 0, 0]],
-  'stepIntervals': [
-    {'interval': [1, 0, 0], 'color': '#1d181e', 'show': true},
-    {'interval': [-1, 1, 0], 'color': '#17726F', 'show': true},
-    {'interval': [-2, 0, 1], 'color': '#774579', 'show': true},
-  ],
-  'settingsExpanded': true,
-  'generalExpanded': true,
-  'tonesExpanded': false,
-  'stepIntervalsExpanded': false,
-  'styleExpanded': false,
-};
-
-const URLParamSetters = {
-  'originFreq': numOriginFreqOninput,
-  'maxHarmNorm': numMaxHarmNormOnchange,
-  'pitchlineColor': colorPitchlinesOninput,
-  'pitchlineColorActive': colorPitchlinesActiveOninput,
-  'showPitchlines': cboxPitchlinesOnclick,
-  'showKeys': cboxKeysOnclick,
-  'showSteps': cboxStepsOnclick,
-  'toneRadius': numToneRadiusOninput,
-  'toneLabelTextStyle': radioToneLabelOnclick,
-  'toneColor': toneColorOninput,
-  'toneColorActive': toneColorActiveOninput,
-  'baseToneBorderColor': baseToneBorderColorOninput,
-  'baseToneBorderSize': numBaseToneBorderSizeOninput,
-  'opacityHarmNorm': cboxOpacityHarmNormOnclick,
-  'horizontalZoom': rangeHorzZoomOninput,
-  'verticalZoom': rangeVertZoomOninput,
-  'midX': (midX) => {
-    scaleFig.midX = midX;
-    resizeCanvas();
-    resizeKeyCanvas();
-    setPitchlinesVisibility();
+streams.baseTones.subscribe(
+  (tones) => {
+    // TODO This should soon be unnecessary.
+    scaleFig.baseTones = tones;
+    // TODO How does a tone get market as being base if it already exists?
+    tones.forEach((baseTone) => {
+      const toneObj = addTone(baseTone, true);
+      scaleFig.boundaryTones[toneToString(baseTone)] = toneObj;
+    });
+    // TODO Only run these based on whether we have new tones or tones have
+    // been deleted.
     generateTones();
     deleteTones();
-  },
-  'midY': (midY) => {
-    scaleFig.midY = midY;
-    resizeCanvas();
-    setPitchlinesVisibility();
-    generateTones();
-    deleteTones();
-  },
-  // TODO The way this is done with what are essentially "AxisObjects" is a
-  // stylistically different from how scaleFig just stores a dictionary of
-  // yShifts and hamrDistSteps. Don't know if this really is an issue.
-  // stepIntervals does something similar, although its less avoidable there.
-  'axes': (axes) => {
-    for (let i = 0; i < axes.length; i++) {
-      if (scaleFig.primes.length < i+1) addAxis();
-      const yShift = axes[i].yShift;
-      const harmDistStep = axes[i].harmDistStep;
-      const p = scaleFig.primes[i];
-      yShiftOnchange(p, yShift);
-      harmDistStepOnchange(p, harmDistStep);
-    }
-  },
-  'baseTones': (baseTones) => {
-    baseTones.forEach((baseTone) => {
-      addBaseTone(baseTone);
-    });
-  },
-  'stepIntervals': (stepIntervals) => {
-    for (let i = 0; i < stepIntervals.length; i++) {
-      const interval = stepIntervals[i].interval;
-      const color = stepIntervals[i].color;
-      const show = stepIntervals[i].show;
-      addStepInterval(interval, color, show);
-    }
-  },
-  'settingsExpanded': setSettingsExpanded,
-  'generalExpanded': setGeneralExpanded,
-  'tonesExpanded': setTonesExpanded,
-  'stepIntervalsExpanded': setStepIntervalsExpanded,
-  'styleExpanded': setStyleExpanded,
-};
+  }
+);
 
-const URLParamGetters = {
-  'originFreq': () => {
-    return scaleFig.originFreq;
-  },
-  'maxHarmNorm': () => {
-    return scaleFig.maxHarmNorm;
-  },
-  'pitchlineColor': () => {
-    return scaleFig.style['pitchlineColor'];
-  },
-  'pitchlineColorActive': () => {
-    return scaleFig.style['pitchlineColorActive'];
-  },
-  'showPitchlines': () => {
-    return scaleFig.style['drawPitchlines'];
-  },
-  'showKeys': () => {
-    return scaleFig['showKeys'];
-  },
-  'showSteps': () => {
-    return scaleFig.style['drawSteps'];
-  },
-  'toneRadius': () => {
-    return scaleFig.style['toneRadius'];
-  },
-  'toneLabelTextStyle': () => {
-    return scaleFig.labelTextStyle;
-  },
-  'toneColor': () => {
-    return scaleFig.style['toneColor'];
-  },
-  'toneColorActive': () => {
-    return scaleFig.style['toneColorActive'];
-  },
-  'baseToneBorderColor': () => {
-    return scaleFig.style['baseToneBorderColor'];
-  },
-  'baseToneBorderSize': () => {
-    return scaleFig.style['baseToneBorderSize'];
-  },
-  'opacityHarmNorm': () => {
-    return scaleFig.style['opacityHarmNorm'];
-  },
-  'horizontalZoom': () => {
-    return scaleFig.horizontalZoom;
-  },
-  'midX': () => {
-    return scaleFig.midX;
-  },
-  'midY': () => {
-    return scaleFig.midY;
-  },
-  'verticalZoom': () => {
-    return scaleFig.verticalZoom;
-  },
-  'axes': () => {
-    const axes = [];
-    for (let i = 0; i < scaleFig.primes.length; i++) {
-      const p = scaleFig.primes[i];
-      const pStr = p.toString();
-      const yShift = scaleFig.yShifts[pStr];
-      const harmDistStep = scaleFig.harmDistSteps[pStr];
-      axes.push({'yShift': yShift, 'harmDistStep': harmDistStep});
-    }
-    return axes;
-  },
-  'baseTones': () => {
-    return scaleFig.baseTones;
-  },
-  'stepIntervals': () => {
-    const stepIntervals = [];
-    Object.values(scaleFig.stepIntervals).forEach((stepInterval) => {
-      const interval = stepInterval.interval;
-      const color = stepInterval.color;
-      const show = stepInterval.show;
-      stepIntervals.push({'interval': interval, 'color': color, 'show': show});
-    });
-    return stepIntervals;
-  },
-  'settingsExpanded': () => {
-    return scaleFig.style['settingsExpanded'];
-  },
-  'generalExpanded': () => {
-    return scaleFig.style['generalExpanded'];
-  },
-  'tonesExpanded': () => {
-    return scaleFig.style['tonesExpanded'];
-  },
-  'stepIntervalsExpanded': () => {
-    return scaleFig.style['stepIntervalsExpanded'];
-  },
-  'styleExpanded': () => {
-    return scaleFig.style['styleExpanded'];
-  },
-};
 
 resizeCanvas();
 resizeKeyCanvas();
@@ -2642,6 +2305,11 @@ resizeSettings();
 addKeys();
 
 readURL();
-writeURL();
+updateURL();
+
+streams.horizontalZoom.subscribe((value) => updateURL());
+streams.verticalZoom.subscribe((value) => updateURL());
+
 
 checkTones(); // TODO Only here for testing during development.
+*/
