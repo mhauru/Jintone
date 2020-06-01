@@ -481,18 +481,21 @@ streams.clientCoordsOnMove = rxjs.merge(
 
 // Make midCoords emit a new value every time the pointer is moved on the
 // canvas, and we are in panning mode.
-streams.midCoords.subscribe(streams.clientCoordsOnMove.pipe(
+streams.clientCoordsOnMove.pipe(
   rxjs.operators.withLatestFrom(
     rxjs.combineLatest(streams.panning, streams.clientCoordsOnClick,
       streams.midCoordsOnClick)
   ),
-  rxjs.operators.filter((arg) => arg[1]), // Filter out panning=false.
-  rxjs.operators.map(([ccOnMove, panning, ccOnClick, mcOnClick]) => {
+  rxjs.operators.filter((arg) => arg[1][0]), // Filter out panning=false.
+  rxjs.operators.map((x) => {
+    const ccOnMove = x[0];
+    const ccOnClick= x[1][1];
+    const mcOnClick = x[1][2];
     const midX = mcOnClick[0] - ccOnMove[0] + ccOnClick[0];
     const midY = mcOnClick[1] - ccOnMove[1] + ccOnClick[1];
     return [midX, midY];
   }),
-));
+).subscribe((val) => streams.midCoords.next(val));
 
 // Use ResizeObserver to make Observables out of the sizes of elements.
 // TODO Turn this into a new subclass of Subject?
@@ -566,100 +569,117 @@ streams.settingsSize.subscribe(
 // Create event streams for various variables and settings.
 
 // Each element of this array describes one UI element and a corresponding
-// parameter name and event. Each UI element will then be turned into an event
-// stream of the given name, and initialized with the appropriate value.
+// parameter name, event, and proprety. Each UI element will then be turned
+// into an event stream of the given name, made to emit observablePropertyy of
+// the elements, and initialized with the appropriate value.
 const streamElements = [
   {
     'paramName': 'originFreq',
     'elemName': 'numOriginFreq',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'toneRadius',
     'elemName': 'numToneRadius',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'toneColor',
     'elemName': 'toneColor',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'toneColorActive',
     'elemName': 'toneColorActive',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'baseToneBorderColor',
     'elemName': 'baseToneBorderColor',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'baseToneBorderSize',
     'elemName': 'numBaseToneBorderSize',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'opacityHarmNorm',
     'elemName': 'cboxOpacityHarmNorm',
     'eventName': 'click',
+    'observableProperty': 'checked',
   },
   {
     'paramName': 'showPitchlines',
     'elemName': 'cboxPitchlines',
     'eventName': 'click',
+    'observableProperty': 'checked',
   },
   {
     'paramName': 'showKeys',
     'elemName': 'cboxKeys',
     'eventName': 'click',
+    'observableProperty': 'checked',
   },
   {
     'paramName': 'showSteps',
     'elemName': 'cboxSteps',
     'eventName': 'click',
+    'observableProperty': 'checked',
   },
   {
     'paramName': 'pitchlineColor',
     'elemName': 'colorPitchlines',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'pitchlineColorActive',
     'elemName': 'colorPitchlinesActive',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'horizontalZoom',
     'elemName': 'rangeHorzZoom',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'verticalZoom',
     'elemName': 'rangeVertZoom',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
   {
     'paramName': 'maxHarmNorm',
     'elemName': 'numMaxHarmNorm',
     'eventName': 'input',
+    'observableProperty': 'value',
   },
 ];
 
 // TODO Is this wrapping around a BehaviorSubject necessary/usefull? I
 // originally added it to fix the fact that the EDO keys were in slightly wrong
-// places at the start. It didn't fix that though. I have no idea why the EDO
-// keys don't get drawn correctly the first time.
+// places at the start, but that turned out to be caused by other things.
 streamElements.forEach((e) => {
   const elem = document.getElementById(e.elemName);
   streams[e.paramName] = new rxjs.BehaviorSubject(startingParams[e.paramName]);
   rxjs.fromEvent(elem, e.eventName).pipe(
-    rxjs.operators.pluck('target', 'value'),
+    rxjs.operators.pluck('target', e.observableProperty),
   ).subscribe((x) => streams[e.paramName].next(x));
 
   // Every time a new value is emitted, update the UI element(s) and the URL.
   streams[e.paramName].subscribe((value) => {
-    elem.value = value;
+    // TODO Check that this works for checkboxes on Chrome (seems at the moment
+    // it doesn't.)
+    elem[e.observableProperty] = value;
     updateURL(e.paramName, value);
   });
 });
@@ -725,8 +745,6 @@ streams.showSteps.subscribe((value) => {
 
 class Key {
   constructor(frequency, type) {
-    //this.isOn = false;
-    //this.isBeingClicked = false;
     this.frequency = frequency;
     this.type = type;
     this.createSvg();
@@ -735,7 +753,6 @@ class Key {
 
   createSvg() {
     const container = scaleFig.keyCanvas;
-    // TODO Make this a global constant, or at least set elsewhere.
     const ef = edofactorlog;
     const ht = ef/2;
     const bh = 2/3;
@@ -808,93 +825,16 @@ class Key {
     this.svgKey = svgKey;
   }
 
-  // toneOn() {
-  //   if (!this.isOn) {
-  //     this.isOn = true;
-  //     const toneColorActive = scaleFig.style['toneColorActive'];
-  //     this.svgKey.attr('fill', toneColorActive);
-  //     startTone(this.frequency);
-  //   }
-  // }
-
-  // toneOff() {
-  //   if (scaleFig.shiftDown) {
-  //     scaleFig.sustainedTones.push(this);
-  //   } else if (!this.isBeingClicked) {
-  //     this.isOn = false;
-  //     const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
-  //     this.svgKey.attr('fill', keyColor);
-  //     stopTone(this.frequency);
-  //   }
-  // }
-  //
   setListeners() {
-    //// TODO We fire a lot of events, mouse, touch and pointer ones. Depending
-    //// on the browser, the same click or touch may fire several, e.g. both
-    //// touch and mouse or both pointer and mouse. This ensures maximum
-    //// compatibility with different browsers, but probably costs something in
-    //// performance. Note though that the same tone isn't played twice. Come
-    //// back to this later and check whether we could switch for instance using
-    //// only PointerEvents, once they have widespread support.
-    //const t = this;
-    //function eventOn(ev) {
-    //  // preventDefault tries to avoid duplicating touch events as mouse or
-    //  // pointer events.
-    //  ev.preventDefault();
-    //  t.isBeingClicked = true;
-    //  t.toneOn();
-    //};
-    //function eventOff(ev) {
-    //  // preventDefault tries to avoid duplicating touch events as mouse or
-    //  // pointer events.
-    //  ev.preventDefault();
-    //  t.isBeingClicked = false;
-    //  t.toneOff();
-    //};
-    //function eventOnMouse(ev) {
-    //  if (ev.buttons == 1) {
-    //    eventOn(ev);
-    //  }
-    //};
-    //function eventOffMouse(ev) {
-    //  eventOff(ev);
-    //};
-    //function eventOnTouch(ev) {
-    //  eventOn(ev);
-    //};
-    //function eventOffTouch(ev) {
-    //  eventOff(ev);
-    //};
-    //function eventOnPointer(ev) {
-    //  // Allow pointer event target to jump between objects when pointer is
-    //  // moved.
-    //  ev.target.releasePointerCapture(ev.pointerId);
-    //  if (ev.buttons == 1) {
-    //    eventOn(ev);
-    //  }
-    //};
-    //function eventOffPointer(ev) {
-    //  // Allow pointer event target to jump between objects when pointer is
-    //  // moved.
-    //  ev.target.releasePointerCapture(ev.pointerId);
-    //  eventOff(ev);
-    //};
-    //// TODO Could switch to PointerEvents once they have a bit more support
-    //// across different browsers: https://caniuse.com/#feat=pointer
-    //const svg = this.svg;
-    //svg.mousedown(eventOnMouse);
-    //svg.mouseup(eventOffMouse);
-    //svg.mouseleave(eventOffMouse);
-    //svg.mouseenter(eventOnMouse);
-    //svg.touchstart(eventOnTouch);
-    //svg.touchend(eventOffTouch);
-    //svg.touchcancel(eventOffTouch);
-    //svg.on('pointerdown', eventOnPointer);
-    //svg.on('pointerup', eventOffPointer);
-    //svg.on('pointerleave', eventOffPointer);
-    //svg.on('pointerenter', eventOnPointer);
-
     const svg = this.svg;
+    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
+    // on the browser, the same click or touch may fire several, e.g. both
+    // touch and mouse or both pointer and mouse. This ensures maximum
+    // compatibility with different browsers, but probably costs something in
+    // performance, and wonder if it might make a mess in some other way, e.g.
+    // causing a tone to play twice. Come back to this later and check whether
+    // we could switch for instance using only PointerEvents, once they have
+    // widespread support. See https://caniuse.com/#feat=pointer
     const trueOnClickDown = rxjs.merge(
       rxjs.fromEvent(svg, 'mousedown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
@@ -984,8 +924,8 @@ class Key {
       frequencyRatio,
       streams.horizontalZoom
     ).pipe(rxjs.operators.map(([fr, hz]) => hz * Math.log2(fr)));
-    pos.subscribe((p) => this.svg.translate(p, 0));
     streams.horizontalZoom.subscribe((hz) => this.svg.scale(hz, 1));
+    pos.subscribe((p) => this.svg.translate(p, 0));
   }
 }
 
@@ -995,14 +935,6 @@ function addKeys() {
     // scaleFig.keys.push(key); // TODO Is this still a thing?
   });
 }
-
-// function divSustainModOff() {
-//   scaleFig.shiftDown = false;
-//   scaleFig.sustainedTones.forEach((tone) => {
-//     tone.toneOff();
-//   });
-//   scaleFig.sustainedTones = [];
-// }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Event listeners for adding new intervals and axes.
