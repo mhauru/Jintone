@@ -19,7 +19,7 @@ const ALLPRIMES = [
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
   73, 79, 83, 89, 97,
 ];
-const edofactorlog = 1/12
+const edofactorlog = 1/12;
 const edofactor = Math.pow(2, edofactorlog);
 const synth = new Tone.PolySynth(10, Tone.Synth).toMaster();
 
@@ -35,9 +35,12 @@ const EDOTones = [];
 
 function generateEDOTones() {
   const keytypes = [
-    'C', 'black', 'D', 'black', 'E', 'F', 'black', 'G', 'black', 'A', 'black', 'B',
+    'C', 'black', 'D', 'black', 'E', 'F', 'black', 'G', 'black', 'A', 'black',
+    'B',
   ];
-  const letters = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  const letters = [
+    'C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B',
+  ];
   for (let octave = -1; octave < 10; octave++) {
     const baseFrequency = 523.251*Math.pow(2, octave-5);
     for (let i = 0; i < 12; i++) {
@@ -58,12 +61,12 @@ function generateEDOTones() {
 generateEDOTones();
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Read the URL for parameter values to start with, and define a function for writing the
-// URL.
+// Read the URL for parameter values to start with, and define a function for
+// writing the URL.
 
-// A global constant that holds the values of various parameters at the very start.
-// These values will be either hard-coded default values, or values read from the URL
-// query string.
+// A global constant that holds the values of various parameters at the very
+// start.  These values will be either hard-coded default values, or values
+// read from the URL query string.
 const startingParams = {};
 
 // Hard-coded defaults.
@@ -309,7 +312,10 @@ const trueOnPanDown = rxjs.merge(
     ev.target.releasePointerCapture(ev.pointerId);
     return ev;
   })),
-  rxjs.fromEvent(window, 'keydown').pipe(rxjs.operators.filter((ev) => ev.keyCode == 17)),
+  rxjs.fromEvent(window, 'keydown').pipe(
+    // TODO Define the keyCodes somewhere else.
+    rxjs.operators.filter((ev) => ev.keyCode == 17)
+  ),
 ).pipe(rxjs.operators.map((ev) => true));
 
 const falseOnPanUp = rxjs.merge(
@@ -319,7 +325,10 @@ const falseOnPanUp = rxjs.merge(
   rxjs.fromEvent(divPanMod, 'touchcancel'),
   rxjs.fromEvent(divPanMod, 'pointerup'),
   rxjs.fromEvent(divPanMod, 'pointerleave'),
-  rxjs.fromEvent(window, 'keyup').pipe(rxjs.operators.filter((ev) => ev.keyCode == 17)),
+  rxjs.fromEvent(window, 'keyup').pipe(
+    // TODO Define the keyCodes somewhere else.
+    rxjs.operators.filter((ev) => ev.keyCode == 17)
+  ),
 ).pipe(rxjs.operators.map((ev) => false));
 
 streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
@@ -335,7 +344,10 @@ const trueOnSustainDown = rxjs.merge(
     ev.target.releasePointerCapture(ev.pointerId);
     return ev;
   })),
-  rxjs.fromEvent(window, 'keydown').pipe(rxjs.operators.filter((ev) => ev.keyCode == 16)),
+  rxjs.fromEvent(window, 'keydown').pipe(
+    // TODO Define the keyCodes somewhere else.
+    rxjs.operators.filter((ev) => ev.keyCode == 16)
+  ),
 ).pipe(rxjs.operators.map((ev) => true));
 
 const falseOnSustainUp = rxjs.merge(
@@ -345,15 +357,18 @@ const falseOnSustainUp = rxjs.merge(
   rxjs.fromEvent(divSustainMod, 'touchcancel'),
   rxjs.fromEvent(divSustainMod, 'pointerup'),
   rxjs.fromEvent(divSustainMod, 'pointerleave'),
-  rxjs.fromEvent(window, 'keyup').pipe(rxjs.operators.filter((ev) => ev.keyCode == 16)),
+  // TODO Define the keyCodes somewhere else.
+  rxjs.fromEvent(window, 'keyup').pipe(
+    rxjs.operators.filter((ev) => ev.keyCode == 16)
+  ),
 ).pipe(rxjs.operators.map((ev) => false));
 
 streams.sustainDown = rxjs.merge(trueOnSustainDown, falseOnSustainUp).pipe(
   rxjs.operators.startWith(false)
 );
 
-// TODO Hard-coded color constants should be moved elsewhere. Maybe make it a CSS class
-// whether they are up or down?
+// TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
+// CSS class whether they are up or down?
 streams.panDown.subscribe((value) => {
   if (value) {
     divPanMod.style.background = '#FF3900';
@@ -375,8 +390,8 @@ streams.sustainDown.subscribe((value) => {
 
 // Check whether a given event has clientX and clientY coordinates.
 function eventHasCoords(ev) {
-  return ('clientX' in ev && 'clientY' in ev
-    && !isNaN(ev.clientX) && !isNaN(ev.clientY));
+  return ('clientX' in ev && 'clientY' in ev &&
+    !isNaN(ev.clientX) && !isNaN(ev.clientY));
 }
 
 // Get clientX and clientY from an event, if it has them, if not, return
@@ -416,7 +431,9 @@ streams.clientCoordsOnClick = rxjs.merge(
 );
 
 // Streams that return true/false when the canvas is down-clicked or released.
-const trueOnCanvasOn = streams.clientCoordsOnClick.pipe(rxjs.operators.map((ev) => true));
+const trueOnCanvasOn = streams.clientCoordsOnClick.pipe(
+  rxjs.operators.map((ev) => true)
+);
 const falseOnCanvasOff = rxjs.merge(
   rxjs.fromEvent(scaleFig.canvas, 'mouseup'),
   rxjs.fromEvent(scaleFig.canvas, 'mouseleave'),
@@ -430,21 +447,22 @@ const canvasOn = rxjs.merge(falseOnCanvasOff, trueOnCanvasOn).pipe(
 );
 
 // A stream that returns whether we are in canvas-panning mode.
-streams.panning = rxjs.combineLatest(streams.panDown, canvasOn).pipe(rxjs.operators.map(
-  ([v1, v2]) => v1 && v2
-));
+streams.panning = rxjs.combineLatest(streams.panDown, canvasOn).pipe(
+  rxjs.operators.map(([v1, v2]) => v1 && v2)
+);
 
-// Streams for the latest coordinates for the mid-point of the canvas. midCoords returns
-// this whenever it changes, midCoordOnClick returns the latest value whenever the canvas
-// is clicked. midCoords is here only initialized with a starting value.
+// Streams for the latest coordinates for the mid-point of the canvas.
+// midCoords returns this whenever it changes, midCoordOnClick returns the
+// latest value whenever the canvas is clicked. midCoords is here only
+// initialized with a starting value.
 streams.midCoords = new rxjs.BehaviorSubject();
 streams.midCoords.next(startingParams['midCoords']);
 streams.midCoordsOnClick = streams.midCoords.pipe(
   rxjs.operators.sample(streams.clientCoordsOnClick)
 );
 
-// Return the client-coordinates of the pointer on the canvas every time the pointer is
-// moved.
+// Return the client-coordinates of the pointer on the canvas every time the
+// pointer is moved.
 // TODO Instead of having this get called on every move, we could just create
 // the listener for this whenever panning is set to true, and remove it when
 // its set to false. Could be faster?
@@ -461,8 +479,8 @@ streams.clientCoordsOnMove = rxjs.merge(
   rxjs.operators.filter(([x, y]) => !isNaN(x) && !isNaN(y)),
 );
 
-// Make midCoords emit a new value every time the pointer is moved on the canvas, and
-// we are in panning mode.
+// Make midCoords emit a new value every time the pointer is moved on the
+// canvas, and we are in panning mode.
 streams.midCoords.subscribe(streams.clientCoordsOnMove.pipe(
   rxjs.operators.withLatestFrom(
     rxjs.combineLatest(streams.panning, streams.clientCoordsOnClick,
@@ -472,7 +490,7 @@ streams.midCoords.subscribe(streams.clientCoordsOnMove.pipe(
   rxjs.operators.map(([ccOnMove, panning, ccOnClick, mcOnClick]) => {
     const midX = mcOnClick[0] - ccOnMove[0] + ccOnClick[0];
     const midY = mcOnClick[1] - ccOnMove[1] + ccOnClick[1];
-    return [midX, midY]
+    return [midX, midY];
   }),
 ));
 
@@ -508,8 +526,8 @@ new ResizeObserver((entries, observer) => {
   }
 }).observe(document.getElementById('divSettings'));
 
-// Adjust the canvas viewbox every time the canvas is resized or we pan to change the
-// mid-point.
+// Adjust the canvas viewbox every time the canvas is resized or we pan to
+// change the mid-point.
 rxjs.combineLatest(streams.canvasSize, streams.midCoords).subscribe(
   ([boxSize, coords]) => {
     const canvas = scaleFig.canvas;
@@ -519,8 +537,8 @@ rxjs.combineLatest(streams.canvasSize, streams.midCoords).subscribe(
   }
 );
 
-// Adjust the canvas viewbox for the EDO keyboard every time the key canvas is resized or
-// we pan to change the mid-point.
+// Adjust the canvas viewbox for the EDO keyboard every time the key canvas is
+// resized or we pan to change the mid-point.
 rxjs.combineLatest(streams.keyCanvasSize, streams.midCoords).subscribe(
   ([boxSize, coords]) => {
     const w = boxSize[0];
@@ -628,12 +646,16 @@ const streamElements = [
   },
 ];
 
+// TODO Is this wrapping around a BehaviorSubject necessary/usefull? I
+// originally added it to fix the fact that the EDO keys were in slightly wrong
+// places at the start. It didn't fix that though. I have no idea why the EDO
+// keys don't get drawn correctly the first time.
 streamElements.forEach((e) => {
   const elem = document.getElementById(e.elemName);
-  streams[e.paramName] = rxjs.fromEvent(elem, e.eventName).pipe(
+  streams[e.paramName] = new rxjs.BehaviorSubject(startingParams[e.paramName]);
+  rxjs.fromEvent(elem, e.eventName).pipe(
     rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.startWith(startingParams[e.paramName])
-  );
+  ).subscribe((x) => streams[e.paramName].next(x));
 
   // Every time a new value is emitted, update the UI element(s) and the URL.
   streams[e.paramName].subscribe((value) => {
@@ -671,8 +693,8 @@ streams.toneLabelTextStyle.subscribe((value) => {
 streams.showKeys.subscribe((value) => {
   const divCanvas = document.getElementById('divCanvas');
   const divKeyCanvas = document.getElementById('divKeyCanvas');
-  // Note that these trigger further resizing events through ResizeObservers defined
-  // earlier.
+  // Note that these trigger further resizing events through ResizeObservers
+  // defined earlier.
   if (value) {
     divCanvas.style.height = '80%';
     divKeyCanvas.style.height = '20%';
@@ -698,6 +720,289 @@ streams.showSteps.subscribe((value) => {
   }
 });
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// The EDO keyboard
+
+class Key {
+  constructor(frequency, type) {
+    //this.isOn = false;
+    //this.isBeingClicked = false;
+    this.frequency = frequency;
+    this.type = type;
+    this.createSvg();
+    this.setListeners();
+  }
+
+  createSvg() {
+    const container = scaleFig.keyCanvas;
+    // TODO Make this a global constant, or at least set elsewhere.
+    const ef = edofactorlog;
+    const ht = ef/2;
+    const bh = 2/3;
+    let str;
+    if (this.type == 'C') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+ef*prot},${bh}\
+             ${ht+ef*prot},1 ${-ht},1`;
+    } else if (this.type == 'D') {
+      const protl = 1/3;
+      const protr = 1/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'E') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},1 ${-ht-ef*prot},1\
+             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'F') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+ef*prot},${bh}\
+             ${ht+ef*prot},1 ${-ht},1`;
+    } else if (this.type == 'G') {
+      const protl = 1/3;
+      const protr = 1/2;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'A') {
+      const protl = 1/2;
+      const protr = 1/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${ht+ef*protr},${bh}\
+             ${ht+ef*protr},1 ${-ht-ef*protl},1\
+             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'B') {
+      const prot = 2/3;
+      str = `${-ht},0, ${ht},0\
+             ${ht},1 ${-ht-ef*prot},1\
+             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
+    } else if (this.type == 'black') {
+      str = `${-ht},0, ${ht},0\
+             ${ht},${bh} ${-ht},${bh}`;
+    }
+    const group = container.group();
+    const svgKey = group.polygon(str);
+    const mx = ef*0.01;
+    const my = 0.1;
+    const markerStr = `${-mx},0 ${mx},0 ${mx},${my} ${-mx},${my}`;
+    const svgMarker = group.polygon(markerStr);
+
+    const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
+    svgKey.attr({
+      'fill': keyColor,
+      'stroke-width': '0.001',
+    });
+
+    const markerColor = '#888888';
+    svgMarker.attr({
+      'fill': markerColor,
+    });
+
+    this.svg = group;
+    this.svgMarker = svgMarker;
+    this.svgKey = svgKey;
+  }
+
+  // toneOn() {
+  //   if (!this.isOn) {
+  //     this.isOn = true;
+  //     const toneColorActive = scaleFig.style['toneColorActive'];
+  //     this.svgKey.attr('fill', toneColorActive);
+  //     startTone(this.frequency);
+  //   }
+  // }
+
+  // toneOff() {
+  //   if (scaleFig.shiftDown) {
+  //     scaleFig.sustainedTones.push(this);
+  //   } else if (!this.isBeingClicked) {
+  //     this.isOn = false;
+  //     const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
+  //     this.svgKey.attr('fill', keyColor);
+  //     stopTone(this.frequency);
+  //   }
+  // }
+  //
+  setListeners() {
+    //// TODO We fire a lot of events, mouse, touch and pointer ones. Depending
+    //// on the browser, the same click or touch may fire several, e.g. both
+    //// touch and mouse or both pointer and mouse. This ensures maximum
+    //// compatibility with different browsers, but probably costs something in
+    //// performance. Note though that the same tone isn't played twice. Come
+    //// back to this later and check whether we could switch for instance using
+    //// only PointerEvents, once they have widespread support.
+    //const t = this;
+    //function eventOn(ev) {
+    //  // preventDefault tries to avoid duplicating touch events as mouse or
+    //  // pointer events.
+    //  ev.preventDefault();
+    //  t.isBeingClicked = true;
+    //  t.toneOn();
+    //};
+    //function eventOff(ev) {
+    //  // preventDefault tries to avoid duplicating touch events as mouse or
+    //  // pointer events.
+    //  ev.preventDefault();
+    //  t.isBeingClicked = false;
+    //  t.toneOff();
+    //};
+    //function eventOnMouse(ev) {
+    //  if (ev.buttons == 1) {
+    //    eventOn(ev);
+    //  }
+    //};
+    //function eventOffMouse(ev) {
+    //  eventOff(ev);
+    //};
+    //function eventOnTouch(ev) {
+    //  eventOn(ev);
+    //};
+    //function eventOffTouch(ev) {
+    //  eventOff(ev);
+    //};
+    //function eventOnPointer(ev) {
+    //  // Allow pointer event target to jump between objects when pointer is
+    //  // moved.
+    //  ev.target.releasePointerCapture(ev.pointerId);
+    //  if (ev.buttons == 1) {
+    //    eventOn(ev);
+    //  }
+    //};
+    //function eventOffPointer(ev) {
+    //  // Allow pointer event target to jump between objects when pointer is
+    //  // moved.
+    //  ev.target.releasePointerCapture(ev.pointerId);
+    //  eventOff(ev);
+    //};
+    //// TODO Could switch to PointerEvents once they have a bit more support
+    //// across different browsers: https://caniuse.com/#feat=pointer
+    //const svg = this.svg;
+    //svg.mousedown(eventOnMouse);
+    //svg.mouseup(eventOffMouse);
+    //svg.mouseleave(eventOffMouse);
+    //svg.mouseenter(eventOnMouse);
+    //svg.touchstart(eventOnTouch);
+    //svg.touchend(eventOffTouch);
+    //svg.touchcancel(eventOffTouch);
+    //svg.on('pointerdown', eventOnPointer);
+    //svg.on('pointerup', eventOffPointer);
+    //svg.on('pointerleave', eventOffPointer);
+    //svg.on('pointerenter', eventOnPointer);
+
+    const svg = this.svg;
+    const trueOnClickDown = rxjs.merge(
+      rxjs.fromEvent(svg, 'mousedown').pipe(
+        rxjs.operators.filter((ev) => ev.buttons == 1),
+      ),
+      rxjs.fromEvent(svg, 'touchstart'),
+      rxjs.fromEvent(svg, 'pointerdown').pipe(
+        rxjs.operators.filter((ev) => ev.buttons == 1),
+        rxjs.operators.map((ev) => {
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
+    ).pipe(rxjs.operators.map((ev) => {
+      // TODO Why does on-click require this, but off-click doesn't?
+      ev.preventDefault();
+      return true;
+    }));
+
+    const falseOnClickUp = rxjs.merge(
+      rxjs.fromEvent(svg, 'mouseup'),
+      rxjs.fromEvent(svg, 'mouseleave'),
+      rxjs.fromEvent(svg, 'touchend'),
+      rxjs.fromEvent(svg, 'touchcancel'),
+      rxjs.fromEvent(svg, 'pointerup').pipe(
+        rxjs.operators.map((ev) => {
+          // TODO Does this really do something when releasing?
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
+      rxjs.fromEvent(svg, 'pointerleave'),
+    ).pipe(rxjs.operators.map((ev) => false));
+
+    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
+      rxjs.operators.startWith(false)
+    );
+
+    // Whenever this key is pressed, the tone is turned on, if it wasn't
+    // already. Whenver either this key is released or sustain is released, and
+    // the latest action on both this key and sustain is a release, then this
+    // tone should be set to false, if it wasn't already.
+    // TODO Note that, done this way, an emission happens for all keys every
+    // time the sustain is released. Think about mitigating this performance
+    // waste by either filtering out repeated isOn emissions before they reach
+    // the observer, or by having isBeingClicked determine whether we listend
+    // to sustainDown at all.
+    this.isOn = rxjs.merge(
+      trueOnClickDown,
+      rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
+        rxjs.operators.filter(([click, sustain]) => {
+          // Check that both the latest click and the latest sustain were
+          // false.
+          return !click && !sustain;
+        }),
+        rxjs.operators.map((click, sustain) => {
+          return false;
+        })
+      )
+    );
+
+    this.isOn.subscribe((val) => {
+      if (val) {
+        startTone(this.frequency);
+      } else {
+        stopTone(this.frequency);
+      }
+    });
+
+    // TODO This could probably be somehow filtered better, to avoid
+    // unnecessary observations.
+    rxjs.combineLatest(this.isOn, streams.toneColorActive).subscribe(
+      ([val, color]) => {
+        if (val) {
+          this.svgKey.attr('fill', color);
+        } else {
+          const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
+          this.svgKey.attr('fill', keyColor);
+        }
+      });
+
+    const frequencyRatio = streams.originFreq.pipe(
+      rxjs.operators.map((of) => this.frequency/of),
+    );
+    const pos = rxjs.combineLatest(
+      frequencyRatio,
+      streams.horizontalZoom
+    ).pipe(rxjs.operators.map(([fr, hz]) => hz * Math.log2(fr)));
+    pos.subscribe((p) => this.svg.translate(p, 0));
+    streams.horizontalZoom.subscribe((hz) => this.svg.scale(hz, 1));
+  }
+}
+
+function addKeys() {
+  EDOTones.forEach((EDOTone) => {
+    const key = new Key(EDOTone.frequency, EDOTone.keytype);
+    // scaleFig.keys.push(key); // TODO Is this still a thing?
+  });
+}
+
+// function divSustainModOff() {
+//   scaleFig.shiftDown = false;
+//   scaleFig.sustainedTones.forEach((tone) => {
+//     tone.toneOff();
+//   });
+//   scaleFig.sustainedTones = [];
+// }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Event listeners for adding new intervals and axes.
@@ -1165,8 +1470,7 @@ class Step {
 }
 */
 
-// TODO CONTINUE HERE Fix the ToneObject class to only use Observables.
-
+/*
 // TODO The 'Object' part of the name is to avoid a name collission with
 // Tone.js. Think about namespace management.
 class ToneObject {
@@ -1238,7 +1542,7 @@ class ToneObject {
           // moved.
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
-      })),
+        })),
     ).pipe(rxjs.operators.map((ev) => {
       // TODO Why does on-click require this, but off-click doesn't?
       ev.preventDefault();
@@ -1991,212 +2295,6 @@ function addStepInterval(interval, color, show) {
   });
 }
 
-
-function divSustainModOff() {
-  scaleFig.shiftDown = false;
-  scaleFig.sustainedTones.forEach((tone) => {
-    tone.toneOff();
-  });
-  scaleFig.sustainedTones = [];
-}
-
-class Key {
-  constructor(frequency, type) {
-    this.isOn = false;
-    this.isBeingClicked = false;
-    this.frequency = frequency;
-    this.type = type;
-    this.createSvg();
-    this.setListeners();
-    this.scaleSvg();
-    this.positionSvg();
-  }
-
-  createSvg() {
-    const container = scaleFig.keyCanvas;
-    // TODO Make this a global constant, or at least set elsewhere.
-    const ef = edofactorlog;
-    const ht = ef/2;
-    const bh = 2/3;
-    let str;
-    if (this.type == 'C') {
-      const prot = 2/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+ef*prot},${bh}\
-             ${ht+ef*prot},1 ${-ht},1`;
-    } else if (this.type == 'D') {
-      const protl = 1/3;
-      const protr = 1/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+ef*protr},${bh}\
-             ${ht+ef*protr},1 ${-ht-ef*protl},1\
-             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
-    } else if (this.type == 'E') {
-      const prot = 2/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},1 ${-ht-ef*prot},1\
-             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
-    } else if (this.type == 'F') {
-      const prot = 2/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+ef*prot},${bh}\
-             ${ht+ef*prot},1 ${-ht},1`;
-    } else if (this.type == 'G') {
-      const protl = 1/3;
-      const protr = 1/2;
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+ef*protr},${bh}\
-             ${ht+ef*protr},1 ${-ht-ef*protl},1\
-             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
-    } else if (this.type == 'A') {
-      const protl = 1/2;
-      const protr = 1/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${ht+ef*protr},${bh}\
-             ${ht+ef*protr},1 ${-ht-ef*protl},1\
-             ${-ht-ef*protl},${bh} ${-ht},${bh}`;
-    } else if (this.type == 'B') {
-      const prot = 2/3;
-      str = `${-ht},0, ${ht},0\
-             ${ht},1 ${-ht-ef*prot},1\
-             ${-ht-ef*prot},${bh} ${-ht},${bh}`;
-    } else if (this.type == 'black') {
-      str = `${-ht},0, ${ht},0\
-             ${ht},${bh} ${-ht},${bh}`;
-    }
-    const group = container.group();
-    const svgKey = group.polygon(str);
-    const mx = ef*0.01;
-    const my = 0.1;
-    const markerStr = `${-mx},0 ${mx},0 ${mx},${my} ${-mx},${my}`;
-    const svgMarker = group.polygon(markerStr);
-
-    const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
-    svgKey.attr({
-      'fill': keyColor,
-      'stroke-width': '0.001',
-    });
-
-    const markerColor = '#888888';
-    svgMarker.attr({
-      'fill': markerColor,
-    });
-
-    this.svg = group;
-    this.svgMarker = svgMarker;
-    this.svgKey = svgKey;
-  }
-
-  toneOn() {
-    if (!this.isOn) {
-      this.isOn = true;
-      const toneColorActive = scaleFig.style['toneColorActive'];
-      this.svgKey.attr('fill', toneColorActive);
-      startTone(this.frequency);
-    }
-  }
-
-  toneOff() {
-    if (scaleFig.shiftDown) {
-      scaleFig.sustainedTones.push(this);
-    } else if (!this.isBeingClicked) {
-      this.isOn = false;
-      const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
-      this.svgKey.attr('fill', keyColor);
-      stopTone(this.frequency);
-    }
-  }
-
-  setListeners() {
-    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
-    // on the browser, the same click or touch may fire several, e.g. both
-    // touch and mouse or both pointer and mouse. This ensures maximum
-    // compatibility with different browsers, but probably costs something in
-    // performance. Note though that the same tone isn't played twice. Come
-    // back to this later and check whether we could switch for instance using
-    // only PointerEvents, once they have widespread support.
-    const t = this;
-    function eventOn(ev) {
-      // preventDefault tries to avoid duplicating touch events as mouse or
-      // pointer events.
-      ev.preventDefault();
-      t.isBeingClicked = true;
-      t.toneOn();
-    };
-    function eventOff(ev) {
-      // preventDefault tries to avoid duplicating touch events as mouse or
-      // pointer events.
-      ev.preventDefault();
-      t.isBeingClicked = false;
-      t.toneOff();
-    };
-    function eventOnMouse(ev) {
-      if (ev.buttons == 1) {
-        eventOn(ev);
-      }
-    };
-    function eventOffMouse(ev) {
-      eventOff(ev);
-    };
-    function eventOnTouch(ev) {
-      eventOn(ev);
-    };
-    function eventOffTouch(ev) {
-      eventOff(ev);
-    };
-    function eventOnPointer(ev) {
-      // Allow pointer event target to jump between objects when pointer is
-      // moved.
-      ev.target.releasePointerCapture(ev.pointerId);
-      if (ev.buttons == 1) {
-        eventOn(ev);
-      }
-    };
-    function eventOffPointer(ev) {
-      // Allow pointer event target to jump between objects when pointer is
-      // moved.
-      ev.target.releasePointerCapture(ev.pointerId);
-      eventOff(ev);
-    };
-    // TODO Could switch to PointerEvents once they have a bit more support
-    // across different browsers: https://caniuse.com/#feat=pointer
-    const svg = this.svg;
-    svg.mousedown(eventOnMouse);
-    svg.mouseup(eventOffMouse);
-    svg.mouseleave(eventOffMouse);
-    svg.mouseenter(eventOnMouse);
-    svg.touchstart(eventOnTouch);
-    svg.touchend(eventOffTouch);
-    svg.touchcancel(eventOffTouch);
-    svg.on('pointerdown', eventOnPointer);
-    svg.on('pointerup', eventOffPointer);
-    svg.on('pointerleave', eventOffPointer);
-    svg.on('pointerenter', eventOnPointer);
-  }
-
-  get pos() {
-    const frequencyRatio = this.frequency/scaleFig.originFreq;
-    return scaleFig.horizontalZoom * Math.log2(frequencyRatio);
-  }
-
-  positionSvg() {
-    this.svg.translate(this.pos, 0);
-  }
-
-  scaleSvg() {
-    const svg = this.svg;
-    const xscale = scaleFig.horizontalZoom;
-    svg.scale(xscale, 1);
-  }
-}
-
-function addKeys() {
-  EDOTones.forEach((EDOTone) => {
-    const key = new Key(EDOTone.frequency, EDOTone.keytype);
-    scaleFig.keys.push(key);
-  });
-}
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 function setSettingsExpanded(expanded) {
@@ -2331,7 +2429,6 @@ streams.baseTones.subscribe(
 resizeCanvas();
 resizeKeyCanvas();
 resizeSettings();
-addKeys();
 
 readURL();
 updateURL();
@@ -2342,3 +2439,4 @@ streams.verticalZoom.subscribe((value) => updateURL());
 
 checkTones(); // TODO Only here for testing during development.
 */
+addKeys();
