@@ -207,7 +207,7 @@ function sumTones(tone1, tone2) {
 function fraction(interval) {
   let num = 1.0;
   let denom = 1.0;
-  interval.forEach(([p, c]) => {
+  interval.forEach((c, p) => {
     // TODO Could we rely on always assuming that c != 0?
     if (c > 0) num *= Math.pow(p, c);
     else denom *= Math.pow(p, -c);
@@ -495,7 +495,7 @@ streams.clientCoordsOnMove.pipe(
     const midY = mcOnClick[1] - ccOnMove[1] + ccOnClick[1];
     return [midX, midY];
   }),
-).subscribe(streams.midCoords.next);
+).subscribe((x) => streams.midCoords.next(x));
 
 // Use ResizeObserver to make Observables out of the sizes of elements.
 // TODO Turn this into a new subclass of Subject?
@@ -907,9 +907,11 @@ class Key {
       rxjs.fromEvent(svg, 'pointerleave'),
     ).pipe(rxjs.operators.map((ev) => false));
 
-    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
+    // TODO Does this need to have the "this." part?
+    this.isBeingClicked = new rxjs.BehaviorSubject(false);
+    rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
       rxjs.operators.startWith(false)
-    );
+    ).subscribe((x) => this.isBeingClicked.next(x));
 
     // Whenever this key is pressed, the tone is turned on, if it wasn't
     // already. Whenver either this key is released or sustain is released, and
@@ -920,7 +922,8 @@ class Key {
     // waste by either filtering out repeated isOn emissions before they reach
     // the observer, or by having isBeingClicked determine whether we listend
     // to sustainDown at all.
-    this.isOn = rxjs.merge(
+    this.isOn = new rxjs.BehaviorSubject(false);
+    rxjs.merge(
       trueOnClickDown,
       rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
         rxjs.operators.filter(([click, sustain]) => {
@@ -932,7 +935,7 @@ class Key {
           return false;
         })
       )
-    );
+    ).subscribe((x) => this.isOn.next(x));
 
     this.isOn.subscribe((val) => {
       if (val) {
@@ -962,7 +965,9 @@ class Key {
       streams.horizontalZoom
     ).pipe(rxjs.operators.map(([fr, hz]) => hz * Math.log2(fr)));
     streams.horizontalZoom.subscribe((hz) => this.svg.scale(hz, 1));
-    pos.subscribe((p) => this.svg.translate(p, 0));
+    pos.subscribe((p) => {
+      if (isFinite(p)) this.svg.translate(p, 0);
+    });
   }
 }
 
@@ -1447,8 +1452,6 @@ class ToneObject {
     // shouldn't be a field, but just another stream called isBase, that's
     // created in setListeners, and is based on a global stream of what are the
     // current baseTones.
-    this.isOn = false;
-    this.isBeingClicked = false;
     this.coords = coordinates;
     this._isBase_ = isBase;
     this.steps = {};
@@ -1526,32 +1529,49 @@ class ToneObject {
     ).pipe(rxjs.operators.map((ev) => false));
 
     // TODO Why are some of these this.isOn etc. and not just const isOn?
-    this.isBeingClicked = rxjs.merge(trueOnSustainDown, falseOnSustainUp).pipe(
+    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
       rxjs.operators.startWith(false)
     );
 
+    // Whenever this key is pressed, the tone is turned on, if it wasn't
+    // already. Whenver either this key is released or sustain is released, and
+    // the latest action on both this key and sustain is a release, then this
+    // tone should be set to false, if it wasn't already.
+    // TODO Note that, done this way, an emission happens for all keys every
+    // time the sustain is released. Think about mitigating this performance
+    // waste by either filtering out repeated isOn emissions before they reach
+    // the observer, or by having isBeingClicked determine whether we listend
+    // to sustainDown at all.
     this.isOn = new rxjs.BehaviorSubject(false);
     rxjs.merge(
-      trueOnSustainDown,
-      rxjs.combineLatest(falseOnSustainUp, streams.sustainDown).pipe(
-        rxjs.operators.filter((click, sustain) => {
-          return !click && !sustain; // Latest values from both were false.
+      trueOnClickDown,
+      rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
+        rxjs.operators.filter(([click, sustain]) => {
+          // Check that both the latest click and the latest sustain were
+          // false.
+          return !click && !sustain;
         }),
         rxjs.operators.map((click, sustain) => {
           return false;
         })
       )
-    ).subscribe(this.isOn.next);
+    ).subscribe((x) => this.isOn.next(x));
+
+    const pf = pitchFactor(this.coords);
+    const frequency = new rxjs.BehaviorSubject(
+      streams.originFreq.getValue()*pf
+    );
+    streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
+      (x) => frequency.next(x)
+    );
 
     this.isOn.subscribe((val) => {
       if (val) {
-        startTone(this.frequency);
+        startTone(frequency.getValue());
       } else {
-        stopTone(this.frequency);
+        stopTone(frequency.getValue());
       }
     });
-
-    const pf = pitchFactor(this.coords);
 
     const xpos = streams.horizontalZoom.pipe(
       rxjs.operators.map((zoom) => {
