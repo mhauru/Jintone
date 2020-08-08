@@ -141,9 +141,9 @@ function toneToString(tone) {
   return [...tone.entries()].sort().toString();
 }
 
-class VariableSourceSubject extends rxjs.Subject {
+class VariableSourceSubject extends rxjs.BehaviorSubject {
   constructor(joinFunction) {
-    super();
+    super(undefined); // TODO Should this be null instead?
     this.joinFunction = joinFunction;
     this.sources = new Set();
   }
@@ -255,7 +255,7 @@ function primeDecompose(num, denom) {
 // pitch, as a float.
 function pitchFactor(interval) {
   let pf = 1.0;
-  interval.forEach(([p, c]) => {
+  interval.forEach((c, p) => {
     pf *= Math.pow(p, c);
   });
   return pf;
@@ -495,7 +495,7 @@ streams.clientCoordsOnMove.pipe(
     const midY = mcOnClick[1] - ccOnMove[1] + ccOnClick[1];
     return [midX, midY];
   }),
-).subscribe((val) => streams.midCoords.next(val));
+).subscribe(streams.midCoords.next);
 
 // Use ResizeObserver to make Observables out of the sizes of elements.
 // TODO Turn this into a new subclass of Subject?
@@ -578,12 +578,14 @@ const streamElements = [
     'elemName': 'numOriginFreq',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
   {
     'paramName': 'toneRadius',
     'elemName': 'numToneRadius',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
   {
     'paramName': 'toneColor',
@@ -608,6 +610,7 @@ const streamElements = [
     'elemName': 'numBaseToneBorderSize',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
   {
     'paramName': 'opacityHarmNorm',
@@ -650,18 +653,21 @@ const streamElements = [
     'elemName': 'rangeHorzZoom',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
   {
     'paramName': 'verticalZoom',
     'elemName': 'rangeVertZoom',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
   {
     'paramName': 'maxHarmNorm',
     'elemName': 'numMaxHarmNorm',
     'eventName': 'input',
     'observableProperty': 'value',
+    'parser': parseFloat,
   },
 ];
 
@@ -671,9 +677,20 @@ const streamElements = [
 streamElements.forEach((e) => {
   const elem = document.getElementById(e.elemName);
   streams[e.paramName] = new rxjs.BehaviorSubject(startingParams[e.paramName]);
-  rxjs.fromEvent(elem, e.eventName).pipe(
-    rxjs.operators.pluck('target', e.observableProperty),
-  ).subscribe((x) => streams[e.paramName].next(x));
+  const eventStream = rxjs.fromEvent(elem, e.eventName);
+  let valueStream;
+  if (e.hasOwnProperty('parser')) {
+    valueStream = eventStream.pipe(rxjs.operators.map(
+      (x) => {
+        return e.parser(x.target[e.observableProperty])
+      }
+    ));
+  } else {
+    valueStream = eventStream.pipe(
+      rxjs.operators.pluck('target', e.observableProperty)
+    );
+  }
+  valueStream.subscribe((x) => streams[e.paramName].next(x));
 
   // Every time a new value is emitted, update the UI element(s) and the URL.
   streams[e.paramName].subscribe((value) => {
@@ -739,6 +756,26 @@ streams.showSteps.subscribe((value) => {
     scaleFig.svgGroups.steps.attr('visibility', 'hidden');
   }
 });
+
+// TODO Make new values be registered.
+streams.baseTones = new rxjs.BehaviorSubject();
+streams.baseTones.next(startingParams['baseTones']);
+streams.opacityHarmNorm = new rxjs.BehaviorSubject();
+streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
+
+// TODO Make default be read from URL and new values be registered.
+const defaultHarmDistSteps = new Map();
+defaultHarmDistSteps.set(2, 0.0);
+defaultHarmDistSteps.set(3, 1.5);
+defaultHarmDistSteps.set(5, 1.7);
+streams.harmDistSteps = new rxjs.BehaviorSubject();
+streams.harmDistSteps.next(defaultHarmDistSteps);
+const defaultyShifts = new Map();
+defaultyShifts.set(2, 1.2);
+defaultyShifts.set(3, 1.8);
+defaultyShifts.set(5, 1.0);
+streams.yShifts = new rxjs.BehaviorSubject();
+streams.yShifts.next(defaultyShifts);
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // The EDO keyboard
@@ -1402,11 +1439,14 @@ class Step {
 }
 */
 
-/*
 // TODO The 'Object' part of the name is to avoid a name collission with
 // Tone.js. Think about namespace management.
 class ToneObject {
   constructor(coordinates, isBase) {
+    // TODO Think about how base tones should be marked, but I think it
+    // shouldn't be a field, but just another stream called isBase, that's
+    // created in setListeners, and is based on a global stream of what are the
+    // current baseTones.
     this.isOn = false;
     this.isBeingClicked = false;
     this.coords = coordinates;
@@ -1420,26 +1460,14 @@ class ToneObject {
     // TODO Where do these numbers come from?
     const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
     this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
+    /*
     this.positionSvg();
     this.setLabelText();
     this.colorSvg();
     this.scaleSvgTone();
-    this.setListeners();
     this.addSteps();
-  }
-
-  toneOn() {
-    const toneColorActive = scaleFig.style['toneColorActive'];
-    this.svgCircle.attr('fill', toneColorActive);
-    const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
-    this.svgPitchline.attr('stroke', pitchlineColorActive);
-  }
-
-  toneOff() {
-    const toneColor = scaleFig.style['toneColor'];
-    this.svgCircle.attr('fill', toneColor);
-    const pitchlineColor = scaleFig.style['pitchlineColor'];
-    this.svgPitchline.attr('stroke', pitchlineColor);
+    */
+    this.setListeners();
   }
 
   setListeners() {
@@ -1450,24 +1478,24 @@ class ToneObject {
     // performance. Note though that the same tone isn't played twice. Come
     // back to this later and check whether we could switch for instance using
     // only PointerEvents, once they have widespread support.
-    const t = this;
-    function eventOn(ev) {
-      if (!scaleFig.ctrlDown) {
-        t.isBeingClicked = true;
-        t.toneOn();
-      }
-    };
-    function eventOff(ev) {
-      t.isBeingClicked = false;
-      t.toneOff();
-    };
+    //const t = this;
+    //function eventOn(ev) {
+    //  if (!scaleFig.ctrlDown) {
+    //    t.isBeingClicked = true;
+    //    t.toneOn();
+    //  }
+    //};
+    //function eventOff(ev) {
+    //  t.isBeingClicked = false;
+    //  t.toneOff();
+    //};
 
     const trueOnClickDown = rxjs.merge(
-      rxjs.fromEvent(svgTone, 'mousedown').pipe(
+      rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
       ),
-      rxjs.fromEvent(svgTone, 'touchstart'),
-      rxjs.fromEvent(svgTone, 'pointerdown').pipe(
+      rxjs.fromEvent(this.svgTone, 'touchstart'),
+      rxjs.fromEvent(this.svgTone, 'pointerdown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
         rxjs.operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
@@ -1482,11 +1510,11 @@ class ToneObject {
     }));
 
     const falseOnClickUp = rxjs.merge(
-      rxjs.fromEvent(svgTone, 'mouseup'),
-      rxjs.fromEvent(svgTone, 'mouseleave'),
-      rxjs.fromEvent(svgTone, 'touchend'),
-      rxjs.fromEvent(svgTone, 'touchcancel'),
-      rxjs.fromEvent(svgTone, 'pointerup').pipe(
+      rxjs.fromEvent(this.svgTone, 'mouseup'),
+      rxjs.fromEvent(this.svgTone, 'mouseleave'),
+      rxjs.fromEvent(this.svgTone, 'touchend'),
+      rxjs.fromEvent(this.svgTone, 'touchcancel'),
+      rxjs.fromEvent(this.svgTone, 'pointerup').pipe(
         rxjs.operators.map((ev) => {
           // TODO Does this really do something when releasing?
           // Allow pointer event target to jump between objects when pointer is
@@ -1494,24 +1522,26 @@ class ToneObject {
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-      rxjs.fromEvent(svgTone, 'pointerleave'),
+      rxjs.fromEvent(this.svgTone, 'pointerleave'),
     ).pipe(rxjs.operators.map((ev) => false));
 
+    // TODO Why are some of these this.isOn etc. and not just const isOn?
     this.isBeingClicked = rxjs.merge(trueOnSustainDown, falseOnSustainUp).pipe(
       rxjs.operators.startWith(false)
     );
 
-    this.isOn = rxjs.merge(
+    this.isOn = new rxjs.BehaviorSubject(false);
+    rxjs.merge(
       trueOnSustainDown,
       rxjs.combineLatest(falseOnSustainUp, streams.sustainDown).pipe(
         rxjs.operators.filter((click, sustain) => {
-          return !click && !sustain  // Latest values from both were false.
+          return !click && !sustain; // Latest values from both were false.
         }),
         rxjs.operators.map((click, sustain) => {
           return false;
         })
       )
-    );
+    ).subscribe(this.isOn.next);
 
     this.isOn.subscribe((val) => {
       if (val) {
@@ -1529,20 +1559,20 @@ class ToneObject {
       })
     );
 
-    const ypos = streams.verticalZoom.pipe(
-      rxjs.operators.map((zoom) => {
-        let y = 0.0;
-        this.coords.forEach(([p, c]) => {
-          const pStr = p.toString();
-          // TODO Is the check necessary?
-          if (scaleFig.yShifts.hasOwnProperty(pStr)) {
-            y += -scaleFig.yShifts[pStr] * c;
-          }
-        });
-        y *= zoom;
-        return y;
-      })
-    );
+    const ypos = rxjs.combineLatest(
+      streams.verticalZoom,
+      streams.yShifts
+    ).pipe(rxjs.operators.map(([zoom, yShifts]) => {
+      let y = 0.0;
+      this.coords.forEach((c, p) => {
+        // TODO Is the check necessary?
+        if (yShifts.has(p)) {
+          y += -yShifts.get(p) * c;
+        }
+      });
+      y *= zoom;
+      return y;
+    }));
 
     const harmDistsCombined = new VariableSourceSubject(rxjs.combineLatest);
     const harmDists = new Map();
@@ -1562,14 +1592,14 @@ class ToneObject {
         if (!harmDists.has(baseTone)) {
           const interval = subtractTone(this.coords, baseTone);
           const primes = [...interval.keys()];
-          const facts = primes.map((p) => Math.abs(interval[p]));
-          const steps = primes.map((p) => streams.harmDistSteps[p]);
-          const dist = rxjs.combineLatest(...steps).pipe(rxjs.operators.map(
-            (...v) => {
+          const facts = primes.map((p) => Math.abs(interval.get(p)));
+          const dist = streams.harmDistSteps.pipe(rxjs.operators.map(
+            (hds) => {
               let d = 0;
-              for (let i = 0; i < v.length; i++) {
+              for (let i = 0; i < primes.length; i++) {
+                const p = primes[i];
                 const c = facts[i];
-                const s = v[i];
+                const s = hds.get(p);
                 if (c != 0.0) d += s*c;
               }
               return d;
@@ -1584,10 +1614,10 @@ class ToneObject {
 
     const inbounds = rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm, xpos, ypos
-    ).pipe(rxjs.operators.map(([hn, maxhn, inviewbox, x, y]) => {
+    ).pipe(rxjs.operators.map(([hn, maxhn, x, y]) => {
       // TODO Add note radius, to check if the edge of a note fits, rather
       // than center?
-      const inViewbox = isInViewbox(this.xpos, this.ypos);
+      const inViewbox = isInViewbox(x, y);
       const harmClose = (hn <= maxhn);
       return harmClose && inViewbox;
     }));
@@ -1597,7 +1627,7 @@ class ToneObject {
         let relHn = Math.max(1.0 - hn/maxhn, 0.0);
         // TODO Should opacityHarmNorm really be checked here, and not in the
         // drawing function?
-        if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
+        if (!streams.opacityHarmNorm && relHn > 0.0) {
           relHn = 1.0;
         }
         return relHn;
@@ -1611,12 +1641,113 @@ class ToneObject {
 
     rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
       const svgPitchline = this.svgPitchline;
+      const svgTone = this.svgTone;
       if (ib && hn > 0) {
+        // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
+        // be a thing for SVG.
         svgPitchline.attr('visibility', 'inherit');
+        svgTone.attr('visibility', 'inherit');
       } else {
         svgPitchline.attr('visibility', 'hidden');
+        svgTone.attr('visibility', 'hidden');
       }
     });
+
+    rxjs.combineLatest(
+      streams.toneRadius,
+      streams.baseToneBorderSize
+    ).subscribe(([toneRadius, borderSize]) => {
+      const svgCircle = this.svgCircle;
+      const svgLabel = this.svgLabel;
+      if (this._isBase_) {
+        svgCircle.radius(toneRadius + borderSize/2);
+      } else {
+        svgCircle.radius(toneRadius);
+      }
+      // Compute the right scaling factor for the text, so that it fits in the
+      // circle.
+      const bbox = this.svgLabel.bbox();
+      // Note that bbox dimensions do not account for the currenc scaleY and
+      // scaleX. And that's what we want.
+      const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
+      // The 0.95 is to give a bit of buffer around the edges.
+      const targetFactor = 0.95*toneRadius/halfDiagLength;
+      // If we can comfortably fit within the tone, we won't scale larger than
+      // maxFactor. This makes most labels be of the same size, and have the
+      // size decrease from maxFactor only when necessary.
+      const maxFactor = toneRadius/16;
+      const scaleFactor = Math.min(maxFactor, targetFactor);
+      // TODO Why on earth do we need to call center before scale? I would have
+      // thought that either it doesn't matter, or it needs to be done the
+      // other way around, but that doesn't work.
+      svgLabel.center(0, 0);
+      if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
+    });
+
+    rxjs.combineLatest(
+      this.isOn,
+      relHarmNorm,
+      streams.toneColorActive,
+      streams.toneColor,
+      streams.baseToneBorderColor,
+      streams.baseToneBorderSize,
+    ).subscribe(([
+      isOn,
+      relHn,
+      toneColorActive,
+      toneColorNonActive,
+      baseToneBorderColor,
+      baseToneBorderSize,
+    ]) => {
+      const svgTone = this.svgTone;
+      const svgCircle = this.svgCircle;
+      if (relHn <= 0.0) {
+        svgTone.attr('visibility', 'hidden');
+        // The other stuff doesn't matter if its hidden, so may as well return.
+        return;
+      } else {
+        svgTone.attr('visibility', 'inherit');
+      }
+      let toneColor;
+      if (isOn) {
+        toneColor = toneColorActive;
+      } else {
+        toneColor = toneColorNonActive;
+      }
+      if (this._isBase_) {
+        const borderColor = baseToneBorderColor;
+        const borderSize = baseToneBorderSize;
+        svgCircle.attr({
+          'stroke': borderColor,
+          'stroke-width': borderSize,
+        });
+      } else {
+        svgCircle.attr({
+          'stroke-width': 0.0,
+        });
+      }
+      svgCircle.attr({
+        'fill': toneColor,
+      });
+      svgTone.attr({
+        'fill-opacity': relHn,
+      });
+    });
+  }
+
+/*
+  toneOn() {
+    const toneColorActive = scaleFig.style['toneColorActive'];
+    this.svgCircle.attr('fill', toneColorActive);
+    const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
+    this.svgPitchline.attr('stroke', pitchlineColorActive);
+  }
+
+  toneOff() {
+    const toneColor = scaleFig.style['toneColor'];
+    this.svgCircle.attr('fill', toneColor);
+    const pitchlineColor = scaleFig.style['pitchlineColor'];
+    this.svgPitchline.attr('stroke', pitchlineColor);
   }
 
   colorSvgPitchline() {
@@ -1914,6 +2045,7 @@ class ToneObject {
       step.opacitate();
     });
   }
+*/
 }
 
 function checkTones() {
@@ -2062,6 +2194,7 @@ step of any tone.`;
   });
 }
 
+/*
 function generateTones() {
   // TODO This doesn't work if a baseTone is outside of the viewbox closure.
   // Starting from the current boundary tones, i.e. tones that are not
@@ -2345,7 +2478,7 @@ streams.baseTones.subscribe(
   (tones) => {
     // TODO This should soon be unnecessary.
     scaleFig.baseTones = tones;
-    // TODO How does a tone get market as being base if it already exists?
+    // TODO How does a tone get marked as being base if it already exists?
     tones.forEach((baseTone) => {
       const toneObj = addTone(baseTone, true);
       scaleFig.boundaryTones[toneToString(baseTone)] = toneObj;
@@ -2357,7 +2490,6 @@ streams.baseTones.subscribe(
   }
 );
 
-
 resizeCanvas();
 resizeKeyCanvas();
 resizeSettings();
@@ -2367,8 +2499,18 @@ updateURL();
 
 streams.horizontalZoom.subscribe((value) => updateURL());
 streams.verticalZoom.subscribe((value) => updateURL());
-
-
 checkTones(); // TODO Only here for testing during development.
 */
+
 addKeys();
+
+// DEBUG
+new ToneObject(new Map(), true)
+const t1 = new Map()
+const t2 = new Map()
+t1.set(2, -1)
+t1.set(3, 1)
+t2.set(2, -1)
+t2.set(5, 1)
+new ToneObject(t1, false)
+new ToneObject(t2, false)
