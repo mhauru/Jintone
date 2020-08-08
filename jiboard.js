@@ -85,8 +85,8 @@ const DEFAULT_URLPARAMS = {
   'baseToneBorderColor': '#000000',
   'baseToneBorderSize': 5.0,
   'opacityHarmNorm': true,
-  'horizontalZoom': 300,
-  'verticalZoom': 100,
+  'horizontalZoom': 300.0,
+  'verticalZoom': 100.0,
   'midCoords': [0.0, 0.0],
   'axes': [
     {'yShift': 1.2, 'harmDistStep': 0.0},
@@ -1444,6 +1444,15 @@ class Step {
 }
 */
 
+// CONTINUE HERE
+// ToneObjects now mostly work, although bugs and TODO notes still exist.
+// However, those are all fixable, and I think it would be smart to first do
+// the hard part: Setting up proper generation of tones, instead of the 3
+// manual example tones at the end of the file. I haven't even thought about
+// how it's going to work yet, but baseTones is now a stream, so I guess we
+// start from that, and whatever other streams control the existence of tones,
+// do a combineLatest and ummm go from there?
+
 // TODO The 'Object' part of the name is to avoid a name collission with
 // Tone.js. Think about namespace management.
 class ToneObject {
@@ -1632,6 +1641,8 @@ class ToneObject {
 
     const harmNorm = harmDistsCombined.pipe(rxjs.operators.map(Math.min));
 
+    // TODO This would need to also take as arguments streams specifying canvas
+    // boundaries.
     const inbounds = rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm, xpos, ypos
     ).pipe(rxjs.operators.map(([hn, maxhn, x, y]) => {
@@ -1704,6 +1715,7 @@ class ToneObject {
       if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
     });
 
+    // TODO Should split this into smaller, independent parts.
     rxjs.combineLatest(
       this.isOn,
       relHarmNorm,
@@ -1751,6 +1763,35 @@ class ToneObject {
       });
       svgTone.attr({
         'fill-opacity': relHn,
+      });
+    });
+
+    // TODO Should split this into subparts
+    rxjs.combineLatest(
+      this.isOn,
+      relHarmNorm,
+      streams.pitchlineColor,
+      streams.pitchlineColorActive,
+    ).subscribe(([
+      isOn,
+      relHn,
+      pitchlineColorNonActive,
+      pitchlineColorActive,
+    ]) => {
+      const svgPitchline = this.svgPitchline;
+      let pitchlineColor;
+      if (isOn) {
+        pitchlineColor = pitchlineColorActive;
+      } else {
+        pitchlineColor = pitchlineColorNonActive;
+      }
+      svgPitchline.attr({
+        'stroke': pitchlineColor,
+        'stroke-width': '1.0',
+        'stroke-miterlimit': 4.0,
+        'stroke-dasharray': '0.5, 0.5',
+        'stroke-dashoffset': 0.0,
+        'stroke-opacity': relHn,
       });
     });
   }
