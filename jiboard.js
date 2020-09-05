@@ -60,6 +60,11 @@ function generateEDOTones() {
 
 generateEDOTones();
 
+function opacityFromRelHn(hn) {
+  const minopacity = 0.15
+  return (1.0 - minopacity) * hn + minopacity
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Read the URL for parameter values to start with, and define a function for
 // writing the URL.
@@ -142,10 +147,12 @@ function toneToString(tone) {
 }
 
 class VariableSourceSubject extends rxjs.BehaviorSubject {
-  constructor(joinFunction) {
-    super(undefined); // TODO Should this be null instead?
+  constructor(joinFunction, defaultValue) {
+    super(defaultValue); // TODO Should this be null instead?
+    this.defaultValue = defaultValue;
     this.joinFunction = joinFunction;
     this.sources = new Set();
+    this.renewInnerSubscription();
   }
 
   addSource(source) {
@@ -163,11 +170,15 @@ class VariableSourceSubject extends rxjs.BehaviorSubject {
   }
 
   renewInnerSubscription() {
-    const innerObservable = this.joinFunction(...this.sources);
     if (this.innerSubscription) {
       this.innerSubscription.unsubscribe();
     }
-    this.innerSubscription = innerObservable.subscribe(this);
+    if (this.sources && this.sources.size > 0) {
+      const innerObservable = this.joinFunction(...this.sources);
+      this.innerSubscription = innerObservable.subscribe(this);
+    } else {
+      this.next(this.defaultValue);
+    }
   }
 }
 
@@ -259,6 +270,818 @@ function pitchFactor(interval) {
     pf *= Math.pow(p, c);
   });
   return pf;
+}
+
+// TODO The 'Object' part of the name is to avoid a name collission with
+// Tone.js. Think about namespace management.
+class ToneObject {
+  constructor(coordinates, isBase, streams, allTones) {
+    // TODO Think about how base tones should be marked, but I think it
+    // shouldn't be a field, but just another stream called isBase, that's
+    // created in setListeners, and is based on a global stream of what are the
+    // current baseTones.
+    this.coords = coordinates;
+    this.isBase = new rxjs.BehaviorSubject(isBase);
+    this.allTones = allTones;
+    // this.steps = {};
+    // this.incomingSteps = {};
+
+    this.svgTone = scaleFig.svgGroups['tones'].group();
+    this.svgCircle = this.svgTone.circle(1.0);
+    this.svgLabel = this.svgTone.text('');
+    // TODO Where do these numbers come from?
+    const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
+    this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
+    /*
+    this.positionSvg();
+    this.setLabelText();
+    this.colorSvg();
+    this.scaleSvgTone();
+    this.addSteps();
+    */
+
+    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
+    // on the browser, the same click or touch may fire several, e.g. both
+    // touch and mouse or both pointer and mouse. This ensures maximum
+    // compatibility with different browsers, but probably costs something in
+    // performance. Note though that the same tone isn't played twice. Come
+    // back to this later and check whether we could switch for instance using
+    // only PointerEvents, once they have widespread support.
+    //const t = this;
+    //function eventOn(ev) {
+    //  if (!scaleFig.ctrlDown) {
+    //    t.isBeingClicked = true;
+    //    t.toneOn();
+    //  }
+    //};
+    //function eventOff(ev) {
+    //  t.isBeingClicked = false;
+    //  t.toneOff();
+    //};
+
+    // TODO Maybe baseTones should have strings as keys, like allTones, in
+    // which case checking would be easy.
+    streams.baseTones.subscribe((baseTones) => {
+      const coordsStr = toneToString(this.coords);
+      const inBaseTones = baseTones.has(coordsStr);
+      if (inBaseTones && !this.isBase.getValue()) {
+        this.isBase.next(true);
+      } else if (!inBaseTones && this.isBase.getValue()) {
+        this.isBase.next(false);
+      }
+    });
+
+    const trueOnClickDown = rxjs.merge(
+      rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
+        rxjs.operators.filter((ev) => ev.buttons == 1),
+      ),
+      rxjs.fromEvent(this.svgTone, 'touchstart'),
+      rxjs.fromEvent(this.svgTone, 'pointerdown').pipe(
+        rxjs.operators.filter((ev) => ev.buttons == 1),
+        rxjs.operators.map((ev) => {
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
+    ).pipe(rxjs.operators.map((ev) => {
+      // TODO Why does on-click require this, but off-click doesn't?
+      ev.preventDefault();
+      return true;
+    }));
+
+    const falseOnClickUp = rxjs.merge(
+      rxjs.fromEvent(this.svgTone, 'mouseup'),
+      rxjs.fromEvent(this.svgTone, 'mouseleave'),
+      rxjs.fromEvent(this.svgTone, 'touchend'),
+      rxjs.fromEvent(this.svgTone, 'touchcancel'),
+      rxjs.fromEvent(this.svgTone, 'pointerup').pipe(
+        rxjs.operators.map((ev) => {
+          // TODO Does this really do something when releasing?
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
+      rxjs.fromEvent(this.svgTone, 'pointerleave'),
+    ).pipe(rxjs.operators.map((ev) => false));
+
+    // TODO Why are some of these this.isOn etc. and not just const isOn?
+    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
+      rxjs.operators.startWith(false)
+    );
+
+    // Whenever this key is pressed, the tone is turned on, if it wasn't
+    // already. Whenver either this key is released or sustain is released, and
+    // the latest action on both this key and sustain is a release, then this
+    // tone should be set to false, if it wasn't already.
+    // TODO Note that, done this way, an emission happens for all keys every
+    // time the sustain is released. Think about mitigating this performance
+    // waste by either filtering out repeated isOn emissions before they reach
+    // the observer, or by having isBeingClicked determine whether we listend
+    // to sustainDown at all.
+    this.isOn = new rxjs.BehaviorSubject(false);
+    rxjs.merge(
+      trueOnClickDown,
+      rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
+        rxjs.operators.filter(([click, sustain]) => {
+          // Check that both the latest click and the latest sustain were
+          // false.
+          return !click && !sustain;
+        }),
+        rxjs.operators.map((click, sustain) => {
+          return false;
+        })
+      )
+    ).subscribe((x) => this.isOn.next(x));
+
+    const pf = pitchFactor(this.coords);
+    const frequency = new rxjs.BehaviorSubject(
+      streams.originFreq.getValue()*pf
+    );
+    streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
+      (x) => frequency.next(x)
+    );
+
+    this.isOn.subscribe((val) => {
+      if (val) {
+        startTone(frequency.getValue());
+      } else {
+        stopTone(frequency.getValue());
+      }
+    });
+
+    const xpos = streams.horizontalZoom.pipe(
+      rxjs.operators.map((zoom) => {
+        return zoom * Math.log2(pf);
+      })
+    );
+
+    const ypos = rxjs.combineLatest(
+      streams.verticalZoom,
+      streams.yShifts
+    ).pipe(rxjs.operators.map(([zoom, yShifts]) => {
+      let y = 0.0;
+      this.coords.forEach((c, p) => {
+        // TODO Is the check necessary?
+        if (yShifts.has(p)) {
+          y += -yShifts.get(p) * c;
+        }
+      });
+      y *= zoom;
+      return y;
+    }));
+
+    const harmDistsCombined = new VariableSourceSubject(rxjs.combineLatest, []);
+    const harmDists = new Map();
+
+    streams.baseTones.subscribe((baseTones) => {
+      // Remove harmDists if the corresponding baseTone is no longer a
+      // baseTone.
+      for (const btStr of harmDists.keys()) {
+        if (!baseTones.has(btStr)) {
+          harmDistsCombined.removeSource(harmDists.get(btStr));
+          harmDists.delete(btStr);
+        }
+      }
+
+      // Add new harmDists if new baseTones are present.
+      baseTones.forEach((bt, btStr) => {
+        if (!harmDists.has(btStr)) {
+          const interval = subtractTone(this.coords, bt);
+          const primes = Array.from(interval.keys());
+          const facts = primes.map((p) => Math.abs(interval.get(p)));
+          const dist = streams.harmDistSteps.pipe(rxjs.operators.map(
+            (hds) => {
+              let d = 0;
+              for (let i = 0; i < primes.length; i++) {
+                const p = primes[i];
+                const c = facts[i];
+                const s = hds.get(p);
+                if (c != 0.0) d += s*c;
+              }
+              return d;
+            }));
+          harmDists.set(btStr, dist);
+          harmDistsCombined.addSource(dist);
+        }
+      });
+    });
+
+    const harmNorm = harmDistsCombined.pipe(rxjs.operators.map(
+      (x) => Math.min(...x))
+    );
+
+
+    // CONTINUE HERE
+    // Create streams that specify canvas boundaries. Start using them here and
+    // in inclosure. Check that that fixes some tones not being drawn in the
+    // beginning, and pitchlines not all being set visible. Once that's done,
+    // either start adding more features/fixing things to work streams, or dig
+    // into optimising. At the moment all changes related to inclosure and
+    // inbounds, which causes generation of new Tones, is worryingly slow.
+    // TODO This would need to also take as arguments streams specifying canvas
+    // boundaries.
+    const inbounds = rxjs.combineLatest(
+      harmNorm, streams.maxHarmNorm, xpos, ypos
+    ).pipe(rxjs.operators.map(([hn, maxhn, x, y]) => {
+      // TODO Add note radius, to check if the edge of a note fits, rather
+      // than center?
+      const inViewbox = isInViewbox(x, y);
+      const harmClose = (hn <= maxhn);
+      return harmClose && inViewbox;
+    }));
+
+    // TODO This would need to also take as arguments streams specifying canvas
+    // boundaries.
+    this.inclosure = rxjs.combineLatest(
+      harmNorm,
+      streams.maxHarmNorm,
+      xpos,
+      ypos,
+      streams.horizontalZoom,
+      streams.verticalZoom,
+      streams.yShifts,
+    ).pipe(rxjs.operators.map(([
+      hn,
+      maxhn,
+      x,
+      y,
+      horizontalZoom,
+      verticalZoom,
+      yShifts,
+    ]) => {
+      const harmClose = (hn <= maxhn);
+      const viewboxLeft = scaleFig.canvas.viewbox().x;
+      const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+      const viewboxTop = scaleFig.canvas.viewbox().y;
+      const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+      const maxPrime = Math.max(...yShifts.keys());
+      const maxXjump = horizontalZoom * Math.log2(maxPrime);
+      const maxYshift = Math.max(...yShifts.values());
+      const maxYjump = verticalZoom * maxYshift;
+      const closureLeft = viewboxLeft - maxXjump;
+      const closureRight = viewboxRight + maxXjump;
+      const closureTop = viewboxTop - maxYjump;
+      const closureBottom = viewboxBottom + maxYjump;
+      const inClosureHor = (closureLeft < x && x < closureRight);
+      const inClosureVer = (closureTop < y && y < closureBottom);
+      const inViewClosure = inClosureHor && inClosureVer;
+      return harmClose && inViewClosure;
+    }));
+
+    const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
+      rxjs.operators.map(([hn, maxhn]) => {
+        let relHn = Math.max(1.0 - hn/maxhn, 0.0);
+        // TODO Should opacityHarmNorm really be checked here, and not in the
+        // drawing function?
+        if (!streams.opacityHarmNorm && relHn > 0.0) {
+          relHn = 1.0;
+        }
+        return relHn;
+      })
+    );
+
+    rxjs.combineLatest(xpos, ypos).subscribe(
+      ([x, y]) => this.svgTone.move(x, y)
+    );
+    xpos.subscribe((x) => this.svgPitchline.x(x));
+
+    rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
+      const svgPitchline = this.svgPitchline;
+      const svgTone = this.svgTone;
+      if (ib && hn > 0) {
+        // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
+        // be a thing for SVG.
+        svgPitchline.attr('visibility', 'inherit');
+        svgTone.attr('visibility', 'inherit');
+      } else {
+        svgPitchline.attr('visibility', 'hidden');
+        svgTone.attr('visibility', 'hidden');
+      }
+    });
+
+    rxjs.combineLatest(
+      this.isBase,
+      streams.toneRadius,
+      streams.baseToneBorderSize
+    ).subscribe(([isBase, toneRadius, borderSize]) => {
+      const svgCircle = this.svgCircle;
+      const svgLabel = this.svgLabel;
+      if (isBase) {
+        svgCircle.radius(toneRadius + borderSize/2);
+      } else {
+        svgCircle.radius(toneRadius);
+      }
+      // Compute the right scaling factor for the text, so that it fits in the
+      // circle.
+      const bbox = this.svgLabel.bbox();
+      // Note that bbox dimensions do not account for the currenc scaleY and
+      // scaleX. And that's what we want.
+      const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
+      // The 0.95 is to give a bit of buffer around the edges.
+      const targetFactor = 0.95*toneRadius/halfDiagLength;
+      // If we can comfortably fit within the tone, we won't scale larger than
+      // maxFactor. This makes most labels be of the same size, and have the
+      // size decrease from maxFactor only when necessary.
+      const maxFactor = toneRadius/16;
+      const scaleFactor = Math.min(maxFactor, targetFactor);
+      // TODO Why on earth do we need to call center before scale? I would have
+      // thought that either it doesn't matter, or it needs to be done the
+      // other way around, but that doesn't work.
+      svgLabel.center(0, 0);
+      if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
+    });
+
+    // TODO Should split this into smaller, independent parts.
+    rxjs.combineLatest(
+      this.isOn,
+      this.isBase,
+      relHarmNorm,
+      streams.toneColorActive,
+      streams.toneColor,
+      streams.baseToneBorderColor,
+      streams.baseToneBorderSize,
+    ).subscribe(([
+      isOn,
+      isBase,
+      relHn,
+      toneColorActive,
+      toneColorNonActive,
+      baseToneBorderColor,
+      baseToneBorderSize,
+    ]) => {
+      const svgTone = this.svgTone;
+      const svgCircle = this.svgCircle;
+      if (relHn <= 0.0) {
+        svgTone.attr('visibility', 'hidden');
+        // The other stuff doesn't matter if its hidden, so may as well return.
+        return;
+      } else {
+        svgTone.attr('visibility', 'inherit');
+      }
+      let toneColor;
+      if (isOn) {
+        toneColor = toneColorActive;
+      } else {
+        toneColor = toneColorNonActive;
+      }
+      if (isBase) {
+        const borderColor = baseToneBorderColor;
+        const borderSize = baseToneBorderSize;
+        svgCircle.attr({
+          'stroke': borderColor,
+          'stroke-width': borderSize,
+        });
+      } else {
+        svgCircle.attr({
+          'stroke-width': 0.0,
+        });
+      }
+      svgCircle.attr({
+        'fill': toneColor,
+      });
+      svgTone.attr({
+        'fill-opacity': opacityFromRelHn(relHn),
+      });
+    });
+
+    // TODO Should split this into subparts
+    rxjs.combineLatest(
+      this.isOn,
+      relHarmNorm,
+      streams.pitchlineColor,
+      streams.pitchlineColorActive,
+    ).subscribe(([
+      isOn,
+      relHn,
+      pitchlineColorNonActive,
+      pitchlineColorActive,
+    ]) => {
+      const svgPitchline = this.svgPitchline;
+      let pitchlineColor;
+      if (isOn) {
+        pitchlineColor = pitchlineColorActive;
+      } else {
+        pitchlineColor = pitchlineColorNonActive;
+      }
+      svgPitchline.attr({
+        'stroke': pitchlineColor,
+        'stroke-width': '1.0',
+        'stroke-miterlimit': 4.0,
+        'stroke-dasharray': '0.5, 0.5',
+        'stroke-dashoffset': 0.0,
+        'stroke-opacity': opacityFromRelHn(relHn),
+      });
+    });
+
+    // The below is sets up the following system: Every Tone always keeps
+    // tracks of its neighbours. If none of the neighbours are inclosure, nor
+    // are we, then its time for this Tone to die. Whenever a Tone becomes
+    // inclosure, it should generate all its neighbours. The end result should
+    // be a system where all Tones that are inclosure, and all neighbours
+    // thereof, always exist, and no others do. This is what the old system was
+    // achieving as well. Tones themselves make sure that a) they are added and
+    // deleted to/from the global allTones, and that when they are created,
+    // they report to their new neighbours their existence, and conversely
+    // report their death when necessary.
+    this.neighbours = new Map();
+    this.neighboursInclosure = new VariableSourceSubject(
+      rxjs.combineLatest, []
+    );
+
+    // Report our birth to the global register of all tones.
+    allTones.set(toneToString(this.coords), this);
+
+    const me = this;
+    const coords = this.coords;
+
+    // Add any already existing neighbours, and report to them that they have a
+    // new neighbour.
+    const currentPrimes = streams.primes.getValue();
+    for (let i = 0; i < currentPrimes.length; i += 1) {
+      [-1, +1].forEach(function(increment) {
+        const step = new Map([[currentPrimes[i], increment]]);
+        const neighCoords = sumTones(coords, step);
+        const neighCoordsStr = toneToString(neighCoords);
+        if (allTones.has(neighCoordsStr)) {
+          const neighbour = allTones.get(neighCoordsStr);
+          me.neighbourCreated(neighCoords, neighbour);
+          neighbour.neighbourCreated(coords, me);
+        }
+      });
+    }
+
+    // TODO I think this one, and probably many others, could benefit from a
+    // filter that only sends out new values if they are different than the
+    // previous ones, to avoid recomputing stuff.
+    rxjs.combineLatest(this.inclosure, streams.primes).subscribe(
+      ([inclsr, primes]) => {
+        if (inclsr) {
+          for (let i = 0; i < primes.length; i += 1) {
+            [-1, +1].forEach(function(increment) {
+              const step = new Map([[primes[i], increment]]);
+              const neighCoords = sumTones(coords, step);
+              if (!me.neighbours.has(toneToString(neighCoords))) {
+                new ToneObject(neighCoords, false, streams, allTones);
+              }
+            });
+          }
+        }
+      }
+    );
+
+    // TODO Could just create anyNeighborInclosure directly as
+    // VariableSourceSubject.
+    const anyNeighborInclosure = this.neighboursInclosure.pipe(
+      rxjs.operators.map((arr) => {
+        return arr.some((x) => { return x; });
+      })
+    );
+    rxjs.combineLatest(this.inclosure, anyNeighborInclosure).subscribe(
+      ([incls, neighIncls]) => {
+        if (!incls && !neighIncls) me.destroy();
+      }
+    );
+  }
+
+  neighbourCreated(coords, tone) {
+    const coordsStr = toneToString(coords);
+    if (!this.neighbours.has(coordsStr)) {
+      this.neighbours.set(coordsStr, tone);
+      this.neighboursInclosure.addSource(tone.inclosure);
+    }
+  }
+
+  neighbourDestroyed(coords) {
+    const coordsStr = toneToString(coords);
+    if (this.neighbours.has(coordsStr)) {
+      const tone = this.neighbours.get(coordsStr);
+      this.neighbours.delete(coordsStr);
+      this.neighboursInclosure.removeSource(tone.inclosure);
+    }
+  }
+
+  destroy() {
+    this.svgTone.remove();
+    this.svgPitchline.remove();
+    this.neighbours.forEach((neighbour, neigCoords) => {
+      neighbour.neighbourDestroyed(this.coords);
+    });
+    this.allTones.delete(toneToString(this.coords));
+  }
+
+/*
+  toneOn() {
+    const toneColorActive = scaleFig.style['toneColorActive'];
+    this.svgCircle.attr('fill', toneColorActive);
+    const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
+    this.svgPitchline.attr('stroke', pitchlineColorActive);
+  }
+
+  toneOff() {
+    const toneColor = scaleFig.style['toneColor'];
+    this.svgCircle.attr('fill', toneColor);
+    const pitchlineColor = scaleFig.style['pitchlineColor'];
+    this.svgPitchline.attr('stroke', pitchlineColor);
+  }
+
+  colorSvgPitchline() {
+    const svgPitchline = this.svgPitchline;
+    const relHn = this.relHarmNorm;
+    const style = scaleFig.style;
+    let pitchlineColor;
+    if (this.isOn) {
+      pitchlineColor = style['pitchlineColorActive'];
+    } else {
+      pitchlineColor = style['pitchlineColor'];
+    }
+    svgPitchline.attr({
+      'stroke': pitchlineColor,
+      'stroke-width': '1.0',
+      'stroke-miterlimit': 4,
+      'stroke-dasharray': '0.5, 0.5',
+      'stroke-dashoffset': 0,
+      'stroke-opacity': opacityFromRelHn(relHn),
+    });
+  }
+
+  set isBase(value) {
+    this._isBase_ = value;
+    this.colorSvgTone();
+    this.scaleSvgTone();
+  }
+
+  get isBase() {
+    return this._isBase_;
+  }
+
+  get pitchFactor() {
+    let pf = 1.0;
+    this.coords.forEach(([p, c]) => {
+      pf *= Math.pow(p, c);
+    });
+    return pf;
+  }
+
+  get xpos() {
+    return scaleFig.horizontalZoom * Math.log2(this.pitchFactor);
+  }
+
+  get ypos() {
+    let y = 0.0;
+    this.coords.forEach(([p, c]) => {
+      const pStr = p.toString();
+      // TODO Is the check necessary?
+      if (scaleFig.yShifts.hasOwnProperty(pStr)) {
+        y += -scaleFig.yShifts[pStr] * c;
+      }
+    });
+    y *= scaleFig.verticalZoom;
+    return y;
+  }
+
+  get fraction() {
+    return fraction(this.coords);
+  }
+
+  get frequency() {
+    return scaleFig.originFreq * this.pitchFactor;
+  }
+
+  get harmDists() {
+    const harmDists = [];
+    for (let i = 0; i < scaleFig.baseTones.length; i += 1) {
+      const bt = scaleFig.baseTones[i];
+      // TODO Remove explicit argument scaleFig?
+      const dist = harmDist(scaleFig, this.coords, bt);
+      harmDists.push(dist);
+    }
+    return harmDists;
+  }
+
+  get harmNorm() {
+    return Math.min(...this.harmDists);
+  }
+
+  get relHarmNorm() {
+    const hn = this.harmNorm;
+    let relHn = Math.max(1.0 - hn/scaleFig.maxHarmNorm, 0.0);
+    if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
+      relHn = 1.0;
+    }
+    return relHn;
+  }
+
+  get inbounds() {
+    // TODO Add note radius, to check if the edge of a note fits, rather
+    // than center?
+    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
+    // Remove explicit scaleFig reference?
+    const inViewbox = isInViewbox(scaleFig, this.xpos, this.ypos);
+    return harmClose && inViewbox;
+  }
+
+  get inclosure() {
+    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
+    const viewboxLeft = scaleFig.canvas.viewbox().x;
+    const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+    const viewboxTop = scaleFig.canvas.viewbox().y;
+    const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+    const maxPrime = Math.max(...scaleFig.primes);
+    const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
+    const maxYshift = Math.max(...Object.values(scaleFig.yShifts));
+    const maxYjump = scaleFig.verticalZoom * maxYshift;
+    const closureLeft = viewboxLeft - maxXjump;
+    const closureRight = viewboxRight + maxXjump;
+    const closureTop = viewboxTop - maxYjump;
+    const closureBottom = viewboxBottom + maxYjump;
+    const inClosureHor = (closureLeft < this.xpos && this.xpos < closureRight);
+    const inClosureVer = (closureTop < this.ypos && this.ypos < closureBottom);
+    const inViewClosure = inClosureHor && inClosureVer;
+    return harmClose && inViewClosure;
+  }
+
+  setLabelText() {
+    let labelText;
+    const frequency = this.frequency;
+    if (scaleFig.toneLabelTextStyle == 'EDO') {
+      let i = 0;
+      // Note that we rely on EDOTones being in rising order of pitch.
+      while (i < EDOTones.length - 2) {
+        if (EDOTones[i+1].frequency > frequency) break;
+        i++;
+      }
+      const lowerNeighbor = EDOTones[i].frequency;
+      const heigherNeighbor = EDOTones[i+1].frequency;
+      const lowerDistance = Math.abs(lowerNeighbor - frequency);
+      const heigherDistance = Math.abs(heigherNeighbor - frequency);
+      let neighbour;
+      if (lowerDistance < heigherDistance) {
+        neighbour = EDOTones[i];
+      } else {
+        neighbour = EDOTones[i+1];
+      }
+      // These are just constant, figured out by trial and error, that seem to
+      // do the job.
+      const subShift = 2;
+      const subFontSize = 12;
+      labelText = (add) => {
+        add.tspan(`${neighbour.letter}`);
+        add.tspan(`${neighbour.octave}`).attr({
+          'dy': subShift,
+          'font-size': subFontSize,
+        });
+      };
+    } else if (scaleFig.toneLabelTextStyle == 'fractions') {
+      const [num, denom] = this.fraction;
+      // These are just constant, figured out by trial and error, that seem to
+      // do the job.
+      const solidusShift = 3;
+      const denomShift = 3;
+      const numFontSize = 15;
+      const solidusFontSize = 15;
+      labelText = (add) => {
+        add.tspan(num).attr({
+          'font-size': numFontSize,
+        });
+        add.tspan('\u002F').attr({
+          'dy': solidusShift,
+          'font-size': solidusFontSize,
+        });
+        add.tspan(denom).attr({
+          'dy': denomShift,
+          'font-size': numFontSize,
+        });
+      };
+    } else if (scaleFig.toneLabelTextStyle == 'none') {
+      labelText = '';
+    } else {
+      labelText = '';
+    }
+    this.svgLabel.text(labelText);
+    this.scaleSvgTone();
+  }
+
+  addSteps() {
+    Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
+      if (label in this.steps) return;
+      this.steps[label] = new Step(label, this);
+    });
+  }
+
+  positionSvg() {
+    this.setSvgPitchlineVisibility();
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.position();
+    });
+  }
+
+  colorSvg() {
+    this.colorSvgTone();
+    this.colorSvgPitchline();
+    this.setSvgPitchlineVisibility();
+  }
+
+  positionSvgTone() {
+    // this.svgTone.move(this.xpos, this.ypos); replaced by reactions
+  }
+
+  scaleSvgTone() {
+    const svgCircle = this.svgCircle;
+    const svgLabel = this.svgLabel;
+    const style = scaleFig.style;
+    const toneRadius = style['toneRadius'];
+    if (this.isBase) {
+      const borderSize = style['baseToneBorderSize'];
+      svgCircle.radius(toneRadius + borderSize/2);
+    } else {
+      svgCircle.radius(toneRadius);
+    }
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.position();
+    });
+    // Compute the right scaling factor for the text, so that it fits in the
+    // circle.
+    const bbox = svgLabel.bbox();
+    // Note that bbox dimensions do not account for the currenc scaleY and
+    // scaleX. And that's what we want.
+    const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
+    // The 0.95 is to give a bit of buffer around the edges.
+    const targetFactor = 0.95*toneRadius/halfDiagLength;
+    // If we can comfortably fit within the tone, we won't scale larger than
+    // maxFactor. This makes most labels be of the same size, and have the size
+    // decrease from maxFactor only when necessary.
+    const maxFactor = toneRadius/16;
+    const scaleFactor = Math.min(maxFactor, targetFactor);
+    // TODO Why on earth do we need to call center before scale? I would have
+    // thought that either it doesn't matter, or it needs to be done the other
+    // way around, but that doesn't work.
+    svgLabel.center(0, 0);
+    svgLabel.scale(scaleFactor);
+  }
+
+  colorSvgTone() {
+    const svgTone = this.svgTone;
+    const svgCircle = this.svgCircle;
+    const relHn = this.relHarmNorm;
+    const style = scaleFig.style;
+    if (relHn <= 0.0) {
+      svgTone.attr('visibility', 'hidden');
+      // The other stuff doesn't matter if its hidden, so may as well return.
+      return;
+    } else {
+      svgTone.attr('visibility', 'inherit');
+    }
+    let toneColor;
+    if (this.isOn) {
+      toneColor = style['toneColorActive'];
+    } else {
+      toneColor = style['toneColor'];
+    }
+    if (this.isBase) {
+      const borderColor = style['baseToneBorderColor'];
+      const borderSize = style['baseToneBorderSize'];
+      svgCircle.attr({
+        'stroke': borderColor,
+        'stroke-width': borderSize,
+      });
+    } else {
+      svgCircle.attr({
+        'stroke-width': 0.0,
+      });
+    }
+    svgCircle.attr({
+      'fill': toneColor,
+    });
+    svgTone.attr({
+      'fill-opacity': opacityFromRelHn(relHn),
+    });
+  }
+
+  positionSvgPitchline() {
+    // this.svgPitchline.x(this.xpos); replaced by reacions.
+  }
+
+  setSvgPitchlineVisibility() {
+    // replaced by reactive stuff
+  }
+
+  destroy() {
+    this.svgTone.remove();
+    this.svgPitchline.remove();
+    Object.entries(this.steps).forEach(([label, step]) => {
+      step.destroy();
+      delete this.steps[label];
+    });
+    Object.entries(this.incomingSteps).forEach(([label, step]) => {
+      step.endpoint = undefined;
+      step.position();
+      step.color();
+      step.opacitate();
+    });
+  }
+*/
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -759,23 +1582,59 @@ streams.showSteps.subscribe((value) => {
 
 // TODO Make new values be registered.
 streams.baseTones = new rxjs.BehaviorSubject();
-streams.baseTones.next(startingParams['baseTones']);
+const startingBaseTones = new Map();
+startingParams['baseTones'].forEach((bt) => {
+  const btStr = toneToString(bt);
+  startingBaseTones.set(btStr, bt);
+});
+streams.baseTones.next(startingBaseTones);
 streams.opacityHarmNorm = new rxjs.BehaviorSubject();
 streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
 
 // TODO Make default be read from URL and new values be registered.
-const defaultHarmDistSteps = new Map();
-defaultHarmDistSteps.set(2, 0.0);
-defaultHarmDistSteps.set(3, 1.5);
-defaultHarmDistSteps.set(5, 1.7);
-streams.harmDistSteps = new rxjs.BehaviorSubject();
-streams.harmDistSteps.next(defaultHarmDistSteps);
-const defaultyShifts = new Map();
-defaultyShifts.set(2, 1.2);
-defaultyShifts.set(3, 1.8);
-defaultyShifts.set(5, 1.0);
-streams.yShifts = new rxjs.BehaviorSubject();
-streams.yShifts.next(defaultyShifts);
+const defaultAxes = new Map();
+defaultAxes.set(2, {
+  'harmDistStep': 0.0,
+  'yShift': 1.2,
+});
+defaultAxes.set(3, {
+  'harmDistStep': 1.5,
+  'yShift': 1.8,
+});
+defaultAxes.set(5, {
+  'harmDistStep': 1.7,
+  'yShift': 1.0,
+});
+streams.axes = new rxjs.BehaviorSubject(defaultAxes);
+
+function getPrimes(axes) {
+  return Array.from(axes.keys());
+}
+streams.primes = new rxjs.BehaviorSubject(getPrimes(streams.axes.getValue()));
+streams.axes.subscribe((axes) => streams.primes.next(getPrimes(axes)));
+
+streams.harmDistSteps = streams.axes.pipe(rxjs.operators.map((axes) => {
+  const harmDistSteps = new Map();
+  axes.forEach((val, key) => harmDistSteps.set(key, val.harmDistStep));
+  return harmDistSteps;
+}));
+streams.yShifts = streams.axes.pipe(rxjs.operators.map((axes) => {
+  const yShifts = new Map();
+  axes.forEach((val, key) => yShifts.set(key, val.yShift));
+  return yShifts;
+}));
+
+// TODO What's the right place to have this bit?
+const allTones = new Map();
+streams.baseTones.subscribe((baseTones) => {
+  // We only have to care about creating new Tones here. Each tone object
+  // subscribes to baseTones to check if its own isBase should change.
+  baseTones.forEach((bt, btStr) => {
+    if (!allTones.has(btStr)) {
+      new ToneObject(bt, true, streams, allTones);
+    }
+  });
+});
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // The EDO keyboard
@@ -1380,8 +2239,8 @@ class Step {
     const grad = this.grad;
     const relHn1 = this.origin.relHarmNorm;
     const relHn2 = this.endpoint.relHarmNorm;
-    grad.get(0).attr('stop-opacity', relHn1);
-    grad.get(1).attr('stop-opacity', relHn2);
+    grad.get(0).attr('stop-opacity', opacityFromRelHn(relHn1));
+    grad.get(1).attr('stop-opacity', opacityFromRelHn(relHn2));
     // TODO This used to be || instead of &&. That allowed drawing dangling
     // steps to tones that were not visible. However, there's no guarantee that
     // these endpoint tones will even be generated, since generation is
@@ -1444,671 +2303,8 @@ class Step {
 }
 */
 
-// CONTINUE HERE
-// ToneObjects now mostly work, although bugs and TODO notes still exist.
-// However, those are all fixable, and I think it would be smart to first do
-// the hard part: Setting up proper generation of tones, instead of the 3
-// manual example tones at the end of the file. I haven't even thought about
-// how it's going to work yet, but baseTones is now a stream, so I guess we
-// start from that, and whatever other streams control the existence of tones,
-// do a combineLatest and ummm go from there?
-
-// TODO The 'Object' part of the name is to avoid a name collission with
-// Tone.js. Think about namespace management.
-class ToneObject {
-  constructor(coordinates, isBase) {
-    // TODO Think about how base tones should be marked, but I think it
-    // shouldn't be a field, but just another stream called isBase, that's
-    // created in setListeners, and is based on a global stream of what are the
-    // current baseTones.
-    this.coords = coordinates;
-    this._isBase_ = isBase;
-    this.steps = {};
-    this.incomingSteps = {};
-
-    this.svgTone = scaleFig.svgGroups['tones'].group();
-    this.svgCircle = this.svgTone.circle(1.0);
-    this.svgLabel = this.svgTone.text('');
-    // TODO Where do these numbers come from?
-    const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
-    this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
-    /*
-    this.positionSvg();
-    this.setLabelText();
-    this.colorSvg();
-    this.scaleSvgTone();
-    this.addSteps();
-    */
-    this.setListeners();
-  }
-
-  setListeners() {
-    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
-    // on the browser, the same click or touch may fire several, e.g. both
-    // touch and mouse or both pointer and mouse. This ensures maximum
-    // compatibility with different browsers, but probably costs something in
-    // performance. Note though that the same tone isn't played twice. Come
-    // back to this later and check whether we could switch for instance using
-    // only PointerEvents, once they have widespread support.
-    //const t = this;
-    //function eventOn(ev) {
-    //  if (!scaleFig.ctrlDown) {
-    //    t.isBeingClicked = true;
-    //    t.toneOn();
-    //  }
-    //};
-    //function eventOff(ev) {
-    //  t.isBeingClicked = false;
-    //  t.toneOff();
-    //};
-
-    const trueOnClickDown = rxjs.merge(
-      rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-      ),
-      rxjs.fromEvent(this.svgTone, 'touchstart'),
-      rxjs.fromEvent(this.svgTone, 'pointerdown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-        rxjs.operators.map((ev) => {
-          // Allow pointer event target to jump between objects when pointer is
-          // moved.
-          ev.target.releasePointerCapture(ev.pointerId);
-          return ev;
-        })),
-    ).pipe(rxjs.operators.map((ev) => {
-      // TODO Why does on-click require this, but off-click doesn't?
-      ev.preventDefault();
-      return true;
-    }));
-
-    const falseOnClickUp = rxjs.merge(
-      rxjs.fromEvent(this.svgTone, 'mouseup'),
-      rxjs.fromEvent(this.svgTone, 'mouseleave'),
-      rxjs.fromEvent(this.svgTone, 'touchend'),
-      rxjs.fromEvent(this.svgTone, 'touchcancel'),
-      rxjs.fromEvent(this.svgTone, 'pointerup').pipe(
-        rxjs.operators.map((ev) => {
-          // TODO Does this really do something when releasing?
-          // Allow pointer event target to jump between objects when pointer is
-          // moved.
-          ev.target.releasePointerCapture(ev.pointerId);
-          return ev;
-        })),
-      rxjs.fromEvent(this.svgTone, 'pointerleave'),
-    ).pipe(rxjs.operators.map((ev) => false));
-
-    // TODO Why are some of these this.isOn etc. and not just const isOn?
-    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-      rxjs.operators.startWith(false)
-    );
-
-    // Whenever this key is pressed, the tone is turned on, if it wasn't
-    // already. Whenver either this key is released or sustain is released, and
-    // the latest action on both this key and sustain is a release, then this
-    // tone should be set to false, if it wasn't already.
-    // TODO Note that, done this way, an emission happens for all keys every
-    // time the sustain is released. Think about mitigating this performance
-    // waste by either filtering out repeated isOn emissions before they reach
-    // the observer, or by having isBeingClicked determine whether we listend
-    // to sustainDown at all.
-    this.isOn = new rxjs.BehaviorSubject(false);
-    rxjs.merge(
-      trueOnClickDown,
-      rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
-        rxjs.operators.filter(([click, sustain]) => {
-          // Check that both the latest click and the latest sustain were
-          // false.
-          return !click && !sustain;
-        }),
-        rxjs.operators.map((click, sustain) => {
-          return false;
-        })
-      )
-    ).subscribe((x) => this.isOn.next(x));
-
-    const pf = pitchFactor(this.coords);
-    const frequency = new rxjs.BehaviorSubject(
-      streams.originFreq.getValue()*pf
-    );
-    streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
-      (x) => frequency.next(x)
-    );
-
-    this.isOn.subscribe((val) => {
-      if (val) {
-        startTone(frequency.getValue());
-      } else {
-        stopTone(frequency.getValue());
-      }
-    });
-
-    const xpos = streams.horizontalZoom.pipe(
-      rxjs.operators.map((zoom) => {
-        return zoom * Math.log2(pf);
-      })
-    );
-
-    const ypos = rxjs.combineLatest(
-      streams.verticalZoom,
-      streams.yShifts
-    ).pipe(rxjs.operators.map(([zoom, yShifts]) => {
-      let y = 0.0;
-      this.coords.forEach((c, p) => {
-        // TODO Is the check necessary?
-        if (yShifts.has(p)) {
-          y += -yShifts.get(p) * c;
-        }
-      });
-      y *= zoom;
-      return y;
-    }));
-
-    const harmDistsCombined = new VariableSourceSubject(rxjs.combineLatest);
-    const harmDists = new Map();
-
-    streams.baseTones.subscribe((baseTones) => {
-      // Remove harmDists if the corresponding baseTone is no longer a
-      // baseTone.
-      for (const baseTone of harmDists.keys()) {
-        if (!(baseTone in baseTones)) {
-          harmDistsCombined.removeSource(harmDists.get(baseTone));
-          harmDists.delete(baseTone);
-        }
-      }
-
-      // Add new harmDists if new baseTones are present.
-      baseTones.forEach((baseTone) => {
-        if (!harmDists.has(baseTone)) {
-          const interval = subtractTone(this.coords, baseTone);
-          const primes = [...interval.keys()];
-          const facts = primes.map((p) => Math.abs(interval.get(p)));
-          const dist = streams.harmDistSteps.pipe(rxjs.operators.map(
-            (hds) => {
-              let d = 0;
-              for (let i = 0; i < primes.length; i++) {
-                const p = primes[i];
-                const c = facts[i];
-                const s = hds.get(p);
-                if (c != 0.0) d += s*c;
-              }
-              return d;
-            }));
-          harmDists.set(baseTone, dist);
-          harmDistsCombined.addSource(dist);
-        }
-      });
-    });
-
-    const harmNorm = harmDistsCombined.pipe(rxjs.operators.map(Math.min));
-
-    // TODO This would need to also take as arguments streams specifying canvas
-    // boundaries.
-    const inbounds = rxjs.combineLatest(
-      harmNorm, streams.maxHarmNorm, xpos, ypos
-    ).pipe(rxjs.operators.map(([hn, maxhn, x, y]) => {
-      // TODO Add note radius, to check if the edge of a note fits, rather
-      // than center?
-      const inViewbox = isInViewbox(x, y);
-      const harmClose = (hn <= maxhn);
-      return harmClose && inViewbox;
-    }));
-
-    const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
-      rxjs.operators.map(([hn, maxhn]) => {
-        let relHn = Math.max(1.0 - hn/maxhn, 0.0);
-        // TODO Should opacityHarmNorm really be checked here, and not in the
-        // drawing function?
-        if (!streams.opacityHarmNorm && relHn > 0.0) {
-          relHn = 1.0;
-        }
-        return relHn;
-      })
-    );
-
-    rxjs.combineLatest(xpos, ypos).subscribe(
-      ([x, y]) => this.svgTone.move(x, y)
-    );
-    xpos.subscribe((x) => this.svgPitchline.x(x));
-
-    rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
-      const svgPitchline = this.svgPitchline;
-      const svgTone = this.svgTone;
-      if (ib && hn > 0) {
-        // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
-        // be a thing for SVG.
-        svgPitchline.attr('visibility', 'inherit');
-        svgTone.attr('visibility', 'inherit');
-      } else {
-        svgPitchline.attr('visibility', 'hidden');
-        svgTone.attr('visibility', 'hidden');
-      }
-    });
-
-    rxjs.combineLatest(
-      streams.toneRadius,
-      streams.baseToneBorderSize
-    ).subscribe(([toneRadius, borderSize]) => {
-      const svgCircle = this.svgCircle;
-      const svgLabel = this.svgLabel;
-      if (this._isBase_) {
-        svgCircle.radius(toneRadius + borderSize/2);
-      } else {
-        svgCircle.radius(toneRadius);
-      }
-      // Compute the right scaling factor for the text, so that it fits in the
-      // circle.
-      const bbox = this.svgLabel.bbox();
-      // Note that bbox dimensions do not account for the currenc scaleY and
-      // scaleX. And that's what we want.
-      const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
-      // The 0.95 is to give a bit of buffer around the edges.
-      const targetFactor = 0.95*toneRadius/halfDiagLength;
-      // If we can comfortably fit within the tone, we won't scale larger than
-      // maxFactor. This makes most labels be of the same size, and have the
-      // size decrease from maxFactor only when necessary.
-      const maxFactor = toneRadius/16;
-      const scaleFactor = Math.min(maxFactor, targetFactor);
-      // TODO Why on earth do we need to call center before scale? I would have
-      // thought that either it doesn't matter, or it needs to be done the
-      // other way around, but that doesn't work.
-      svgLabel.center(0, 0);
-      if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
-    });
-
-    // TODO Should split this into smaller, independent parts.
-    rxjs.combineLatest(
-      this.isOn,
-      relHarmNorm,
-      streams.toneColorActive,
-      streams.toneColor,
-      streams.baseToneBorderColor,
-      streams.baseToneBorderSize,
-    ).subscribe(([
-      isOn,
-      relHn,
-      toneColorActive,
-      toneColorNonActive,
-      baseToneBorderColor,
-      baseToneBorderSize,
-    ]) => {
-      const svgTone = this.svgTone;
-      const svgCircle = this.svgCircle;
-      if (relHn <= 0.0) {
-        svgTone.attr('visibility', 'hidden');
-        // The other stuff doesn't matter if its hidden, so may as well return.
-        return;
-      } else {
-        svgTone.attr('visibility', 'inherit');
-      }
-      let toneColor;
-      if (isOn) {
-        toneColor = toneColorActive;
-      } else {
-        toneColor = toneColorNonActive;
-      }
-      if (this._isBase_) {
-        const borderColor = baseToneBorderColor;
-        const borderSize = baseToneBorderSize;
-        svgCircle.attr({
-          'stroke': borderColor,
-          'stroke-width': borderSize,
-        });
-      } else {
-        svgCircle.attr({
-          'stroke-width': 0.0,
-        });
-      }
-      svgCircle.attr({
-        'fill': toneColor,
-      });
-      svgTone.attr({
-        'fill-opacity': relHn,
-      });
-    });
-
-    // TODO Should split this into subparts
-    rxjs.combineLatest(
-      this.isOn,
-      relHarmNorm,
-      streams.pitchlineColor,
-      streams.pitchlineColorActive,
-    ).subscribe(([
-      isOn,
-      relHn,
-      pitchlineColorNonActive,
-      pitchlineColorActive,
-    ]) => {
-      const svgPitchline = this.svgPitchline;
-      let pitchlineColor;
-      if (isOn) {
-        pitchlineColor = pitchlineColorActive;
-      } else {
-        pitchlineColor = pitchlineColorNonActive;
-      }
-      svgPitchline.attr({
-        'stroke': pitchlineColor,
-        'stroke-width': '1.0',
-        'stroke-miterlimit': 4.0,
-        'stroke-dasharray': '0.5, 0.5',
-        'stroke-dashoffset': 0.0,
-        'stroke-opacity': relHn,
-      });
-    });
-  }
 
 /*
-  toneOn() {
-    const toneColorActive = scaleFig.style['toneColorActive'];
-    this.svgCircle.attr('fill', toneColorActive);
-    const pitchlineColorActive = scaleFig.style['pitchlineColorActive'];
-    this.svgPitchline.attr('stroke', pitchlineColorActive);
-  }
-
-  toneOff() {
-    const toneColor = scaleFig.style['toneColor'];
-    this.svgCircle.attr('fill', toneColor);
-    const pitchlineColor = scaleFig.style['pitchlineColor'];
-    this.svgPitchline.attr('stroke', pitchlineColor);
-  }
-
-  colorSvgPitchline() {
-    const svgPitchline = this.svgPitchline;
-    const relHn = this.relHarmNorm;
-    const style = scaleFig.style;
-    let pitchlineColor;
-    if (this.isOn) {
-      pitchlineColor = style['pitchlineColorActive'];
-    } else {
-      pitchlineColor = style['pitchlineColor'];
-    }
-    svgPitchline.attr({
-      'stroke': pitchlineColor,
-      'stroke-width': '1.0',
-      'stroke-miterlimit': 4,
-      'stroke-dasharray': '0.5, 0.5',
-      'stroke-dashoffset': 0,
-      'stroke-opacity': relHn,
-    });
-  }
-
-  set isBase(value) {
-    this._isBase_ = value;
-    this.colorSvgTone();
-    this.scaleSvgTone();
-  }
-
-  get isBase() {
-    return this._isBase_;
-  }
-
-  get pitchFactor() {
-    let pf = 1.0;
-    this.coords.forEach(([p, c]) => {
-      pf *= Math.pow(p, c);
-    });
-    return pf;
-  }
-
-  get xpos() {
-    return scaleFig.horizontalZoom * Math.log2(this.pitchFactor);
-  }
-
-  get ypos() {
-    let y = 0.0;
-    this.coords.forEach(([p, c]) => {
-      const pStr = p.toString();
-      // TODO Is the check necessary?
-      if (scaleFig.yShifts.hasOwnProperty(pStr)) {
-        y += -scaleFig.yShifts[pStr] * c;
-      }
-    });
-    y *= scaleFig.verticalZoom;
-    return y;
-  }
-
-  get fraction() {
-    return fraction(this.coords);
-  }
-
-  get frequency() {
-    return scaleFig.originFreq * this.pitchFactor;
-  }
-
-  get harmDists() {
-    const harmDists = [];
-    for (let i = 0; i < scaleFig.baseTones.length; i += 1) {
-      const bt = scaleFig.baseTones[i];
-      // TODO Remove explicit argument scaleFig?
-      const dist = harmDist(scaleFig, this.coords, bt);
-      harmDists.push(dist);
-    }
-    return harmDists;
-  }
-
-  get harmNorm() {
-    return Math.min(...this.harmDists);
-  }
-
-  get relHarmNorm() {
-    const hn = this.harmNorm;
-    let relHn = Math.max(1.0 - hn/scaleFig.maxHarmNorm, 0.0);
-    if (!scaleFig.style['opacityHarmNorm'] && relHn > 0.0) {
-      relHn = 1.0;
-    }
-    return relHn;
-  }
-
-  get inbounds() {
-    // TODO Add note radius, to check if the edge of a note fits, rather
-    // than center?
-    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
-    // Remove explicit scaleFig reference?
-    const inViewbox = isInViewbox(scaleFig, this.xpos, this.ypos);
-    return harmClose && inViewbox;
-  }
-
-  get inclosure() {
-    const harmClose = (this.harmNorm <= scaleFig.maxHarmNorm);
-    const viewboxLeft = scaleFig.canvas.viewbox().x;
-    const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
-    const viewboxTop = scaleFig.canvas.viewbox().y;
-    const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
-    const maxPrime = Math.max(...scaleFig.primes);
-    const maxXjump = scaleFig.horizontalZoom * Math.log2(maxPrime);
-    const maxYshift = Math.max(...Object.values(scaleFig.yShifts));
-    const maxYjump = scaleFig.verticalZoom * maxYshift;
-    const closureLeft = viewboxLeft - maxXjump;
-    const closureRight = viewboxRight + maxXjump;
-    const closureTop = viewboxTop - maxYjump;
-    const closureBottom = viewboxBottom + maxYjump;
-    const inClosureHor = (closureLeft < this.xpos && this.xpos < closureRight);
-    const inClosureVer = (closureTop < this.ypos && this.ypos < closureBottom);
-    const inViewClosure = inClosureHor && inClosureVer;
-    return harmClose && inViewClosure;
-  }
-
-  setLabelText() {
-    let labelText;
-    const frequency = this.frequency;
-    if (scaleFig.toneLabelTextStyle == 'EDO') {
-      let i = 0;
-      // Note that we rely on EDOTones being in rising order of pitch.
-      while (i < EDOTones.length - 2) {
-        if (EDOTones[i+1].frequency > frequency) break;
-        i++;
-      }
-      const lowerNeighbor = EDOTones[i].frequency;
-      const heigherNeighbor = EDOTones[i+1].frequency;
-      const lowerDistance = Math.abs(lowerNeighbor - frequency);
-      const heigherDistance = Math.abs(heigherNeighbor - frequency);
-      let neighbor;
-      if (lowerDistance < heigherDistance) {
-        neighbor = EDOTones[i];
-      } else {
-        neighbor = EDOTones[i+1];
-      }
-      // These are just constant, figured out by trial and error, that seem to
-      // do the job.
-      const subShift = 2;
-      const subFontSize = 12;
-      labelText = (add) => {
-        add.tspan(`${neighbor.letter}`);
-        add.tspan(`${neighbor.octave}`).attr({
-          'dy': subShift,
-          'font-size': subFontSize,
-        });
-      };
-    } else if (scaleFig.toneLabelTextStyle == 'fractions') {
-      const [num, denom] = this.fraction;
-      // These are just constant, figured out by trial and error, that seem to
-      // do the job.
-      const solidusShift = 3;
-      const denomShift = 3;
-      const numFontSize = 15;
-      const solidusFontSize = 15;
-      labelText = (add) => {
-        add.tspan(num).attr({
-          'font-size': numFontSize,
-        });
-        add.tspan('\u002F').attr({
-          'dy': solidusShift,
-          'font-size': solidusFontSize,
-        });
-        add.tspan(denom).attr({
-          'dy': denomShift,
-          'font-size': numFontSize,
-        });
-      };
-    } else if (scaleFig.toneLabelTextStyle == 'none') {
-      labelText = '';
-    } else {
-      labelText = '';
-    }
-    this.svgLabel.text(labelText);
-    this.scaleSvgTone();
-  }
-
-  addSteps() {
-    Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
-      if (label in this.steps) return;
-      this.steps[label] = new Step(label, this);
-    });
-  }
-
-  positionSvg() {
-    this.setSvgPitchlineVisibility();
-    Object.entries(this.steps).forEach(([label, step]) => {
-      step.position();
-    });
-  }
-
-  colorSvg() {
-    this.colorSvgTone();
-    this.colorSvgPitchline();
-    this.setSvgPitchlineVisibility();
-  }
-
-  positionSvgTone() {
-    // this.svgTone.move(this.xpos, this.ypos); replaced by reactions
-  }
-
-  scaleSvgTone() {
-    const svgCircle = this.svgCircle;
-    const svgLabel = this.svgLabel;
-    const style = scaleFig.style;
-    const toneRadius = style['toneRadius'];
-    if (this.isBase) {
-      const borderSize = style['baseToneBorderSize'];
-      svgCircle.radius(toneRadius + borderSize/2);
-    } else {
-      svgCircle.radius(toneRadius);
-    }
-    Object.entries(this.steps).forEach(([label, step]) => {
-      step.position();
-    });
-    // Compute the right scaling factor for the text, so that it fits in the
-    // circle.
-    const bbox = svgLabel.bbox();
-    // Note that bbox dimensions do not account for the currenc scaleY and
-    // scaleX. And that's what we want.
-    const halfDiagLength = Math.sqrt(bbox.w*bbox.w + bbox.h*bbox.h)/2;
-    // The 0.95 is to give a bit of buffer around the edges.
-    const targetFactor = 0.95*toneRadius/halfDiagLength;
-    // If we can comfortably fit within the tone, we won't scale larger than
-    // maxFactor. This makes most labels be of the same size, and have the size
-    // decrease from maxFactor only when necessary.
-    const maxFactor = toneRadius/16;
-    const scaleFactor = Math.min(maxFactor, targetFactor);
-    // TODO Why on earth do we need to call center before scale? I would have
-    // thought that either it doesn't matter, or it needs to be done the other
-    // way around, but that doesn't work.
-    svgLabel.center(0, 0);
-    svgLabel.scale(scaleFactor);
-  }
-
-  colorSvgTone() {
-    const svgTone = this.svgTone;
-    const svgCircle = this.svgCircle;
-    const relHn = this.relHarmNorm;
-    const style = scaleFig.style;
-    if (relHn <= 0.0) {
-      svgTone.attr('visibility', 'hidden');
-      // The other stuff doesn't matter if its hidden, so may as well return.
-      return;
-    } else {
-      svgTone.attr('visibility', 'inherit');
-    }
-    let toneColor;
-    if (this.isOn) {
-      toneColor = style['toneColorActive'];
-    } else {
-      toneColor = style['toneColor'];
-    }
-    if (this.isBase) {
-      const borderColor = style['baseToneBorderColor'];
-      const borderSize = style['baseToneBorderSize'];
-      svgCircle.attr({
-        'stroke': borderColor,
-        'stroke-width': borderSize,
-      });
-    } else {
-      svgCircle.attr({
-        'stroke-width': 0.0,
-      });
-    }
-    svgCircle.attr({
-      'fill': toneColor,
-    });
-    svgTone.attr({
-      'fill-opacity': relHn,
-    });
-  }
-
-  positionSvgPitchline() {
-    // this.svgPitchline.x(this.xpos); replaced by reacions.
-  }
-
-  setSvgPitchlineVisibility() {
-    // replaced by reactive stuff
-  }
-
-  destroy() {
-    this.svgTone.remove();
-    this.svgPitchline.remove();
-    Object.entries(this.steps).forEach(([label, step]) => {
-      step.destroy();
-      delete this.steps[label];
-    });
-    Object.entries(this.incomingSteps).forEach(([label, step]) => {
-      step.endpoint = undefined;
-      step.position();
-      step.color();
-      step.opacitate();
-    });
-  }
-*/
-}
-
 function checkTones() {
   // Some consistency checks, for testing purposes.
   const svgTones = [];
@@ -2254,6 +2450,7 @@ step of any tone.`;
     });
   });
 }
+*/
 
 /*
 function generateTones() {
@@ -2262,11 +2459,11 @@ function generateTones() {
   // inbounds (drawable) but are within the closure (close enough to
   // being drawable that they may be necessary to reach all drawable tones),
   // check whether any of them have actually come within the closure since we
-  // last checked. If yes, generate all their neighbors (that don't already
+  // last checked. If yes, generate all their neighbours (that don't already
   // exist), and recursively check whether they are within the closure.  At
-  // the end, all possible tones within the closure, and all their neighbors,
-  // should exist, but the neighbors that are outside the closure should not
-  // further have their neighbors generated.
+  // the end, all possible tones within the closure, and all their neighbours,
+  // should exist, but the neighbours that are outside the closure should not
+  // further have their neighbours generated.
   const stepIntervals = Object.entries(scaleFig.stepIntervals);
   let roots = Object.entries(scaleFig.boundaryTones);
   while (roots.length > 0) {
@@ -2566,12 +2763,15 @@ checkTones(); // TODO Only here for testing during development.
 addKeys();
 
 // DEBUG
-new ToneObject(new Map(), true)
-const t1 = new Map()
-const t2 = new Map()
-t1.set(2, -1)
-t1.set(3, 1)
-t2.set(2, -1)
-t2.set(5, 1)
-new ToneObject(t1, false)
-new ToneObject(t2, false)
+//new ToneObject(new Map(), true, streams, allTones)
+//const t1 = new Map()
+//const t2 = new Map()
+//const t3 = new Map()
+//t1.set(2, -1)
+//t1.set(3, 1)
+//t2.set(2, -1)
+//t2.set(5, 1)
+//t3.set(2, 1)
+//new ToneObject(t1, false, streams, allTones)
+//new ToneObject(t2, false, streams, allTones)
+//new ToneObject(t3, false, streams, allTones)
