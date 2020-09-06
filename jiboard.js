@@ -1,4 +1,5 @@
 'use strict';
+const starttime = Date.now(); // DEBUG
 // TODO I would like to ES6 module import also SVG.js and rxjs, and locally
 // import ResizeObserver from a module folder rather than a .min.js I manually
 // copied from a CDN. None of these things seem possible because the
@@ -270,10 +271,6 @@ function pitchFactor(interval) {
 // Tone.js. Think about namespace management.
 class ToneObject {
   constructor(coordinates, isBase, streams, allTones) {
-    // TODO Think about how base tones should be marked, but I think it
-    // shouldn't be a field, but just another stream called isBase, that's
-    // created in setListeners, and is based on a global stream of what are the
-    // current baseTones.
     this.coords = coordinates;
     this.isBase = new rxjs.BehaviorSubject(isBase);
     this.allTones = allTones;
@@ -284,13 +281,6 @@ class ToneObject {
     // TODO Where do these numbers come from?
     const pitchlineGroup = scaleFig.svgGroups['pitchlines'];
     this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
-    /*
-    this.positionSvg();
-    this.setLabelText();
-    this.colorSvg();
-    this.scaleSvgTone();
-    this.addSteps();
-    */
 
     // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
     // on the browser, the same click or touch may fire several, e.g. both
@@ -299,20 +289,7 @@ class ToneObject {
     // performance. Note though that the same tone isn't played twice. Come
     // back to this later and check whether we could switch for instance using
     // only PointerEvents, once they have widespread support.
-    //const t = this;
-    //function eventOn(ev) {
-    //  if (!scaleFig.ctrlDown) {
-    //    t.isBeingClicked = true;
-    //    t.toneOn();
-    //  }
-    //};
-    //function eventOff(ev) {
-    //  t.isBeingClicked = false;
-    //  t.toneOff();
-    //};
 
-    // TODO Maybe baseTones should have strings as keys, like allTones, in
-    // which case checking would be easy.
     streams.baseTones.subscribe((baseTones) => {
       const coordsStr = toneToString(this.coords);
       const inBaseTones = baseTones.has(coordsStr);
@@ -364,28 +341,21 @@ class ToneObject {
     );
 
     // Whenever this key is pressed, the tone is turned on, if it wasn't
-    // already. Whenver either this key is released or sustain is released, and
-    // the latest action on both this key and sustain is a release, then this
-    // tone should be set to false, if it wasn't already.
-    // TODO Note that, done this way, an emission happens for all keys every
-    // time the sustain is released. Think about mitigating this performance
-    // waste by either filtering out repeated isOn emissions before they reach
-    // the observer, or by having isBeingClicked determine whether we listend
-    // to sustainDown at all.
+    // already. Whenever this key is released, either turn the tone off if
+    // sustain is not down, or start listening for when sustain is released.
     this.isOn = new rxjs.BehaviorSubject(false);
-    rxjs.merge(
-      trueOnClickDown,
-      rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
-        rxjs.operators.filter(([click, sustain]) => {
-          // Check that both the latest click and the latest sustain were
-          // false.
-          return !click && !sustain;
-        }),
-        rxjs.operators.map((click, sustain) => {
-          return false;
-        })
-      )
-    ).subscribe((x) => this.isOn.next(x));
+    trueOnClickDown.subscribe(this.isOn);
+    falseOnClickUp.subscribe((f) => {
+      if (!streams.sustainDown.getValue()) {
+        this.isOn.next(false);
+      } else {
+        streams.sustainDown.pipe(
+          rxjs.operators.first((x) => !x)
+        ).subscribe((x) => {
+          this.isOn.next(false);
+        });
+      }
+    });
 
     const pf = pitchFactor(this.coords);
     const fraction = toneToFraction(this.coords);
@@ -404,16 +374,18 @@ class ToneObject {
       }
     });
 
-    const xpos = streams.horizontalZoom.pipe(
-      rxjs.operators.map((zoom) => {
-        return zoom * Math.log2(pf);
-      })
+    const xpos = new rxjs.BehaviorSubject();
+    streams.horizontalZoom.subscribe(
+      (zoom) => {
+        xpos.next(zoom * Math.log2(pf));
+      }
     );
 
-    const ypos = rxjs.combineLatest(
+    const ypos = new rxjs.BehaviorSubject();
+    rxjs.combineLatest(
       streams.verticalZoom,
       streams.yShifts
-    ).pipe(rxjs.operators.map(([zoom, yShifts]) => {
+    ).subscribe(([zoom, yShifts]) => {
       let y = 0.0;
       this.coords.forEach((c, p) => {
         // TODO Is the check necessary?
@@ -422,10 +394,12 @@ class ToneObject {
         }
       });
       y *= zoom;
-      return y;
-    }));
+      ypos.next(y);
+    });
 
-    const harmDistsCombined = new VariableSourceSubject(rxjs.combineLatest, []);
+    const harmDistsCombined = new VariableSourceSubject(
+      rxjs.combineLatest, []
+    );
     const harmDists = new Map();
 
     streams.baseTones.subscribe((baseTones) => {
@@ -461,13 +435,13 @@ class ToneObject {
       });
     });
 
-    const harmNorm = harmDistsCombined.pipe(rxjs.operators.map(
-      (x) => Math.min(...x))
-    );
+    const harmNorm = new rxjs.BehaviorSubject(0.0);
+    harmDistsCombined.subscribe((x) => harmNorm.next(Math.min(...x)));
 
-    const inbounds = rxjs.combineLatest(
+    const inbounds = new rxjs.BehaviorSubject(false);
+    rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm, xpos, ypos, streams.canvasViewbox
-    ).pipe(rxjs.operators.map(([hn, maxhn, x, y, viewbox]) => {
+    ).subscribe(([hn, maxhn, x, y, viewbox]) => {
       // TODO Add note radius, to check if the edge of a note fits, rather
       // than center?
       const viewboxLeft = viewbox.x;
@@ -478,10 +452,11 @@ class ToneObject {
       const inBoxVer = (viewboxTop < y && y < viewboxBottom);
       const inViewbox = inBoxHor && inBoxVer;
       const harmClose = (hn <= maxhn);
-      return harmClose && inViewbox;
-    }));
+      inbounds.next(harmClose && inViewbox);
+    });
 
-    this.inclosure = rxjs.combineLatest(
+    this.inclosure = new rxjs.BehaviorSubject(false);
+    rxjs.combineLatest(
       harmNorm,
       streams.maxHarmNorm,
       xpos,
@@ -490,7 +465,7 @@ class ToneObject {
       streams.verticalZoom,
       streams.yShifts,
       streams.canvasViewbox,
-    ).pipe(rxjs.operators.map(([
+    ).subscribe(([
       hn,
       maxhn,
       x,
@@ -516,8 +491,8 @@ class ToneObject {
       const inClosureHor = (closureLeft < x && x < closureRight);
       const inClosureVer = (closureTop < y && y < closureBottom);
       const inViewClosure = inClosureHor && inClosureVer;
-      return harmClose && inViewClosure;
-    }));
+      this.inclosure.next(harmClose && inViewClosure);
+    });
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
       rxjs.operators.map(([hn, maxhn]) => {
@@ -934,9 +909,8 @@ const falseOnSustainUp = rxjs.merge(
   ),
 ).pipe(rxjs.operators.map((ev) => false));
 
-streams.sustainDown = rxjs.merge(trueOnSustainDown, falseOnSustainUp).pipe(
-  rxjs.operators.startWith(false)
-);
+streams.sustainDown = new rxjs.BehaviorSubject(false);
+rxjs.merge(trueOnSustainDown, falseOnSustainUp).subscribe(streams.sustainDown);
 
 // TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
 // CSS class whether they are up or down?
@@ -1244,9 +1218,6 @@ const streamElements = [
   },
 ];
 
-// TODO Is this wrapping around a BehaviorSubject necessary/usefull? I
-// originally added it to fix the fact that the EDO keys were in slightly wrong
-// places at the start, but that turned out to be caused by other things.
 streamElements.forEach((e) => {
   const elem = document.getElementById(e.elemName);
   streams[e.paramName] = new rxjs.BehaviorSubject(startingParams[e.paramName]);
@@ -1349,6 +1320,7 @@ defaultAxes.set(5, {
 });
 streams.axes = new rxjs.BehaviorSubject(defaultAxes);
 
+// TODO Why is primes a BehaviorSubject but harmDistSteps and yShifts are not?
 function getPrimes(axes) {
   return Array.from(axes.keys());
 }
@@ -1582,23 +1554,14 @@ function addKeys() {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Event listeners for adding new intervals and axes.
 
-/* TODO Come back to this interval and axis creation business once other things
- * are mostly in place and you have an idea of how intervals should be done
- * with Observables.
-const buttAddInterval = document.getElementById('buttAddInterval');
-function buttAddIntervalOnclick(value) {
-  const interval = new Array(scaleFig.primes.length).fill(0);
-  const color = '#000000';
-  const show = true;
-  addStepInterval(interval, color, show);
-  updateURL();
-}
-buttAddInterval.onclick = function() {
-  buttAddIntervalOnclick(this.checked);
-};
-
+// CONTINUE HERE
+// Make this work so that there isn't any more a streams.axes, but just streams
+// for primes, yShifts, and harmDistSteps. yShifts and harmDistSteps should
+// probably be VariableSourceSubjects, and then addAxis would add a source for
+// each of them.
+/*
 function addAxis() {
-  const prime = ALLPRIMES[scaleFig.primes.length];
+  const prime = ALLPRIMES[streams.primes.getValue().length];
 
   const inNumYshift = document.createElement('input');
   inNumYshift.id = `inNumYshift_${prime}`;
@@ -1660,7 +1623,7 @@ function addAxis() {
   const rangeStepStream = rxjs.fromEvent(inRangeHarmdiststep, 'change');
   harmDistStep = rxjs.operators.merge(numStepStream, rangeStepStream).pipe(
     rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.startWith() // TODO This should be the latest maxHarmNorm.
+    rxjs.operators.startWith(streams.maxHarmNorm.getValue())
   );
   streams.harmDistSteps.set(prime, harmDistStep);
   harmDistStep.subscribe((value) => {
@@ -1687,11 +1650,6 @@ function addAxis() {
     // of them are boundary.
     scaleFig.boundaryTones[newCoordsStr] = tone;
   });
-
-  // TODO Should we also call generateTones here? That harmDistStep is infinity
-  // means that none would be visible, but we are breaking the rule of having
-  // all the neighbours of all inbounds tones exist. Then again, maybe that
-  // rule should be given up, if we give up drawing dangling steps.
 }
 
 function removeAxis() {
@@ -1726,22 +1684,16 @@ function removeAxis() {
 }
 
 const buttAddAxis = document.getElementById('buttAddAxis');
-function buttAddAxisOnclick(value) {
+buttAddAxis.onclick = function buttAddAxisOnclick() {
   addAxis();
   updateURL();
 }
-buttAddAxis.onclick = function() {
-  buttAddAxisOnclick(this.checked);
-};
 
 const buttRemoveAxis = document.getElementById('buttRemoveAxis');
-function buttRemoveAxisOnclick(value) {
+buttRemoveAxis.onclick = function buttRemoveAxisOnclick() {
   removeAxis();
   updateURL();
 }
-buttRemoveAxis.onclick = function() {
-  buttRemoveAxisOnclick(this.checked);
-};
 */
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2029,3 +1981,5 @@ addKeys();
 //new ToneObject(t1, false, streams, allTones)
 //new ToneObject(t2, false, streams, allTones)
 //new ToneObject(t3, false, streams, allTones)
+const endtime = Date.now(); // DEBUG
+console.log('Seconds till the end of script:', (endtime - starttime)/1000.0); // DEBUG

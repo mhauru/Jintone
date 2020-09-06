@@ -15,12 +15,14 @@
 TODO:
 
 Next:
+- Make it again possible to hold the mouse down and slide over keys, playing them all.
 - Add a UI element for setting minimum tone opacity, have it replace the "Opacity by harm norm" checkbox.
 - A UI element for adding and removing base tones.
 - Ismo says: Give it an option of having labels that are like the usual fractions, but they are all octave-moved to be between 0 and 1. Makes for duplicate labels but that's okay, and makes their harmonic meaning clearer.
 - Is the canvas too wide because it doesn't take into account the sustain and pan buttons?
 - Could we actually remove the intervals feature? Especially for the first release.
 - Make the URL only show parameters that have values different from the defaults.
+- Should we switch from primes to more generic generating intervals? This would be fine, as long as we check that they are linearly independent. It would make the "closure" much smaller. Right now everything that's within a pitch factor of 5 needs to be included (with limit 5). Think through though, using the lattice/theory, that this would really guarantee generating all tones that should exist.
 
 Convenience:
 - Make the height of the keyboard adjustable.
