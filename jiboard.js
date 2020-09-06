@@ -99,15 +99,9 @@ const DEFAULT_URLPARAMS = {
     {'yShift': 1.0, 'harmDistStep': 1.7},
   ],
   'baseTones': [new Map()],
-  'stepIntervals': [
-    {'interval': [1, 0, 0], 'color': '#1d181e', 'show': true},
-    {'interval': [-1, 1, 0], 'color': '#17726F', 'show': true},
-    {'interval': [-2, 0, 1], 'color': '#774579', 'show': true},
-  ],
   'settingsExpanded': true,
   'generalExpanded': true,
   'tonesExpanded': false,
-  'stepIntervalsExpanded': false,
   'styleExpanded': false,
 };
 
@@ -283,8 +277,6 @@ class ToneObject {
     this.coords = coordinates;
     this.isBase = new rxjs.BehaviorSubject(isBase);
     this.allTones = allTones;
-    // this.steps = {};
-    // this.incomingSteps = {};
 
     this.svgTone = scaleFig.svgGroups['tones'].group();
     this.svgCircle = this.svgTone.circle(1.0);
@@ -856,7 +848,6 @@ scaleFig.keyCanvas.attr('preserveAspectRatio', 'none');
 // i.e. z-index.
 scaleFig.svgGroups = {
   'pitchlines': scaleFig.canvas.group(),
-  'steps': scaleFig.canvas.group(),
   'tones': scaleFig.canvas.group(),
 };
 
@@ -1331,14 +1322,6 @@ streams.showPitchlines.subscribe((value) => {
   }
 });
 
-streams.showSteps.subscribe((value) => {
-  if (value) {
-    scaleFig.svgGroups.steps.attr('visibility', 'inherit');
-  } else {
-    scaleFig.svgGroups.steps.attr('visibility', 'hidden');
-  }
-});
-
 // TODO Make new values be registered.
 streams.baseTones = new rxjs.BehaviorSubject();
 const startingBaseTones = new Map();
@@ -1764,306 +1747,6 @@ buttRemoveAxis.onclick = function() {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /*
-class StepInterval {
-  constructor(label, interval, color, show) {
-    this.label = label;
-    this._interval_ = [];
-    this.initializeHtml();
-    this.setListeners();
-    this.svgGroup = scaleFig.svgGroups.steps.group();
-    this.interval = interval;
-    this.color = color;
-    this.show = show;
-  }
-
-  initializeHtml() {
-    const div = document.createElement('div');
-    div.innerHTML = `Interval ${this.label}<br>`;
-    this.div = div;
-
-    const inFractionRep = document.createElement('input');
-    inFractionRep.type = 'text';
-    inFractionRep.size = '3';
-    this.inFractionRep = inFractionRep;
-
-    const inCoordinateRep = document.createElement('input');
-    inCoordinateRep.type = 'text';
-    inCoordinateRep.size = '7';
-    this.inCoordinateRep = inCoordinateRep;
-
-    const spanDecimalRep = document.createElement('span');
-    this.spanDecimalRep = spanDecimalRep;
-
-    const spanNameRep = document.createElement('span');
-    this.spanNameRep = spanNameRep;
-
-    const inColor = document.createElement('input');
-    inColor.type = 'color';
-    this.inColor = inColor;
-
-    const inShow = document.createElement('input');
-    inShow.type = 'checkbox';
-    this.inShow = inShow;
-
-    const buttDelete = document.createElement('button');
-    buttDelete.innerHTML = 'Delete';
-    this.buttDelete = buttDelete;
-
-    const parReps = document.createElement('p');
-    parReps.innerHTML = 'Interval: ';
-    parReps.appendChild(inFractionRep);
-    parReps.appendChild(inCoordinateRep);
-    parReps.appendChild(spanDecimalRep);
-    parReps.appendChild(spanNameRep);
-    this.parReps = parReps;
-    div.appendChild(parReps);
-
-    const parColor = document.createElement('p');
-    parColor.innerHTML = 'Color: ';
-    parColor.appendChild(inColor);
-    this.parColor = parColor;
-    div.appendChild(parColor);
-
-    const parShow = document.createElement('p');
-    parShow.innerHTML = 'Show: ';
-    parShow.appendChild(inShow);
-    this.parShow = parShow;
-    div.appendChild(parShow);
-
-    const parDelete = document.createElement('p');
-    parShow.appendChild(buttDelete);
-    this.parDelete = parDelete;
-    div.appendChild(parDelete);
-  }
-
-  setListeners() {
-    const t = this;
-    this.inColor.oninput = function() {
-      t.color = this.value;
-    };
-    this.inShow.onclick = function() {
-      t.show = this.checked;
-    };
-    this.buttDelete.onclick = function() {
-      deleteStepInterval(t.label);
-    };
-    this.inCoordinateRep.onchange = function() {
-      // TODO Sanitize and check input format.
-      // TODO Check that this interval doesn't exist already. Same in the other
-      // setter functions.
-      const interval = t.parseInCoordinateRepValue(this.value);
-      t.interval = interval;
-    };
-    this.inFractionRep.onchange = function() {
-      const interval = t.parseInFractionRepValue(this.value);
-      t.interval = interval;
-    };
-  }
-
-  get pitchFactor() {
-    return pitchFactor(this.interval);
-  }
-
-  get fraction() {
-    return fraction(this.interval);
-  }
-
-  // TODO Static method?
-  parseInFractionRepValue(value) {
-    const [numStr, denomStr] = value.split('/');
-    if (denomStr == undefined) denom = '1';
-    const num = Number(numStr);
-    const denom = Number(denomStr);
-    const tone = primeDecompose(num, denom);
-    while (tone.length < scaleFig.primes.length) {
-      tone.push(0.0);
-    }
-    return tone;
-  }
-
-  // TODO Static method?
-  parseInCoordinateRepValue(value) {
-    return JSON.parse(value);
-  }
-
-  setFractionRepValue(tone) {
-    const [num, denom] = fraction(tone);
-    const str = num.toString() + '/' + denom.toString();
-    this.inFractionRep.value = str;
-  }
-
-  setDecimalRepValue(tone) {
-    const pf = pitchFactor(tone);
-    this.spanDecimalRep.innerHTML = pf.toString();
-  }
-
-  setCoordinateRepValue(tone) {
-    this.inCoordinateRep.value = JSON.stringify(tone);
-  }
-
-  get color() {
-    return this._color_;
-  }
-  set color(color) {
-    this._color_ = color;
-    this.inColor.value = color;
-    // TODO Should all these global calls happen here, in this class?
-    recolorSteps();
-    updateURL();
-  }
-
-  get show() {
-    return this._show_;
-  }
-  set show(show) {
-    this._show_ = show;
-    this.inShow.checked = show;
-    if (show) {
-      this.svgGroup.attr('visibility', 'inherit');
-    } else {
-      this.svgGroup.attr('visibility', 'hidden');
-    }
-    updateURL();
-  }
-
-  get interval() {
-    return this._interval_;
-  }
-  set interval(interval) {
-    if (this._interval_ == interval) return;
-    const _interval_ = this._interval_;
-    _interval_.splice(0, _interval_.length);
-    _interval_.splice(0, interval.length, ...interval);
-    this.setCoordinateRepValue(_interval_);
-    this.setDecimalRepValue(_interval_);
-    this.setFractionRepValue(_interval_);
-    // TODO Check name, set nameRep
-    // TODO Should all these global calls happen here, in this class?
-    updateStepEndpoints();
-    repositionSteps();
-    reopacitateSteps();
-    updateURL();
-  }
-}
-
-class Step {
-  constructor(label, origin) {
-    this.label = label;
-    this.origin = origin;
-    this.updateEndpoint();
-    this.initializeSvg();
-    this.position();
-    this.color();
-    this.opacitate();
-  }
-
-  initializeSvg() {
-    const grad = scaleFig.canvas.gradient('linear', function(stop) {
-      stop.at({'offset': 0});
-      stop.at({'offset': 1});
-    });
-    grad.attr('gradientUnits', 'userSpaceOnUse');
-    const svgGroup = scaleFig.stepIntervals[this.label].svgGroup;
-    const svgStep = svgGroup.line(0, 0, 0, 0).attr({
-      'visibility': 'hidden',
-      'stroke': grad,
-      'stroke-width': 2.5,
-      'stroke-linecap': 'butt',
-      'stroke-linejoin': 'miter',
-      'stroke-miterlimit': 4,
-      'stroke-opacity': 1,
-    });
-    this.grad = grad;
-    this.svgStep = svgStep;
-  }
-
-  updateEndpoint() {
-    const originCoords = this.origin.coords;
-    const interval = scaleFig.stepIntervals[this.label].interval;
-    const endpointCoords = sumTones(originCoords, interval);
-    const endpoint = scaleFig.tones[endpointCoords];
-    this.endpoint = endpoint;
-    if (!(endpoint === undefined)) {
-      endpoint.incomingSteps[this.label] = this;
-    }
-  }
-
-  get hasEndpoint() {
-    return !(this.endpoint === undefined);
-  }
-
-  opacitate() {
-    if (!(this.hasEndpoint)) return;
-    const svgStep = this.svgStep;
-    const grad = this.grad;
-    const relHn1 = this.origin.relHarmNorm;
-    const relHn2 = this.endpoint.relHarmNorm;
-    grad.get(0).attr('stop-opacity', opacityFromRelHn(relHn1));
-    grad.get(1).attr('stop-opacity', opacityFromRelHn(relHn2));
-    // TODO This used to be || instead of &&. That allowed drawing dangling
-    // steps to tones that were not visible. However, there's no guarantee that
-    // these endpoint tones will even be generated, since generation is
-    // strictly based on the viewbox and harmonic distance, and not on what the
-    // stepIntervals are. Rethink how to decide which steps to draw. Should we
-    // draw steps to tones that are outside the viewbox? (note that they could
-    // be faaaar out.) Should we draw steps to tones that are outside the
-    // harmonic distance limit? If so, we should probably opacitate them
-    // correctly, namely not round all negative relHns to 0. Maybe the right
-    // way to go would be to separate drawing of steps from an endpoint tone
-    // existing, but this requires separate functions for evaluating relHns,
-    // and makes it harder to avoid duplicates and/or make steps be removed
-    // correctly if and only if both endpoints are removed.
-    if (relHn1 > 0 && relHn2 > 0) {
-      svgStep.attr('visibility', 'inherit');
-    } else {
-      svgStep.attr('visibility', 'hidden');
-    }
-  }
-
-  color() {
-    if (!(this.hasEndpoint)) return;
-    const color = scaleFig.stepIntervals[this.label].color;
-    const grad = this.grad;
-    grad.get(0).attr('stop-color', color);
-    grad.get(1).attr('stop-color', color);
-  }
-
-  position() {
-    if (!(this.hasEndpoint)) return;
-    const svgStep = this.svgStep;
-    const grad = this.grad;
-    const origin = this.origin;
-    const endpoint = this.endpoint;
-    const [x1, y1] = [origin.xpos, origin.ypos];
-    const [x2, y2] = [endpoint.xpos, endpoint.ypos];
-    const r = scaleFig.style['toneRadius'];
-    const stepLength = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
-    const x1Edge = x1 - r*(x1-x2)/stepLength;
-    const y1Edge = y1 - r*(y1-y2)/stepLength;
-    const x2Edge = x2 + r*(x1-x2)/stepLength;
-    const y2Edge = y2 + r*(y1-y2)/stepLength;
-    svgStep.attr('x1', x1Edge);
-    svgStep.attr('x2', x2Edge);
-    svgStep.attr('y1', y1Edge);
-    svgStep.attr('y2', y2Edge);
-    grad.attr('x1', x1);
-    grad.attr('x2', x2);
-    grad.attr('y1', y1);
-    grad.attr('y2', y2);
-  }
-
-  destroy() {
-    this.svgStep.remove();
-    delete this.origin.steps[this.label];
-    if (this.hasEndpoint) {
-      delete this.endpoint.incomingSteps[this.label];
-    }
-  }
-}
-*/
-
-
-/*
 function checkTones() {
   // Some consistency checks, for testing purposes.
   const svgTones = [];
@@ -2197,138 +1880,10 @@ tone of any tone.`;
       console.log(msg);
     }
   });
-
-  scaleFig.svgGroups.steps.each((i, stepGroups) => {
-    stepGroups[i].children().forEach((svgStep) => {
-      const hasParent = svgSteps.includes(svgStep);
-      if (!hasParent) {
-        const msg = `Error: svgStep ${svgStep.id()} is not the \
-step of any tone.`;
-        console.log(msg);
-      }
-    });
-  });
 }
 */
 
 /*
-function generateTones() {
-  // TODO This doesn't work if a baseTone is outside of the viewbox closure.
-  // Starting from the current boundary tones, i.e. tones that are not
-  // inbounds (drawable) but are within the closure (close enough to
-  // being drawable that they may be necessary to reach all drawable tones),
-  // check whether any of them have actually come within the closure since we
-  // last checked. If yes, generate all their neighbours (that don't already
-  // exist), and recursively check whether they are within the closure.  At
-  // the end, all possible tones within the closure, and all their neighbours,
-  // should exist, but the neighbours that are outside the closure should not
-  // further have their neighbours generated.
-  const stepIntervals = Object.entries(scaleFig.stepIntervals);
-  let roots = Object.entries(scaleFig.boundaryTones);
-  while (roots.length > 0) {
-    const [rootStr, rootTone] = roots.pop();
-    const inclosure = rootTone.inclosure;
-    if (inclosure) {
-      // The tone in question is close enough to the drawable tones, that
-      // we generate more tones starting from it. After this, it will no
-      // longer be a boundary tone.
-      const added = addNeighbors(rootTone);
-      roots = roots.concat(added);
-      delete scaleFig.boundaryTones[rootStr];
-      // Check whether any endpointless steps would have an endpoint in one
-      // of the new tones.
-      added.forEach(([newStr, newTone]) => {
-        stepIntervals.forEach(([label, stepInterval]) => {
-          const interval = stepInterval.interval;
-          const originCoords = subtractTone(newTone.coords, interval);
-          const originStr = toneToString(originCoords);
-          if (!(originStr in scaleFig.tones)) return;
-          const originTone = scaleFig.tones[originStr];
-          const step = originTone.steps[label];
-          step.updateEndpoint();
-          step.position();
-          step.color();
-          step.opacitate();
-        });
-      });
-    }
-  }
-}
-
-function deleteTones() {
-  // TODO This doesn't work if a baseTone is outside of the viewbox closure.
-  // The complement of generateTones: Start from the boundary tones, working
-  // inwards, deleting all tones that are two or more ste removed from the
-  // closure zone.
-  let leaves = Object.entries(scaleFig.boundaryTones);
-  while (leaves.length > 0) {
-    const [leafStr, leafTone] = leaves.pop();
-    // TODO We actually know that at least all the tones we added during
-    // this lop are inclosure. So this could be optimized by running the
-    // inclosure filter before the main while loop, avoiding rechecking
-    // inclosure. Then again, a storage system within Tone for
-    // inclosure would do the same and more.
-    const inclosure = leafTone.inclosure;
-    if (!inclosure) {
-      const [stillBoundary, marked] = markNeighbors(leafTone);
-      leaves = leaves.concat(marked);
-      if (!stillBoundary) {
-        leafTone.destroy();
-        delete scaleFig.boundaryTones[leafStr];
-        delete scaleFig.tones[leafStr];
-      }
-    }
-  }
-}
-
-function markNeighbors(tone) {
-  const marked = [];
-  let stillBoundary = false;
-  for (let i = 0; i < scaleFig.primes.length; i += 1) {
-    [-1, +1].forEach(function(increment) {
-      const neighCoords = sumTones(tone.coords, new Map([i, increment]));
-      const neighStr = toneToString(neighCoords);
-      if (!(neighStr in scaleFig.tones)) {
-        // This tone doesn't exist, moving on.
-        return;
-      }
-      const neighTone = scaleFig.tones[neighStr];
-      if (neighTone.inclosure) {
-        stillBoundary = true;
-      } else if (!(neighStr in scaleFig.boundaryTones)) {
-        scaleFig.boundaryTones[neighStr] = neighTone;
-        marked.push([neighStr, neighTone]);
-      }
-    });
-  }
-  return [stillBoundary, marked];
-}
-
-function addNeighbors(tone) {
-  const added = [];
-  for (let i = 0; i < scaleFig.primes.length; i += 1) {
-    [-1, +1].forEach(function(increment) {
-      const neighCoords = sumTones(tone.coords, new Map([i, increment]));
-      const neighStr = toneToString(neighCoords);
-      if (neighStr in scaleFig.tones) {
-        // This tone exists already, moving on.
-        return;
-      }
-      const neighTone = addTone(neighCoords, false);
-      added.push([neighStr, neighTone]);
-      scaleFig.boundaryTones[neighStr] = neighTone;
-    });
-  }
-  return added;
-}
-
-function addTone(tone, isBase) {
-  const toneStr = toneToString(tone);
-  const newTone = new ToneObject(tone, isBase);
-  scaleFig.tones[toneStr] = newTone;
-  return newTone;
-}
-
 function yShiftOnchange(prime, shift) {
   const pStr = prime.toString();
   const inNum = document.getElementById(`inNumYshift_${prime}`);
@@ -2346,35 +1901,6 @@ function yShiftOnchange(prime, shift) {
     deleteTones();
   }
   updateURL();
-}
-
-function deleteStepInterval(label) {
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    if (label in tone.steps) tone.steps[label].destroy();
-  });
-  const stepInterval = scaleFig.stepIntervals[label];
-  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
-  divStepIntervals.removeChild(stepInterval.div);
-  stepInterval.svgGroup.remove();
-  delete scaleFig.stepIntervals[label];
-  updateURL();
-}
-
-function addStepInterval(interval, color, show) {
-  const existingLabels = Object.keys(scaleFig.stepIntervals);
-  let labelInt = 1;
-  while (existingLabels.includes(labelInt.toString())) {
-    labelInt++;
-  }
-  const label = labelInt.toString();
-  const stepInterval = new StepInterval(label, interval, color, show);
-  scaleFig.stepIntervals[label] = stepInterval;
-  const divStepIntervals = document.getElementById('divGeneratedStepIntervals');
-  divStepIntervals.appendChild(stepInterval.div);
-
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    tone.addSteps();
-  });
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2444,7 +1970,6 @@ streams.generalExpanded.subscribe((expanded) => {
   }
   updateURL();
 });
-
 
 const headTones = document.getElementById('headTones');
 streams.tonesExpanded = new rxjs.BehaviorSubject(
