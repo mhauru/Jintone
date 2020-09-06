@@ -2379,8 +2379,27 @@ function addStepInterval(interval, color, show) {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-function setSettingsExpanded(expanded) {
-  scaleFig.style['settingsExpanded'] = expanded;
+resizeCanvas();
+resizeKeyCanvas();
+resizeSettings();
+
+readURL();
+updateURL();
+
+streams.horizontalZoom.subscribe((value) => updateURL());
+streams.verticalZoom.subscribe((value) => updateURL());
+checkTones(); // TODO Only here for testing during development.
+*/
+
+const buttToggleSettings = document.getElementById('buttToggleSettings');
+streams.settingsExpanded = new rxjs.BehaviorSubject(
+  DEFAULT_URLPARAMS['settingsExpanded']
+);
+rxjs.fromEvent(buttToggleSettings, 'click').subscribe((ev) => {
+  const expanded = streams.settingsExpanded.getValue();
+  streams.settingsExpanded.next(!expanded);
+});
+streams.settingsExpanded.subscribe((expanded) => {
   const divSettings = document.getElementById('divSettings');
   const divCanvas = document.getElementById('divCanvas');
   const divKeyCanvas = document.getElementById('divKeyCanvas');
@@ -2402,20 +2421,18 @@ function setSettingsExpanded(expanded) {
     divCanvas.style.width = '100%';
     divKeyCanvas.style.width = '100%';
   }
-  resizeCanvas();
-  resizeKeyCanvas();
   updateURL();
-}
+});
 
-const buttToggleSettings = document.getElementById('buttToggleSettings');
-buttToggleSettings.onclick = function() {
-  setSettingsExpanded(!scaleFig.style['settingsExpanded']);
-};
-
-// TODO Isn't there a better way to generate these, rather than copy paste code
-// and replace General -> Axes, etc.
-function setGeneralExpanded(expanded) {
-  scaleFig.style['generalExpanded'] = expanded;
+const headGeneral = document.getElementById('headGeneral');
+streams.generalExpanded = new rxjs.BehaviorSubject(
+  DEFAULT_URLPARAMS['generalExpanded']
+);
+rxjs.fromEvent(headGeneral, 'click').subscribe((ev) => {
+  const expanded = streams.generalExpanded.getValue();
+  streams.generalExpanded.next(!expanded);
+});
+streams.generalExpanded.subscribe((expanded) => {
   const contentGeneral = document.getElementById('contentGeneral');
   const iconGeneral = document.getElementById('iconGeneral');
   if (expanded) {
@@ -2426,15 +2443,18 @@ function setGeneralExpanded(expanded) {
     contentGeneral.style.display = 'none';
   }
   updateURL();
-};
+});
 
-const headGeneral = document.getElementById('headGeneral');
-headGeneral.onclick = function() {
-  setGeneralExpanded(!scaleFig.style['generalExpanded']);
-};
 
-function setTonesExpanded(expanded) {
-  scaleFig.style['tonesExpanded'] = expanded;
+const headTones = document.getElementById('headTones');
+streams.tonesExpanded = new rxjs.BehaviorSubject(
+  DEFAULT_URLPARAMS['tonesExpanded']
+);
+rxjs.fromEvent(headTones, 'click').subscribe((ev) => {
+  const expanded = streams.tonesExpanded.getValue();
+  streams.tonesExpanded.next(!expanded);
+});
+streams.tonesExpanded.subscribe((expanded) => {
   const contentTones = document.getElementById('contentTones');
   const iconTones = document.getElementById('iconTones');
   if (expanded) {
@@ -2445,34 +2465,18 @@ function setTonesExpanded(expanded) {
     contentTones.style.display = 'none';
   }
   updateURL();
-};
+});
 
-const headTones = document.getElementById('headTones');
-headTones.onclick = function() {
-  setTonesExpanded(!scaleFig.style['tonesExpanded']);
-};
 
-function setStepIntervalsExpanded(expanded) {
-  scaleFig.style['stepIntervalsExpanded'] = expanded;
-  const contentStepIntervals = document.getElementById('contentStepIntervals');
-  const iconStepIntervals = document.getElementById('iconStepIntervals');
-  if (expanded) {
-    iconStepIntervals.style.transform = 'rotate(-90deg)';
-    contentStepIntervals.style.display = 'block';
-  } else {
-    iconStepIntervals.style.transform = 'rotate(90deg)';
-    contentStepIntervals.style.display = 'none';
-  }
-  updateURL();
-};
-
-const headStepIntervals = document.getElementById('headStepIntervals');
-headStepIntervals.onclick = function() {
-  setStepIntervalsExpanded(!scaleFig.style['stepIntervalsExpanded']);
-};
-
-function setStyleExpanded(expanded) {
-  scaleFig.style['styleExpanded'] = expanded;
+const headStyle = document.getElementById('headStyle');
+streams.styleExpanded = new rxjs.BehaviorSubject(
+  DEFAULT_URLPARAMS['styleExpanded']
+);
+rxjs.fromEvent(headStyle, 'click').subscribe((ev) => {
+  const expanded = streams.styleExpanded.getValue();
+  streams.styleExpanded.next(!expanded);
+});
+streams.styleExpanded.subscribe((expanded) => {
   const contentStyle = document.getElementById('contentStyle');
   const iconStyle = document.getElementById('iconStyle');
   if (expanded) {
@@ -2483,41 +2487,7 @@ function setStyleExpanded(expanded) {
     contentStyle.style.display = 'none';
   }
   updateURL();
-};
-
-const headStyle = document.getElementById('headStyle');
-headStyle.onclick = function() {
-  setStyleExpanded(!scaleFig.style['styleExpanded']);
-};
-streams.baseTones = rxjs.from([startingParams['baseTones']]);
-
-streams.baseTones.subscribe(
-  (tones) => {
-    // TODO This should soon be unnecessary.
-    scaleFig.baseTones = tones;
-    // TODO How does a tone get marked as being base if it already exists?
-    tones.forEach((baseTone) => {
-      const toneObj = addTone(baseTone, true);
-      scaleFig.boundaryTones[toneToString(baseTone)] = toneObj;
-    });
-    // TODO Only run these based on whether we have new tones or tones have
-    // been deleted.
-    generateTones();
-    deleteTones();
-  }
-);
-
-resizeCanvas();
-resizeKeyCanvas();
-resizeSettings();
-
-readURL();
-updateURL();
-
-streams.horizontalZoom.subscribe((value) => updateURL());
-streams.verticalZoom.subscribe((value) => updateURL());
-checkTones(); // TODO Only here for testing during development.
-*/
+});
 
 addKeys();
 
