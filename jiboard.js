@@ -215,7 +215,7 @@ function sumTones(tone1, tone2) {
 }
 
 // Given an interval, compute the fraction representation as [num, denom].
-function fraction(interval) {
+function toneToFraction(interval) {
   let num = 1.0;
   let denom = 1.0;
   interval.forEach((c, p) => {
@@ -396,6 +396,7 @@ class ToneObject {
     ).subscribe((x) => this.isOn.next(x));
 
     const pf = pitchFactor(this.coords);
+    const fraction = toneToFraction(this.coords);
     const frequency = new rxjs.BehaviorSubject(
       streams.originFreq.getValue()*pf
     );
@@ -472,28 +473,22 @@ class ToneObject {
       (x) => Math.min(...x))
     );
 
-
-    // CONTINUE HERE
-    // Create streams that specify canvas boundaries. Start using them here and
-    // in inclosure. Check that that fixes some tones not being drawn in the
-    // beginning, and pitchlines not all being set visible. Once that's done,
-    // either start adding more features/fixing things to work streams, or dig
-    // into optimising. At the moment all changes related to inclosure and
-    // inbounds, which causes generation of new Tones, is worryingly slow.
-    // TODO This would need to also take as arguments streams specifying canvas
-    // boundaries.
     const inbounds = rxjs.combineLatest(
-      harmNorm, streams.maxHarmNorm, xpos, ypos
-    ).pipe(rxjs.operators.map(([hn, maxhn, x, y]) => {
+      harmNorm, streams.maxHarmNorm, xpos, ypos, streams.canvasViewbox
+    ).pipe(rxjs.operators.map(([hn, maxhn, x, y, viewbox]) => {
       // TODO Add note radius, to check if the edge of a note fits, rather
       // than center?
-      const inViewbox = isInViewbox(x, y);
+      const viewboxLeft = viewbox.x;
+      const viewboxRight = viewboxLeft + viewbox.width;
+      const viewboxTop = viewbox.y;
+      const viewboxBottom = viewboxTop + viewbox.height;
+      const inBoxHor = (viewboxLeft < x && x < viewboxRight);
+      const inBoxVer = (viewboxTop < y && y < viewboxBottom);
+      const inViewbox = inBoxHor && inBoxVer;
       const harmClose = (hn <= maxhn);
       return harmClose && inViewbox;
     }));
 
-    // TODO This would need to also take as arguments streams specifying canvas
-    // boundaries.
     this.inclosure = rxjs.combineLatest(
       harmNorm,
       streams.maxHarmNorm,
@@ -502,6 +497,7 @@ class ToneObject {
       streams.horizontalZoom,
       streams.verticalZoom,
       streams.yShifts,
+      streams.canvasViewbox,
     ).pipe(rxjs.operators.map(([
       hn,
       maxhn,
@@ -510,12 +506,13 @@ class ToneObject {
       horizontalZoom,
       verticalZoom,
       yShifts,
+      viewbox,
     ]) => {
       const harmClose = (hn <= maxhn);
-      const viewboxLeft = scaleFig.canvas.viewbox().x;
-      const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
-      const viewboxTop = scaleFig.canvas.viewbox().y;
-      const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+      const viewboxLeft = viewbox.x;
+      const viewboxRight = viewboxLeft + viewbox.width;
+      const viewboxTop = viewbox.y;
+      const viewboxBottom = viewboxTop + viewbox.height;
       const maxPrime = Math.max(...yShifts.keys());
       const maxXjump = horizontalZoom * Math.log2(maxPrime);
       const maxYshift = Math.max(...yShifts.values());
@@ -561,11 +558,20 @@ class ToneObject {
       }
     });
 
+    // This one is just manually made to emit every time the tone labels have
+    // been redrawn. The reason for using this, instead of making the below
+    // subscribe take toneLabelTextStyle as an argument, is to ensure that the
+    // text has been changed before the rescaling occurs.
+    const toneLabelRedrawTrigger = new rxjs.Subject();
+
+    // TODO This doesn't actually depend on the value of toneLabelTextStyle,
+    // it just should be redone every time that changes.
     rxjs.combineLatest(
       this.isBase,
       streams.toneRadius,
-      streams.baseToneBorderSize
-    ).subscribe(([isBase, toneRadius, borderSize]) => {
+      streams.baseToneBorderSize,
+      toneLabelRedrawTrigger,
+    ).subscribe(([isBase, toneRadius, borderSize, _]) => {
       const svgCircle = this.svgCircle;
       const svgLabel = this.svgLabel;
       if (isBase) {
@@ -673,6 +679,69 @@ class ToneObject {
         'stroke-dashoffset': 0.0,
         'stroke-opacity': opacityFromRelHn(relHn),
       });
+    });
+
+    rxjs.combineLatest(
+      streams.toneLabelTextStyle,
+      frequency,
+    ).subscribe(([labelStyle, freq]) => {
+      let labelText;
+      if (labelStyle == 'EDO') {
+        let i = 0;
+        // Note that we rely on EDOTones being in rising order of pitch.
+        while (i < EDOTones.length - 2) {
+          if (EDOTones[i+1].frequency > freq) break;
+          i++;
+        }
+        const lowerNeighbor = EDOTones[i].frequency;
+        const heigherNeighbor = EDOTones[i+1].frequency;
+        const lowerDistance = Math.abs(lowerNeighbor - freq);
+        const heigherDistance = Math.abs(heigherNeighbor - freq);
+        let neighbour;
+        if (lowerDistance < heigherDistance) {
+          neighbour = EDOTones[i];
+        } else {
+          neighbour = EDOTones[i+1];
+        }
+        // These are just constant, figured out by trial and error, that seem to
+        // do the job.
+        const subShift = 2;
+        const subFontSize = 12;
+        labelText = (add) => {
+          add.tspan(`${neighbour.letter}`);
+          add.tspan(`${neighbour.octave}`).attr({
+            'dy': subShift,
+            'font-size': subFontSize,
+          });
+        };
+      } else if (labelStyle == 'fractions') {
+        const [num, denom] = fraction;
+        // These are just constant, figured out by trial and error, that seem to
+        // do the job.
+        const solidusShift = 3;
+        const denomShift = 3;
+        const numFontSize = 15;
+        const solidusFontSize = 15;
+        labelText = (add) => {
+          add.tspan(num).attr({
+            'font-size': numFontSize,
+          });
+          add.tspan('\u002F').attr({
+            'dy': solidusShift,
+            'font-size': solidusFontSize,
+          });
+          add.tspan(denom).attr({
+            'dy': denomShift,
+            'font-size': numFontSize,
+          });
+        };
+      } else if (labelStyle == 'none') {
+        labelText = '';
+      } else {
+        labelText = '';
+      }
+      this.svgLabel.text(labelText);
+      toneLabelRedrawTrigger.next(true);
     });
 
     // The below is sets up the following system: Every Tone always keeps
@@ -1105,16 +1174,16 @@ scaleFig.svgGroups = {
 
 // Return a boolean for whether the coordinates (x, y) are in the current
 // viewbox of the SVG canvas.
-function isInViewbox(x, y) {
-  const viewboxLeft = scaleFig.canvas.viewbox().x;
-  const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
-  const viewboxTop = scaleFig.canvas.viewbox().y;
-  const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
-  const inBoxHor = (viewboxLeft < x && x < viewboxRight);
-  const inBoxVer = (viewboxTop < y && y < viewboxBottom);
-  const inBox = inBoxHor && inBoxVer;
-  return inBox;
-}
+// function isInViewbox(x, y) {
+//   const viewboxLeft = scaleFig.canvas.viewbox().x;
+//   const viewboxRight = viewboxLeft + scaleFig.canvas.viewbox().width;
+//   const viewboxTop = scaleFig.canvas.viewbox().y;
+//   const viewboxBottom = viewboxTop + scaleFig.canvas.viewbox().height;
+//   const inBoxHor = (viewboxLeft < x && x < viewboxRight);
+//   const inBoxVer = (viewboxTop < y && y < viewboxBottom);
+//   const inBox = inBoxHor && inBoxVer;
+//   return inBox;
+// }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Create event streams for key presses. By streams I mean rxjs Observables.
@@ -1352,6 +1421,7 @@ new ResizeObserver((entries, observer) => {
   }
 }).observe(document.getElementById('divSettings'));
 
+streams.canvasViewbox = new rxjs.BehaviorSubject(scaleFig.canvas.viewbox());
 // Adjust the canvas viewbox every time the canvas is resized or we pan to
 // change the mid-point.
 rxjs.combineLatest(streams.canvasSize, streams.midCoords).subscribe(
@@ -1360,6 +1430,7 @@ rxjs.combineLatest(streams.canvasSize, streams.midCoords).subscribe(
     const [w, h] = boxSize;
     const [x, y] = coords;
     canvas.viewbox(-w/2+x, -h/2+y, w, h);
+    streams.canvasViewbox.next(canvas.viewbox());
   }
 );
 
