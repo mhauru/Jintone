@@ -423,7 +423,7 @@ class ToneObject {
       streams.baseToneBorderSize,
     ).subscribe(([
       isOn,
-      isBase,
+      ib,
       relHn,
       toneColorActive,
       toneColorNonActive,
@@ -445,7 +445,7 @@ class ToneObject {
       } else {
         toneColor = toneColorNonActive;
       }
-      if (isBase) {
+      if (ib) {
         const borderColor = baseToneBorderColor;
         const borderSize = baseToneBorderSize;
         svgCircle.attr({
@@ -578,6 +578,8 @@ class ToneObject {
     const me = this;
     const coords = this.coords;
 
+    // TODO Maybe write a function that loops over all neighbours, to avoid
+    // code duplication.
     // Add any already existing neighbours, and report to them that they have a
     // new neighbour.
     const currentPrimes = streams.primes.getValue();
@@ -627,9 +629,16 @@ class ToneObject {
         return arr.some((x) => x);
       })
     );
-    rxjs.combineLatest(this.inclosure, anyNeighborInclosure).subscribe(
-      ([incls, neighIncls]) => {
-        if (!incls && !neighIncls) me.destroy();
+    // TODO Should we also check for isOn, to make sure we don't leave some
+    // note ringing after it's destroyed? At least test what happens if a note
+    // that is playing is destroyed.
+    rxjs.combineLatest(
+      this.inclosure,
+      anyNeighborInclosure,
+      this.isBase
+    ).subscribe(
+      ([incls, neighIncls, ib]) => {
+        if (!incls && !neighIncls && !ib) me.destroy();
       }
     );
   }
@@ -651,6 +660,8 @@ class ToneObject {
     }
   }
 
+  // TODO Should we destroy some subscriptions as well, and send death-notices
+  // on all the streams we've created?
   destroy() {
     this.svgTone.remove();
     this.svgPitchline.remove();

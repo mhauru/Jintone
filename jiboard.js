@@ -6,13 +6,26 @@ const starttime = Date.now(); // DEBUG
 // javascript module ecosystem is a massive mess that drives me nuts.
 import './node_modules/tone/build/Tone.js';
 import ResizeObserver from './resize-observer.min.js';
+import {VariableSourceSubject} from './variablesourcesubject.js';
 import {toneToString, ToneObject} from './toneobject.js';
 import {generateEDOTones, EDOKey} from './edo.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
-const synth = new Tone.PolySynth(10, Tone.Synth).toMaster();
+// TODO This is duplicated here and in toneobject.js. Fix.
+const ALLPRIMES = [
+  2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+  73, 79, 83, 89, 97,
+];
+
+const synth = new Tone.PolySynth( 10, Tone.Synth, {
+  oscillator: {
+    type: 'sine',
+    // Relative amplitudes of overtones.
+    partials: [1, 0.3, 0.2],
+  },
+}).toMaster();
 
 function addEDOKeys() {
   const EDOTones = generateEDOTones();
@@ -588,38 +601,42 @@ streams.opacityHarmNorm = new rxjs.BehaviorSubject();
 streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
 
 // TODO Make default be read from URL and new values be registered.
-const defaultAxes = new Map();
-defaultAxes.set(2, {
-  'harmDistStep': 0.0,
-  'yShift': 1.2,
-});
-defaultAxes.set(3, {
-  'harmDistStep': 1.5,
-  'yShift': 1.8,
-});
-defaultAxes.set(5, {
-  'harmDistStep': 1.7,
-  'yShift': 1.0,
-});
-streams.axes = new rxjs.BehaviorSubject(defaultAxes);
+// const defaultAxes = new Map();
+// defaultAxes.set(2, {
+//   'harmDistStep': 0.0,
+//   'yShift': 1.2,
+// });
+// defaultAxes.set(3, {
+//   'harmDistStep': 1.5,
+//   'yShift': 1.8,
+// });
+// defaultAxes.set(5, {
+//   'harmDistStep': 1.7,
+//   'yShift': 1.0,
+// });
 
-// TODO Why is primes a BehaviorSubject but harmDistSteps and yShifts are not?
-function getPrimes(axes) {
-  return Array.from(axes.keys());
+// Take Observables, each of which returns Maps, combineLatest on it merge the
+// Maps.
+function combineAndMerge(...x) {
+  const combined = rxjs.combineLatest(...x).pipe(
+    rxjs.operators.map((ms) => {
+      // ms is an array of Maps, that we merge into a single map.
+      const arrs = [];
+      ms.forEach((m) => {
+        arrs.push(...m)
+      });
+      return new Map(arrs);
+    }));
+  return combined
 }
-streams.primes = new rxjs.BehaviorSubject(getPrimes(streams.axes.getValue()));
-streams.axes.subscribe((axes) => streams.primes.next(getPrimes(axes)));
 
-streams.harmDistSteps = streams.axes.pipe(rxjs.operators.map((axes) => {
-  const harmDistSteps = new Map();
-  axes.forEach((val, key) => harmDistSteps.set(key, val.harmDistStep));
-  return harmDistSteps;
-}));
-streams.yShifts = streams.axes.pipe(rxjs.operators.map((axes) => {
-  const yShifts = new Map();
-  axes.forEach((val, key) => yShifts.set(key, val.yShift));
-  return yShifts;
-}));
+streams.primes = new rxjs.BehaviorSubject([]);
+streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, []);
+streams.yShifts = new VariableSourceSubject(combineAndMerge, []);
+// Associate each prime to each it's streams, to make it possible to remove the
+// right ones with removeSource.
+const yShiftStreams = new Map();
+const harmDistStepStreams = new Map();
 
 // TODO What's the right place to have this bit?
 const allTones = new Map();
@@ -636,12 +653,6 @@ streams.baseTones.subscribe((baseTones) => {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Event listeners for adding new intervals and axes.
 
-// CONTINUE HERE
-// Make this work so that there isn't any more a streams.axes, but just streams
-// for primes, yShifts, and harmDistSteps. yShifts and harmDistSteps should
-// probably be VariableSourceSubjects, and then addAxis would add a source for
-// each of them.
-/*
 function addAxis() {
   const prime = ALLPRIMES[streams.primes.getValue().length];
 
@@ -693,76 +704,78 @@ function addAxis() {
 
   document.getElementById('contentAxes').appendChild(divAxis);
 
-  inNumYshift.onchange = function() {
-    // TODO Check input to be a number
-    yShiftOnchange(prime, this.value);
-  };
-  inRangeYshift.oninput = function() {
-    yShiftOnchange(prime, this.value);
-  };
-
-  const numStepStream = rxjs.fromEvent(inNumHarmdiststep, 'change');
-  const rangeStepStream = rxjs.fromEvent(inRangeHarmdiststep, 'change');
-  harmDistStep = rxjs.operators.merge(numStepStream, rangeStepStream).pipe(
+  const yShiftStream = new rxjs.BehaviorSubject(new Map([[prime, 0.0]]));
+  rxjs.merge(
+    rxjs.fromEvent(inNumYshift, 'input'),
+    rxjs.fromEvent(inRangeYshift, 'input'),
+  ).pipe(
     rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.startWith(streams.maxHarmNorm.getValue())
+    rxjs.operators.startWith(0.0),
+    rxjs.operators.map((value) => {
+      return new Map([[prime, value]]);
+    }),
+  ).subscribe(yShiftStream);
+  yShiftStream.subscribe((m) => {
+    const value = m.get(prime);
+    inNumYshift.value = value;
+    // TODO This used be value.toString(). Why?
+    inRangeYshift.value = value;
+  });
+
+  const maxHarmNorm = streams.maxHarmNorm.getValue();
+  const harmStepStream = new rxjs.BehaviorSubject(
+    new Map([[prime, maxHarmNorm]])
   );
-  streams.harmDistSteps.set(prime, harmDistStep);
-  harmDistStep.subscribe((value) => {
+  rxjs.merge(
+    rxjs.fromEvent(inNumHarmdiststep, 'input'),
+    rxjs.fromEvent(inRangeHarmdiststep, 'input'),
+  ).pipe(
+    rxjs.operators.pluck('target', 'value'),
+    rxjs.operators.map((value) => {
+      return new Map([[prime, value]]);
+    }),
+  ).subscribe(harmStepStream);
+  harmStepStream.subscribe((m) => {
+    const value = m.get(prime);
     inNumHarmdiststep.value = value;
+    // TODO This used be value.toString(). Why?
     inRangeHarmdiststep.value = value;
   });
-  rxjs.operators.pairwise(harmDistStep).subscribe(
-    ([oldValue, value]) => {
-      if (oldValue > value) {
-        generateTones();
-      } else {
-        deleteTones();
-      }
-      updateURL();
-    }
-  );
 
-  yShiftOnchange(prime, 0.0);
-
-  scaleFig.primes.push(prime);
-
-  Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
-    // Now that there's a new axis, but every tone has coordinate 0 on it, all
-    // of them are boundary.
-    scaleFig.boundaryTones[newCoordsStr] = tone;
-  });
+  streams.harmDistSteps.addSource(harmStepStream);
+  streams.yShifts.addSource(yShiftStream);
+  const primes = streams.primes.getValue();
+  primes.push(prime);
+  streams.primes.next(primes);
+  yShiftStreams[prime] = yShiftStream;
+  harmDistStepStreams[prime] = harmStepStream;
 }
 
+// CONTINUE HERE
+// Adding axes seems to mostly work, but everything remains very slow. After
+// removing an axis, not all tones with a component along that axis are
+// destroyed. It could be something trivial, but I wouldn't be surprised if the
+// whole logic of destroying tones is all wrong, and there are undying ghost
+// tones all over the place. Investigate this. There are some helpful print
+// statements in place in toneobject.js, that may be a good place to start.
+// Once that's done, change the initialization so that the starting axes are
+// read from the URL, and loading the site gives the usual default keyboard.
 function removeAxis() {
-  const primes = scaleFig.primes;
-  const numPrimes = primes.length;
-  const prime = primes[numPrimes-1];
-  scaleFig.primes = primes.slice(0, numPrimes-1);
+  const primes = streams.primes.getValue();
+  const prime = primes.pop();
   const divAxis = document.getElementById(`divAxis_${prime}`);
   document.getElementById('contentAxes').removeChild(divAxis);
+  const yShiftStream = yShiftStreams.get(prime);
+  const harmStepStream = harmDistStepStreams.get(prime);
+  streams.yShifts.removeSource(yShiftStream);
+  streams.harmDistSteps.removeSource(harmStepStream);
+  yShiftStreams.delete(prime);
+  harmDistStepStreams.delete(prime);
+  streams.primes.next(primes);
 
-  // Remove any baseTones that have a non-zero component along this axis.
-  let i = 0;
-  while (i < scaleFig.baseTones.length) {
-    if (scaleFig.baseTones[i].has(prime)) {
-      scaleFig.baseTones.splice(i, 1);
-    } else {
-      i++;
-    }
-  }
-
-  Object.entries(scaleFig.tones).forEach(([coordsStr, tone]) => {
-    const coords = tone.coords;
-    if (coords.has(prime)) {
-      // TODO Turn this into a function removeTone?
-      tone.destroy();
-      delete scaleFig.tones[coordsStr];
-      if (coordsStr in scaleFig.boundaryTones) {
-        delete scaleFig.boundaryTones[coordsStr];
-      }
-    }
-  });
+  // TODO This used to have a bit that went through baseTones, and removed all
+  // the ones that had a component along this axis. Should we have something
+  // similar now?
 }
 
 const buttAddAxis = document.getElementById('buttAddAxis');
@@ -776,7 +789,6 @@ buttRemoveAxis.onclick = function buttRemoveAxisOnclick() {
   removeAxis();
   updateURL();
 }
-*/
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
