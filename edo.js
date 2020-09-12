@@ -112,10 +112,18 @@ class EDOKey {
     // we could switch for instance using only PointerEvents, once they have
     // widespread support. See https://caniuse.com/#feat=pointer
     const trueOnClickDown = rxjs.merge(
-      rxjs.fromEvent(svg, 'mousedown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-      ),
-      rxjs.fromEvent(svg, 'touchstart'),
+      //rxjs.fromEvent(svg, 'mousedown').pipe(
+      //  rxjs.operators.filter((ev) => ev.buttons == 1),
+      //),
+      //rxjs.fromEvent(svg, 'touchstart'),
+      rxjs.fromEvent(svg, 'pointerenter').pipe(
+        rxjs.operators.filter((ev) => ev.pressure > 0.0),
+        rxjs.operators.map((ev) => {
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
       rxjs.fromEvent(svg, 'pointerdown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
         rxjs.operators.map((ev) => {
@@ -131,10 +139,10 @@ class EDOKey {
     }));
 
     const falseOnClickUp = rxjs.merge(
-      rxjs.fromEvent(svg, 'mouseup'),
-      rxjs.fromEvent(svg, 'mouseleave'),
-      rxjs.fromEvent(svg, 'touchend'),
-      rxjs.fromEvent(svg, 'touchcancel'),
+      //rxjs.fromEvent(svg, 'mouseup'),
+      //rxjs.fromEvent(svg, 'mouseleave'),
+      //rxjs.fromEvent(svg, 'touchend'),
+      //rxjs.fromEvent(svg, 'touchcancel'),
       rxjs.fromEvent(svg, 'pointerup').pipe(
         rxjs.operators.map((ev) => {
           // TODO Does this really do something when releasing?

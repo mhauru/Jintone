@@ -148,10 +148,18 @@ class ToneObject {
     }));
 
     const trueOnClickDown = rxjs.merge(
-      rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-      ),
-      rxjs.fromEvent(this.svgTone, 'touchstart'),
+      //rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
+      //  rxjs.operators.filter((ev) => ev.buttons == 1),
+      //),
+      //rxjs.fromEvent(this.svgTone, 'touchstart'),
+      rxjs.fromEvent(this.svgTone, 'pointerenter').pipe(
+        rxjs.operators.filter((ev) => ev.pressure > 0.0),
+        rxjs.operators.map((ev) => {
+          // Allow pointer event target to jump between objects when pointer is
+          // moved.
+          ev.target.releasePointerCapture(ev.pointerId);
+          return ev;
+        })),
       rxjs.fromEvent(this.svgTone, 'pointerdown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
         rxjs.operators.map((ev) => {
@@ -167,10 +175,10 @@ class ToneObject {
     }));
 
     const falseOnClickUp = rxjs.merge(
-      rxjs.fromEvent(this.svgTone, 'mouseup'),
-      rxjs.fromEvent(this.svgTone, 'mouseleave'),
-      rxjs.fromEvent(this.svgTone, 'touchend'),
-      rxjs.fromEvent(this.svgTone, 'touchcancel'),
+      //rxjs.fromEvent(this.svgTone, 'mouseup'),
+      //rxjs.fromEvent(this.svgTone, 'mouseleave'),
+      //rxjs.fromEvent(this.svgTone, 'touchend'),
+      //rxjs.fromEvent(this.svgTone, 'touchcancel'),
       rxjs.fromEvent(this.svgTone, 'pointerup').pipe(
         rxjs.operators.map((ev) => {
           // TODO Does this really do something when releasing?
@@ -636,47 +644,51 @@ class ToneObject {
     const me = this;
     const coords = this.coords;
 
-    // TODO Maybe write a function that loops over all neighbours, to avoid
-    // code duplication.
+    const prospectiveNeighbors = new rxjs.BehaviorSubject([]);
+    this.subscriptions.push(streams.primes.subscribe((primes) => {
+      const neighs = [];
+      for (const p of primes) {
+        [-1, +1].forEach(function(increment) {
+          const step = new Map([[p, increment]]);
+          const neighCoords = sumTones(coords, step);
+          const neighCoordsStr = toneToString(neighCoords);
+          neighs.push([neighCoordsStr, neighCoords]);
+        });
+      }
+      prospectiveNeighbors.next(neighs);
+    }));
+
     // Add any already existing neighbours, and report to them that they have a
     // new neighbour.
-    const currentPrimes = streams.primes.getValue();
-    for (let i = 0; i < currentPrimes.length; i += 1) {
-      [-1, +1].forEach(function(increment) {
-        const step = new Map([[currentPrimes[i], increment]]);
-        const neighCoords = sumTones(coords, step);
-        const neighCoordsStr = toneToString(neighCoords);
+    prospectiveNeighbors.getValue().forEach(
+      ([neighCoordsStr, neighCoords]) => {
         if (allTones.has(neighCoordsStr)) {
           const neighbour = allTones.get(neighCoordsStr);
           me.neighbourCreated(neighCoords, neighbour);
           neighbour.neighbourCreated(coords, me);
         }
-      });
-    }
+      }
+    );
 
     // TODO I think this one, and probably many others, could benefit from a
     // filter that only sends out new values if they are different than the
     // previous ones, to avoid recomputing stuff.
     this.subscriptions.push(
-      rxjs.combineLatest(this.inclosure, streams.primes).subscribe(
-        ([inclsr, primes]) => {
+      rxjs.combineLatest(this.inclosure, prospectiveNeighbors).subscribe(
+        ([inclsr, prospNeighs]) => {
           if (inclsr) {
-            for (let i = 0; i < primes.length; i += 1) {
-              [-1, +1].forEach(function(increment) {
-                const step = new Map([[primes[i], increment]]);
-                const neighCoords = sumTones(coords, step);
-                if (!me.neighbours.has(toneToString(neighCoords))) {
-                  new ToneObject(
-                    neighCoords,
-                    false,
-                    svgGroups,
-                    streams,
-                    allTones,
-                    synth,
-                  );
-                }
-              });
-            }
+            prospNeighs.forEach(([neighCoordsStr, neighCoords]) => {
+              if (!me.neighbours.has(neighCoordsStr)) {
+                new ToneObject(
+                  neighCoords,
+                  false,
+                  svgGroups,
+                  streams,
+                  allTones,
+                  synth,
+                );
+              }
+            });
           }
         }
       )

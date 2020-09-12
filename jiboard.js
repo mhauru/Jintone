@@ -474,12 +474,6 @@ const streamElements = [
     'observableProperty': 'checked',
   },
   {
-    'paramName': 'showSteps',
-    'elemName': 'cboxSteps',
-    'eventName': 'click',
-    'observableProperty': 'checked',
-  },
-  {
     'paramName': 'pitchlineColor',
     'elemName': 'colorPitchlines',
     'eventName': 'input',
@@ -590,13 +584,8 @@ streams.showPitchlines.subscribe((value) => {
 });
 
 // TODO Make new values be registered.
-streams.baseTones = new rxjs.BehaviorSubject();
-const startingBaseTones = new Map();
-startingParams['baseTones'].forEach((bt) => {
-  const btStr = toneToString(bt);
-  startingBaseTones.set(btStr, bt);
-});
-streams.baseTones.next(startingBaseTones);
+streams.baseTones = new rxjs.BehaviorSubject([]);
+
 streams.opacityHarmNorm = new rxjs.BehaviorSubject();
 streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
 
@@ -1044,6 +1033,13 @@ addEDOKeys();
 addAxis(1.2, 0.0)
 addAxis(1.8, 1.5)
 addAxis(1.0, 1.7)
+
+const startingBaseTones = new Map();
+startingParams['baseTones'].forEach((bt) => {
+  const btStr = toneToString(bt);
+  startingBaseTones.set(btStr, bt);
+});
+streams.baseTones.next(startingBaseTones);
 
 // DEBUG
 //new ToneObject(new Map(), true, streams, allTones)
