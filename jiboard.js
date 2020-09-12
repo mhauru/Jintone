@@ -600,21 +600,6 @@ streams.baseTones.next(startingBaseTones);
 streams.opacityHarmNorm = new rxjs.BehaviorSubject();
 streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
 
-// TODO Make default be read from URL and new values be registered.
-// const defaultAxes = new Map();
-// defaultAxes.set(2, {
-//   'harmDistStep': 0.0,
-//   'yShift': 1.2,
-// });
-// defaultAxes.set(3, {
-//   'harmDistStep': 1.5,
-//   'yShift': 1.8,
-// });
-// defaultAxes.set(5, {
-//   'harmDistStep': 1.7,
-//   'yShift': 1.0,
-// });
-
 // Take Observables, each of which returns Maps, combineLatest on it merge the
 // Maps.
 function combineAndMerge(...x) {
@@ -627,12 +612,12 @@ function combineAndMerge(...x) {
       });
       return new Map(arrs);
     }));
-  return combined
+  return combined;
 }
 
 streams.primes = new rxjs.BehaviorSubject([]);
-streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, []);
-streams.yShifts = new VariableSourceSubject(combineAndMerge, []);
+streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, new Map());
+streams.yShifts = new VariableSourceSubject(combineAndMerge, new Map());
 // Associate each prime to each it's streams, to make it possible to remove the
 // right ones with removeSource.
 const yShiftStreams = new Map();
@@ -653,7 +638,10 @@ streams.baseTones.subscribe((baseTones) => {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Event listeners for adding new intervals and axes.
 
-function addAxis() {
+function addAxis(
+  startingYyshift = 0.0,
+  startingHarmStep = streams.maxHarmNorm.getValue()
+) {
   const prime = ALLPRIMES[streams.primes.getValue().length];
 
   const inNumYshift = document.createElement('input');
@@ -704,13 +692,14 @@ function addAxis() {
 
   document.getElementById('contentAxes').appendChild(divAxis);
 
-  const yShiftStream = new rxjs.BehaviorSubject(new Map([[prime, 0.0]]));
+  const yShiftStream = new rxjs.BehaviorSubject(
+    new Map([[prime, startingYyshift]])
+  );
   rxjs.merge(
     rxjs.fromEvent(inNumYshift, 'input'),
     rxjs.fromEvent(inRangeYshift, 'input'),
   ).pipe(
     rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.startWith(0.0),
     rxjs.operators.map((value) => {
       return new Map([[prime, value]]);
     }),
@@ -722,9 +711,8 @@ function addAxis() {
     inRangeYshift.value = value;
   });
 
-  const maxHarmNorm = streams.maxHarmNorm.getValue();
   const harmStepStream = new rxjs.BehaviorSubject(
-    new Map([[prime, maxHarmNorm]])
+    new Map([[prime, startingHarmStep]])
   );
   rxjs.merge(
     rxjs.fromEvent(inNumHarmdiststep, 'input'),
@@ -747,19 +735,10 @@ function addAxis() {
   const primes = streams.primes.getValue();
   primes.push(prime);
   streams.primes.next(primes);
-  yShiftStreams[prime] = yShiftStream;
-  harmDistStepStreams[prime] = harmStepStream;
+  yShiftStreams.set(prime, yShiftStream);
+  harmDistStepStreams.set(prime, harmStepStream);
 }
 
-// CONTINUE HERE
-// Adding axes seems to mostly work, but everything remains very slow. After
-// removing an axis, not all tones with a component along that axis are
-// destroyed. It could be something trivial, but I wouldn't be surprised if the
-// whole logic of destroying tones is all wrong, and there are undying ghost
-// tones all over the place. Investigate this. There are some helpful print
-// statements in place in toneobject.js, that may be a good place to start.
-// Once that's done, change the initialization so that the starting axes are
-// read from the URL, and loading the site gives the usual default keyboard.
 function removeAxis() {
   const primes = streams.primes.getValue();
   const prime = primes.pop();
@@ -1061,6 +1040,11 @@ streams.styleExpanded.subscribe((expanded) => {
 });
 
 addEDOKeys();
+
+// TODO Make default be read from URL
+addAxis(1.2, 0.0)
+addAxis(1.8, 1.5)
+addAxis(1.0, 1.7)
 
 // DEBUG
 //new ToneObject(new Map(), true, streams, allTones)

@@ -120,6 +120,7 @@ class ToneObject {
     this.coords = coordinates;
     this.isBase = new rxjs.BehaviorSubject(isBase);
     this.allTones = allTones;
+    this.subscriptions = [];
 
     this.svgTone = svgGroups['tones'].group();
     this.svgCircle = this.svgTone.circle(1.0);
@@ -136,7 +137,7 @@ class ToneObject {
     // back to this later and check whether we could switch for instance using
     // only PointerEvents, once they have widespread support.
 
-    streams.baseTones.subscribe((baseTones) => {
+    this.subscriptions.push(streams.baseTones.subscribe((baseTones) => {
       const coordsStr = toneToString(this.coords);
       const inBaseTones = baseTones.has(coordsStr);
       if (inBaseTones && !this.isBase.getValue()) {
@@ -144,7 +145,7 @@ class ToneObject {
       } else if (!inBaseTones && this.isBase.getValue()) {
         this.isBase.next(false);
       }
-    });
+    }));
 
     const trueOnClickDown = rxjs.merge(
       rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
@@ -190,8 +191,8 @@ class ToneObject {
     // already. Whenever this key is released, either turn the tone off if
     // sustain is not down, or start listening for when sustain is released.
     this.isOn = new rxjs.BehaviorSubject(false);
-    trueOnClickDown.subscribe(this.isOn);
-    falseOnClickUp.subscribe((f) => {
+    this.subscriptions.push(trueOnClickDown.subscribe(this.isOn));
+    this.subscriptions.push(falseOnClickUp.subscribe((f) => {
       if (!streams.sustainDown.getValue()) {
         this.isOn.next(false);
       } else {
@@ -201,54 +202,62 @@ class ToneObject {
           this.isOn.next(false);
         });
       }
-    });
+    }));
 
     const pf = pitchFactor(this.coords);
     const fraction = toneToFraction(this.coords);
     const frequency = new rxjs.BehaviorSubject(
       streams.originFreq.getValue()*pf
     );
-    streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
-      (x) => frequency.next(x)
+    this.subscriptions.push(
+      streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
+        (x) => frequency.next(x)
+      )
     );
 
-    this.isOn.subscribe((val) => {
-      if (val) {
-        synth.triggerAttack(frequency.getValue());
-      } else {
-        synth.triggerRelease(frequency.getValue());
-      }
-    });
+    this.subscriptions.push(
+      this.isOn.subscribe((val) => {
+        if (val) {
+          synth.triggerAttack(frequency.getValue());
+        } else {
+          synth.triggerRelease(frequency.getValue());
+        }
+      })
+    );
 
     const xpos = new rxjs.BehaviorSubject();
-    streams.horizontalZoom.subscribe(
-      (zoom) => {
-        xpos.next(zoom * Math.log2(pf));
-      }
+    this.subscriptions.push(
+      streams.horizontalZoom.subscribe(
+        (zoom) => {
+          xpos.next(zoom * Math.log2(pf));
+        }
+      )
     );
 
     const ypos = new rxjs.BehaviorSubject();
-    rxjs.combineLatest(
-      streams.verticalZoom,
-      streams.yShifts
-    ).subscribe(([zoom, yShifts]) => {
-      let y = 0.0;
-      this.coords.forEach((c, p) => {
-        // TODO Is the check necessary?
-        if (yShifts.has(p)) {
-          y += -yShifts.get(p) * c;
-        }
-      });
-      y *= zoom;
-      ypos.next(y);
-    });
+    this.subscriptions.push(
+      rxjs.combineLatest(
+        streams.verticalZoom,
+        streams.yShifts
+      ).subscribe(([zoom, yShifts]) => {
+        let y = 0.0;
+        this.coords.forEach((c, p) => {
+          // TODO Is the check necessary?
+          if (yShifts.has(p)) {
+            y += -yShifts.get(p) * c;
+          }
+        });
+        y *= zoom;
+        ypos.next(y);
+      })
+    );
 
     const harmDistsCombined = new VariableSourceSubject(
       rxjs.combineLatest, []
     );
     const harmDists = new Map();
 
-    streams.baseTones.subscribe((baseTones) => {
+    this.subscriptions.push(streams.baseTones.subscribe((baseTones) => {
       // Remove harmDists if the corresponding baseTone is no longer a
       // baseTone.
       for (const btStr of harmDists.keys()) {
@@ -270,7 +279,14 @@ class ToneObject {
               for (let i = 0; i < primes.length; i++) {
                 const p = primes[i];
                 const c = facts[i];
-                const s = hds.get(p);
+                let s;
+                // If there is no harmonic distance defined for this prime,
+                // assume it's infinite.
+                if (!hds.has(p)) {
+                  s = Infinity;
+                } else {
+                  s = hds.get(p);
+                }
                 if (c != 0.0) d += s*c;
               }
               return d;
@@ -279,13 +295,15 @@ class ToneObject {
           harmDistsCombined.addSource(dist);
         }
       });
-    });
+    }));
 
     const harmNorm = new rxjs.BehaviorSubject(0.0);
-    harmDistsCombined.subscribe((x) => harmNorm.next(Math.min(...x)));
+    this.subscriptions.push(
+      harmDistsCombined.subscribe((x) => harmNorm.next(Math.min(...x)))
+    );
 
     const inbounds = new rxjs.BehaviorSubject(false);
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm, xpos, ypos, streams.canvasViewbox
     ).subscribe(([hn, maxhn, x, y, viewbox]) => {
       // TODO Add note radius, to check if the edge of a note fits, rather
@@ -299,10 +317,10 @@ class ToneObject {
       const inViewbox = inBoxHor && inBoxVer;
       const harmClose = (hn <= maxhn);
       inbounds.next(harmClose && inViewbox);
-    });
+    }));
 
     this.inclosure = new rxjs.BehaviorSubject(false);
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       harmNorm,
       streams.maxHarmNorm,
       xpos,
@@ -338,7 +356,7 @@ class ToneObject {
       const inClosureVer = (closureTop < y && y < closureBottom);
       const inViewClosure = inClosureHor && inClosureVer;
       this.inclosure.next(harmClose && inViewClosure);
-    });
+    }));
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
       rxjs.operators.map(([hn, maxhn]) => {
@@ -352,24 +370,26 @@ class ToneObject {
       })
     );
 
-    rxjs.combineLatest(xpos, ypos).subscribe(
+    this.subscriptions.push(rxjs.combineLatest(xpos, ypos).subscribe(
       ([x, y]) => this.svgTone.move(x, y)
+    ));
+    this.subscriptions.push(xpos.subscribe((x) => this.svgPitchline.x(x)));
+    
+    this.subscriptions.push(
+      rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
+        const svgPitchline = this.svgPitchline;
+        const svgTone = this.svgTone;
+        if (ib && hn > 0) {
+          // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
+          // be a thing for SVG.
+          svgPitchline.attr('visibility', 'inherit');
+          svgTone.attr('visibility', 'inherit');
+        } else {
+          svgPitchline.attr('visibility', 'hidden');
+          svgTone.attr('visibility', 'hidden');
+        }
+      })
     );
-    xpos.subscribe((x) => this.svgPitchline.x(x));
-
-    rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
-      const svgPitchline = this.svgPitchline;
-      const svgTone = this.svgTone;
-      if (ib && hn > 0) {
-        // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
-        // be a thing for SVG.
-        svgPitchline.attr('visibility', 'inherit');
-        svgTone.attr('visibility', 'inherit');
-      } else {
-        svgPitchline.attr('visibility', 'hidden');
-        svgTone.attr('visibility', 'hidden');
-      }
-    });
 
     // This one is just manually made to emit every time the tone labels have
     // been redrawn. The reason for using this, instead of making the below
@@ -379,7 +399,7 @@ class ToneObject {
 
     // TODO This doesn't actually depend on the value of toneLabelTextStyle,
     // it just should be redone every time that changes.
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       this.isBase,
       streams.toneRadius,
       streams.baseToneBorderSize,
@@ -410,10 +430,10 @@ class ToneObject {
       // other way around, but that doesn't work.
       svgLabel.center(0, 0);
       if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
-    });
+    }));
 
     // TODO Should split this into smaller, independent parts.
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       this.isOn,
       this.isBase,
       relHarmNorm,
@@ -463,10 +483,10 @@ class ToneObject {
       svgTone.attr({
         'fill-opacity': opacityFromRelHn(relHn),
       });
-    });
+    }));
 
     // TODO Should split this into subparts
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       this.isOn,
       relHarmNorm,
       streams.pitchlineColor,
@@ -492,9 +512,9 @@ class ToneObject {
         'stroke-dashoffset': 0.0,
         'stroke-opacity': opacityFromRelHn(relHn),
       });
-    });
+    }));
 
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       streams.toneLabelTextStyle,
       frequency,
     ).subscribe(([labelStyle, freq]) => {
@@ -555,7 +575,7 @@ class ToneObject {
       }
       this.svgLabel.text(labelText);
       toneLabelRedrawTrigger.next(true);
-    });
+    }));
 
     // The below is sets up the following system: Every Tone always keeps
     // tracks of its neighbours. If none of the neighbours are inclosure, nor
@@ -599,28 +619,39 @@ class ToneObject {
     // TODO I think this one, and probably many others, could benefit from a
     // filter that only sends out new values if they are different than the
     // previous ones, to avoid recomputing stuff.
-    rxjs.combineLatest(this.inclosure, streams.primes).subscribe(
-      ([inclsr, primes]) => {
-        if (inclsr) {
-          for (let i = 0; i < primes.length; i += 1) {
-            [-1, +1].forEach(function(increment) {
-              const step = new Map([[primes[i], increment]]);
-              const neighCoords = sumTones(coords, step);
-              if (!me.neighbours.has(toneToString(neighCoords))) {
-                new ToneObject(
-                  neighCoords,
-                  false,
-                  svgGroups,
-                  streams,
-                  allTones,
-                  synth,
-                );
-              }
-            });
+    this.subscriptions.push(
+      rxjs.combineLatest(this.inclosure, streams.primes).subscribe(
+        ([inclsr, primes]) => {
+          if (inclsr) {
+            for (let i = 0; i < primes.length; i += 1) {
+              [-1, +1].forEach(function(increment) {
+                const step = new Map([[primes[i], increment]]);
+                const neighCoords = sumTones(coords, step);
+                if (!me.neighbours.has(toneToString(neighCoords))) {
+                  new ToneObject(
+                    neighCoords,
+                    false,
+                    svgGroups,
+                    streams,
+                    allTones,
+                    synth,
+                  );
+                }
+              });
+            }
           }
         }
-      }
+      )
     );
+
+    this.subscriptions.push(streams.primes.subscribe((primes) => {
+      for (const p of coords.keys()) {
+        if (!primes.includes(p)) {
+          me.destroy();
+          break;
+        }
+      }
+    }));
 
     // TODO Could just create anyNeighborInclosure directly as
     // VariableSourceSubject.
@@ -632,7 +663,7 @@ class ToneObject {
     // TODO Should we also check for isOn, to make sure we don't leave some
     // note ringing after it's destroyed? At least test what happens if a note
     // that is playing is destroyed.
-    rxjs.combineLatest(
+    this.subscriptions.push(rxjs.combineLatest(
       this.inclosure,
       anyNeighborInclosure,
       this.isBase
@@ -640,7 +671,7 @@ class ToneObject {
       ([incls, neighIncls, ib]) => {
         if (!incls && !neighIncls && !ib) me.destroy();
       }
-    );
+    ));
   }
 
   neighbourCreated(coords, tone) {
@@ -663,11 +694,14 @@ class ToneObject {
   // TODO Should we destroy some subscriptions as well, and send death-notices
   // on all the streams we've created?
   destroy() {
-    this.svgTone.remove();
-    this.svgPitchline.remove();
+    for (const s of this.subscriptions) {
+      s.unsubscribe();
+    }
     this.neighbours.forEach((neighbour, neigCoords) => {
       neighbour.neighbourDestroyed(this.coords);
     });
     this.allTones.delete(toneToString(this.coords));
+    this.svgTone.remove();
+    this.svgPitchline.remove();
   }
 }
