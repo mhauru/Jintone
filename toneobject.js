@@ -299,64 +299,102 @@ class ToneObject {
 
     const harmNorm = new rxjs.BehaviorSubject(0.0);
     this.subscriptions.push(
-      harmDistsCombined.subscribe((x) => harmNorm.next(Math.min(...x)))
+      harmDistsCombined.pipe(
+        rxjs.operators.map((x) => Math.min(...x)),
+        rxjs.operators.distinctUntilChanged()
+      ).subscribe(harmNorm)
+    );
+
+    const harmClose = rxjs.combineLatest(
+      harmNorm, streams.maxHarmNorm
+    ).pipe(
+      rxjs.operators.map(([hn, maxhn]) => hn <= maxhn),
+      rxjs.operators.distinctUntilChanged(),
+    );
+
+    const inboundsHor = rxjs.combineLatest(xpos, streams.canvasViewbox).pipe(
+      rxjs.operators.map(([x, viewbox]) => {
+        const viewboxLeft = viewbox.x;
+        const viewboxRight = viewboxLeft + viewbox.width;
+        return viewboxLeft < x && x < viewboxRight;
+      }),
+      rxjs.operators.distinctUntilChanged(),
+    );
+
+    const inboundsVer = rxjs.combineLatest(ypos, streams.canvasViewbox).pipe(
+      rxjs.operators.map(([y, viewbox]) => {
+        const viewboxTop = viewbox.y;
+        const viewboxBottom = viewboxTop + viewbox.height;
+        return viewboxTop < y && y < viewboxBottom;
+      }),
+      rxjs.operators.distinctUntilChanged(),
     );
 
     const inbounds = new rxjs.BehaviorSubject(false);
     this.subscriptions.push(rxjs.combineLatest(
-      harmNorm, streams.maxHarmNorm, xpos, ypos, streams.canvasViewbox
-    ).subscribe(([hn, maxhn, x, y, viewbox]) => {
-      // TODO Add note radius, to check if the edge of a note fits, rather
-      // than center?
-      const viewboxLeft = viewbox.x;
-      const viewboxRight = viewboxLeft + viewbox.width;
-      const viewboxTop = viewbox.y;
-      const viewboxBottom = viewboxTop + viewbox.height;
-      const inBoxHor = (viewboxLeft < x && x < viewboxRight);
-      const inBoxVer = (viewboxTop < y && y < viewboxBottom);
-      const inViewbox = inBoxHor && inBoxVer;
-      const harmClose = (hn <= maxhn);
-      inbounds.next(harmClose && inViewbox);
-    }));
+      harmClose, inboundsHor, inboundsVer,
+    ).pipe(
+      rxjs.operators.map(([hc, inHor, inVer]) => hc && inHor && inVer),
+      rxjs.operators.distinctUntilChanged(),
+    ).subscribe(inbounds));
 
-    this.inclosure = new rxjs.BehaviorSubject(false);
-    this.subscriptions.push(rxjs.combineLatest(
-      harmNorm,
-      streams.maxHarmNorm,
+    const inclosureHorizontal = rxjs.combineLatest(
       xpos,
-      ypos,
       streams.horizontalZoom,
+      streams.canvasViewbox,
+      streams.primes,
+    ).pipe(
+      rxjs.operators.map(([
+        x,
+        horizontalZoom,
+        viewbox,
+        primes,
+      ]) => {
+        const viewboxLeft = viewbox.x;
+        const viewboxRight = viewboxLeft + viewbox.width;
+        const maxPrime = Math.max(...primes);
+        const maxXjump = horizontalZoom * Math.log2(maxPrime);
+        const closureLeft = viewboxLeft - maxXjump;
+        const closureRight = viewboxRight + maxXjump;
+        return closureLeft < x && x < closureRight;
+      }),
+      rxjs.operators.distinctUntilChanged(),
+    );
+
+    const inclosureVertical = rxjs.combineLatest(
+      ypos,
       streams.verticalZoom,
       streams.yShifts,
       streams.canvasViewbox,
-    ).subscribe(([
-      hn,
-      maxhn,
-      x,
-      y,
-      horizontalZoom,
-      verticalZoom,
-      yShifts,
-      viewbox,
-    ]) => {
-      const harmClose = (hn <= maxhn);
-      const viewboxLeft = viewbox.x;
-      const viewboxRight = viewboxLeft + viewbox.width;
-      const viewboxTop = viewbox.y;
-      const viewboxBottom = viewboxTop + viewbox.height;
-      const maxPrime = Math.max(...yShifts.keys());
-      const maxXjump = horizontalZoom * Math.log2(maxPrime);
-      const maxYshift = Math.max(...yShifts.values());
-      const maxYjump = verticalZoom * maxYshift;
-      const closureLeft = viewboxLeft - maxXjump;
-      const closureRight = viewboxRight + maxXjump;
-      const closureTop = viewboxTop - maxYjump;
-      const closureBottom = viewboxBottom + maxYjump;
-      const inClosureHor = (closureLeft < x && x < closureRight);
-      const inClosureVer = (closureTop < y && y < closureBottom);
-      const inViewClosure = inClosureHor && inClosureVer;
-      this.inclosure.next(harmClose && inViewClosure);
-    }));
+    ).pipe(
+      rxjs.operators.map(([
+        y,
+        verticalZoom,
+        yShifts,
+        viewbox,
+      ]) => {
+        const viewboxTop = viewbox.y;
+        const viewboxBottom = viewboxTop + viewbox.height;
+        const maxYshift = Math.max(...yShifts.values());
+        const maxYjump = verticalZoom * maxYshift;
+        const closureTop = viewboxTop - maxYjump;
+        const closureBottom = viewboxBottom + maxYjump;
+        return closureTop < y && y < closureBottom;
+      }),
+      rxjs.operators.distinctUntilChanged(),
+    );
+
+    this.inclosure = new rxjs.BehaviorSubject(false);
+    this.subscriptions.push(
+      rxjs.combineLatest(
+        harmClose,
+        inclosureHorizontal,
+        inclosureVertical,
+      ).pipe(
+        rxjs.operators.map(([hc, incHor, incVer]) => hc && incHor && incVer),
+        rxjs.operators.distinctUntilChanged(),
+      ).subscribe(this.inclosure)
+    );
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
       rxjs.operators.map(([hn, maxhn]) => {

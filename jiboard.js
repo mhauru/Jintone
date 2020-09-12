@@ -647,8 +647,8 @@ function addAxis(
   const inNumYshift = document.createElement('input');
   inNumYshift.id = `inNumYshift_${prime}`;
   inNumYshift.type = 'number';
-  inNumYshift.min = -500;
-  inNumYshift.max = 500;
+  inNumYshift.min = -10;
+  inNumYshift.max = 10;
   inNumYshift.step = 0.01;
   inNumYshift.style.width = '80px';
 
@@ -656,14 +656,14 @@ function addAxis(
   inRangeYshift.id = `inRangeYshift_${prime}`;
   inRangeYshift.type = 'range';
   inRangeYshift.step = 0.01;
-  inRangeYshift.max = 500.0;
-  inRangeYshift.min = -500.0;
+  inRangeYshift.max = 10.0;
+  inRangeYshift.min = -10.0;
 
   const inNumHarmdiststep = document.createElement('input');
   inNumHarmdiststep.id = `inNumHarmdiststep_${prime}`;
   inNumHarmdiststep.type = 'number';
-  inNumHarmdiststep.min = -500;
-  inNumHarmdiststep.max = 500;
+  inNumHarmdiststep.min = -20;
+  inNumHarmdiststep.max = 20;
   inNumHarmdiststep.step = 0.01;
   inNumHarmdiststep.style.width = '80px';
 
@@ -1016,7 +1016,6 @@ streams.tonesExpanded.subscribe((expanded) => {
   }
   updateURL();
 });
-
 
 const headStyle = document.getElementById('headStyle');
 streams.styleExpanded = new rxjs.BehaviorSubject(
