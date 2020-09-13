@@ -27,37 +27,43 @@ function JSONReviver(key, value) {
 function readURL(defaults) {
   const startingParams = {};
   const params = new URLSearchParams(decodeURIComponent(location.search));
-  Object.entries(defaults).forEach(([key, value]) => {
+  for (let [key, value] of defaults) {
     if (params.has(key) && params.get(key) != 'undefined') {
       value = JSON.parse(params.get(key), JSONReviver);
     }
     startingParams[key] = value;
-  });
+  }
   return startingParams;
 }
 
 function setURL(strs) {
-  const queryStr = encodeURIComponent(strs.join(''));
-  const newURL = window.location.pathname + '?' + queryStr;
+  let queryStr = '?' + encodeURIComponent(strs.join(''));
+  if (queryStr == '?') queryStr = '';
+  const newURL = window.location.pathname + queryStr;
   window.history.replaceState(null, '', newURL);
 }
 
-function urlStringOperator(paramName, DEFAULT_URLPARAMS) {
+function urlStringOperator(paramName, DEFAULT_URLPARAMS_STRS) {
   return rxjs.operators.map((x) => {
-    let str;
-    if (x == DEFAULT_URLPARAMS[paramName]) {
-      str = '';
+    const xstr = JSON.stringify(x, JSONReplacer);
+    // If the string representation of x matches the default values string
+    // representation we don't need to store this parameter in the URL.
+    if (xstr == DEFAULT_URLPARAMS_STRS.get(paramName)) {
+      return '';
     } else {
-      const xstr = JSON.stringify(x, JSONReplacer);
-      str = `${paramName}=${xstr}&`;
+      return `${paramName}=${xstr}&`;
     }
-    return str;
   });
 }
 
 function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   const streams = {};
   const urlStreams = [];
+
+  const DEFAULT_URLPARAMS_STRS = new Map();
+  for (const [key, value] of DEFAULT_URLPARAMS) {
+    DEFAULT_URLPARAMS_STRS.set(key, JSON.stringify(value, JSONReplacer));
+  }
 
   const divPanMod = document.getElementById('divPanMod');
   const divSustainMod = document.getElementById('divSustainMod');
@@ -219,7 +225,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.operators.sample(streams.clientCoordsOnClick)
   );
   urlStreams.push(streams.midCoords.pipe(
-    urlStringOperator('midCoords', DEFAULT_URLPARAMS)
+    urlStringOperator('midCoords', DEFAULT_URLPARAMS_STRS)
   ));
 
   // Return the client-coordinates of the pointer on the canvas every time the
@@ -453,7 +459,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       elem[e.observableProperty] = value;
     });
     urlStreams.push(streams[e.paramName].pipe(
-      urlStringOperator(e.paramName, DEFAULT_URLPARAMS)
+      urlStringOperator(e.paramName, DEFAULT_URLPARAMS_STRS)
     ));
   });
 
@@ -481,7 +487,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.toneLabelTextStyle.pipe(
-    urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS)
+    urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS_STRS)
   ));
 
   // Set up some extra subscriptions for a few parameters that have a global
@@ -512,7 +518,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // TODO Make new values be registered.
   streams.baseTones = new rxjs.BehaviorSubject([]);
   urlStreams.push(streams.baseTones.pipe(
-    urlStringOperator('baseTones', DEFAULT_URLPARAMS)
+    urlStringOperator('baseTones', DEFAULT_URLPARAMS_STRS)
   ));
 
   // Take Observables, each of which returns Maps, combineLatest on it merge the
@@ -534,13 +540,13 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, new Map());
   streams.yShifts = new VariableSourceSubject(combineAndMerge, new Map());
   urlStreams.push(streams.primes.pipe(
-    urlStringOperator('primes', DEFAULT_URLPARAMS)
+    urlStringOperator('primes', DEFAULT_URLPARAMS_STRS)
   ));
   urlStreams.push(streams.harmDistSteps.pipe(
-    urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS)
+    urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS_STRS)
   ));
   urlStreams.push(streams.yShifts.pipe(
-    urlStringOperator('yShifts', DEFAULT_URLPARAMS)
+    urlStringOperator('yShifts', DEFAULT_URLPARAMS_STRS)
   ));
 
   const buttToggleSettings = document.getElementById('buttToggleSettings');
@@ -575,7 +581,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.settingsExpanded.pipe(
-    urlStringOperator('settingsExpanded', DEFAULT_URLPARAMS)
+    urlStringOperator('settingsExpanded', DEFAULT_URLPARAMS_STRS)
   ));
 
   const headGeneral = document.getElementById('headGeneral');
@@ -598,7 +604,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.generalExpanded.pipe(
-    urlStringOperator('generalExpanded', DEFAULT_URLPARAMS)
+    urlStringOperator('generalExpanded', DEFAULT_URLPARAMS_STRS)
   ));
 
   const headTones = document.getElementById('headTones');
@@ -621,7 +627,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.tonesExpanded.pipe(
-    urlStringOperator('tonesExpanded', DEFAULT_URLPARAMS)
+    urlStringOperator('tonesExpanded', DEFAULT_URLPARAMS_STRS)
   ));
 
   const headStyle = document.getElementById('headStyle');
@@ -644,7 +650,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.styleExpanded.pipe(
-    urlStringOperator('styleExpanded', DEFAULT_URLPARAMS)
+    urlStringOperator('styleExpanded', DEFAULT_URLPARAMS_STRS)
   ));
 
   // Update the URL everytime a parameter changes.

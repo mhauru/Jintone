@@ -44,35 +44,32 @@ function addEDOKeys() {
 // writing the URL.
 
 // Hard-coded defaults.
-const DEFAULT_URLPARAMS = {
-  'originFreq': 261.626,
-  'maxHarmNorm': 8.0,
-  'pitchlineColor': '#c7c7c7',
-  'pitchlineColorActive': '#000000',
-  'showPitchlines': true,
-  'showKeys': true,
-  'showSteps': false,
-  'toneRadius': 22.0,
-  'toneLabelTextStyle': 'fractions',
-  'toneColor': '#D82A1E',
-  'toneColorActive': '#D8B71E',
-  'baseToneBorderColor': '#000000',
-  'baseToneBorderSize': 5.0,
-  'opacityHarmNorm': true,
-  'horizontalZoom': 300.0,
-  'verticalZoom': 100.0,
-  'midCoords': [0.0, 0.0],
-  'axes': [
-    {'yShift': 1.2, 'harmDistStep': 0.0},
-    {'yShift': 1.8, 'harmDistStep': 1.5},
-    {'yShift': 1.0, 'harmDistStep': 1.7},
-  ],
-  'baseTones': [new Map()],
-  'settingsExpanded': true,
-  'generalExpanded': true,
-  'tonesExpanded': false,
-  'styleExpanded': false,
-};
+const DEFAULT_URLPARAMS = new Map();
+DEFAULT_URLPARAMS.set('originFreq', 261.626);
+DEFAULT_URLPARAMS.set('maxHarmNorm', 8.0);
+DEFAULT_URLPARAMS.set('pitchlineColor', '#c7c7c7');
+DEFAULT_URLPARAMS.set('pitchlineColorActive', '#000000');
+DEFAULT_URLPARAMS.set('showPitchlines', true);
+DEFAULT_URLPARAMS.set('showKeys', true);
+DEFAULT_URLPARAMS.set('showSteps', false);
+DEFAULT_URLPARAMS.set('toneRadius', 22.0);
+DEFAULT_URLPARAMS.set('toneLabelTextStyle', 'fractions');
+DEFAULT_URLPARAMS.set('toneColor', '#D82A1E');
+DEFAULT_URLPARAMS.set('toneColorActive', '#D8B71E');
+DEFAULT_URLPARAMS.set('baseToneBorderColor', '#000000');
+DEFAULT_URLPARAMS.set('baseToneBorderSize', 5.0);
+DEFAULT_URLPARAMS.set('opacityHarmNorm', true);
+DEFAULT_URLPARAMS.set('horizontalZoom', 300.0);
+DEFAULT_URLPARAMS.set('verticalZoom', 100.0);
+DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);
+DEFAULT_URLPARAMS.set('baseTones', new Map([['', new Map()]]));
+DEFAULT_URLPARAMS.set('settingsExpanded', true);
+DEFAULT_URLPARAMS.set('generalExpanded', true);
+DEFAULT_URLPARAMS.set('tonesExpanded', false);
+DEFAULT_URLPARAMS.set('styleExpanded', false);
+DEFAULT_URLPARAMS.set('primes', [2, 3, 5]);
+DEFAULT_URLPARAMS.set('yShifts', new Map([[2, 1.2], [3, 1.8], [5, 1.0]]));
+DEFAULT_URLPARAMS.set('harmDistSteps', new Map([[2, 0.0], [3, 1.5], [5, 1.7]]));
 
 // scaleFig is a global object that essentially functions as a namespace.
 // Its fields are various global variables related to the SVG canvasses.

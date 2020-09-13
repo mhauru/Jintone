@@ -15,16 +15,13 @@
 TODO:
 
 Next:
-- Make yShifts, primes, harmDistSteps, and baseTones be written to the URL as something other Maps, so that they can match their default values. Once this is done, you can probably remove JSONReplacer, and JSONReviver.
-- Make midCoords be read from URL at the start.
-- Make URL writing and reading work with RxJS.
-- Make the URL only show parameters that have values different from the defaults.
 - Add a UI element for setting minimum tone opacity, have it replace the "Opacity by harm norm" checkbox.
 - A UI element for adding and removing base tones.
 - Ismo says: Give it an option of having labels that are like the usual fractions, but they are all octave-moved to be between 0 and 1. Makes for duplicate labels but that's okay, and makes their harmonic meaning clearer.
 - Is the canvas too wide because it doesn't take into account the sustain and pan buttons?
 - Should we switch from primes to more generic generating intervals? This would be fine, as long as we check that they are linearly independent. It would make the "closure" much smaller. Right now everything that's within a pitch factor of 5 needs to be included (with limit 5). Think through though, using the lattice/theory, that this would really guarantee generating all tones that should exist.
 - Fix touch in Chrome: Tones stay playing and gliding doesn't work.
+- Clean up the whole code base and try to improve performance, especially at start-up.
 
 Convenience:
 - Make the height of the keyboard adjustable.
@@ -36,7 +33,8 @@ Zoom:
 - Put limits on horizontal zoom at the hearing thresholds.
 
 Possible improvements:
-- When sustaining, should cliking a tone again turn it off?
+- Should there be a button to center the view?
+- URL representations of yShifts, baseTones, harmDistSteps, and midCoords could be prettier/shorter.
 - Should the keyboard carry tone names?
 - Make every number selector be such that when it's active, it spawns a hovering slider next to it. Get rid of ranges inputs.
 - Could we give up drawing open-ended steps? Would simplify things. (Would it?) Besides, the gradients for them are wrong anyway, since they always draw as if the rel_hn of the endpoint is 0, even though it could be negative. Actually, even drawing steps to tones outside the viewbox is problematic, since those tones may not be generated. There's more thoughts in a TODO note in the .js.
