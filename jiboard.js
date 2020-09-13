@@ -8,7 +8,8 @@ import './node_modules/tone/build/Tone.js';
 import ResizeObserver from './resize-observer.min.js';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {toneToString, ToneObject} from './toneobject.js';
-import {generateEDOTones, EDOKey} from './edo.js';
+import {EDOTones} from './edo.js';
+import {EDOKey} from './edokey.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
@@ -28,7 +29,6 @@ const synth = new Tone.PolySynth( 10, Tone.Synth, {
 }).toMaster();
 
 function addEDOKeys() {
-  const EDOTones = generateEDOTones();
   EDOTones.forEach((EDOTone) => {
     new EDOKey(
       EDOTone.frequency,
@@ -536,17 +536,19 @@ streamElements.forEach((e) => {
 });
 
 // We do the toneLabel one manually, since it requires merging three streams.
+streams.toneLabelTextStyle = new rxjs.BehaviorSubject(
+  startingParams['toneLabelTextStyle']
+);
 const radioToneLabelNone = document.getElementById('radioToneLabelNone');
 const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
 const radioToneLabelFrac = document.getElementById('radioToneLabelFrac');
-streams.toneLabelTextStyle = rxjs.merge(
+rxjs.merge(
   rxjs.fromEvent(radioToneLabelNone, 'click'),
   rxjs.fromEvent(radioToneLabelEDO, 'click'),
   rxjs.fromEvent(radioToneLabelFrac, 'click'),
 ).pipe(
   rxjs.operators.pluck('target', 'value'),
-  rxjs.operators.startWith(startingParams['toneLabelTextStyle'])
-);
+).subscribe(streams.toneLabelTextStyle);
 streams.toneLabelTextStyle.subscribe((value) => {
   if (value == 'EDO') {
     radioToneLabelEDO.checked = true;

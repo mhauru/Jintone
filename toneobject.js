@@ -1,5 +1,6 @@
 'use strict';
 import {VariableSourceSubject} from './variablesourcesubject.js';
+import {EDOTones} from './edo.js';
 export {toneToString, ToneObject};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
