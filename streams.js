@@ -3,32 +3,61 @@ import ResizeObserver from './resize-observer.min.js';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 export {readURL, setupStreams};
 
+function JSONReplacer(key, value) {
+  const originalObject = this[key];
+  if (originalObject instanceof Map) {
+    return {
+      dataType: 'Map',
+      value: Array.from(originalObject.entries()),
+    };
+  } else {
+    return value;
+  }
+}
+
+function JSONReviver(key, value) {
+  if (typeof value === 'object' && value !== null) {
+    if (value.dataType === 'Map') {
+      return new Map(value.value);
+    }
+  }
+  return value;
+}
+
 function readURL(defaults) {
   const startingParams = {};
   const params = new URLSearchParams(decodeURIComponent(location.search));
   Object.entries(defaults).forEach(([key, value]) => {
     if (params.has(key) && params.get(key) != 'undefined') {
-      value = JSON.parse(params.get(key));
+      value = JSON.parse(params.get(key), JSONReviver);
     }
     startingParams[key] = value;
   });
   return startingParams;
 }
 
-function updateURL(key, value) {
-  const current = new URLSearchParams(decodeURIComponent(location.search));
-  current.set(key, JSON.stringify(value));
-  let queryStr = '';
-  for (const [key, valueStr] of current.entries()) {
-    queryStr += `${key}=${valueStr}&`;
-  }
-  queryStr = encodeURIComponent(queryStr);
+function setURL(strs) {
+  const queryStr = encodeURIComponent(strs.join(''));
   const newURL = window.location.pathname + '?' + queryStr;
   window.history.replaceState(null, '', newURL);
 }
 
-function setupStreams(startingParams, scaleFig) {
+function urlStringOperator(paramName, DEFAULT_URLPARAMS) {
+  return rxjs.operators.map((x) => {
+    let str;
+    if (x == DEFAULT_URLPARAMS[paramName]) {
+      str = '';
+    } else {
+      const xstr = JSON.stringify(x, JSONReplacer);
+      str = `${paramName}=${xstr}&`;
+    }
+    return str;
+  });
+}
+
+function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   const streams = {};
+  const urlStreams = [];
 
   const divPanMod = document.getElementById('divPanMod');
   const divSustainMod = document.getElementById('divSustainMod');
@@ -189,6 +218,9 @@ function setupStreams(startingParams, scaleFig) {
   streams.midCoordsOnClick = streams.midCoords.pipe(
     rxjs.operators.sample(streams.clientCoordsOnClick)
   );
+  urlStreams.push(streams.midCoords.pipe(
+    urlStringOperator('midCoords', DEFAULT_URLPARAMS)
+  ));
 
   // Return the client-coordinates of the pointer on the canvas every time the
   // pointer is moved.
@@ -398,13 +430,15 @@ function setupStreams(startingParams, scaleFig) {
 
   streamElements.forEach((e) => {
     const elem = document.getElementById(e.elemName);
-    streams[e.paramName] = new rxjs.BehaviorSubject(startingParams[e.paramName]);
+    streams[e.paramName] = new rxjs.BehaviorSubject(
+      startingParams[e.paramName]
+    );
     const eventStream = rxjs.fromEvent(elem, e.eventName);
     let valueStream;
     if (e.hasOwnProperty('parser')) {
       valueStream = eventStream.pipe(rxjs.operators.map(
         (x) => {
-          return e.parser(x.target[e.observableProperty])
+          return e.parser(x.target[e.observableProperty]);
         }
       ));
     } else {
@@ -413,14 +447,14 @@ function setupStreams(startingParams, scaleFig) {
       );
     }
     valueStream.subscribe((x) => streams[e.paramName].next(x));
-
-    // Every time a new value is emitted, update the UI element(s) and the URL.
     streams[e.paramName].subscribe((value) => {
-      // TODO Check that this works for checkboxes on Chrome (seems at the moment
-      // it doesn't.)
+      // TODO Check that this works for checkboxes on Chrome (seems at the
+      // moment it doesn't.)
       elem[e.observableProperty] = value;
-      updateURL(e.paramName, value);
     });
+    urlStreams.push(streams[e.paramName].pipe(
+      urlStringOperator(e.paramName, DEFAULT_URLPARAMS)
+    ));
   });
 
   // We do the toneLabel one manually, since it requires merging three streams.
@@ -445,8 +479,10 @@ function setupStreams(startingParams, scaleFig) {
     } else if (value == 'fractions') {
       radioToneLabelFrac.checked = true;
     }
-    updateURL('toneLabelTextStyle', value);
   });
+  urlStreams.push(streams.toneLabelTextStyle.pipe(
+    urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS)
+  ));
 
   // Set up some extra subscriptions for a few parameters that have a global
   // impact.
@@ -475,9 +511,9 @@ function setupStreams(startingParams, scaleFig) {
 
   // TODO Make new values be registered.
   streams.baseTones = new rxjs.BehaviorSubject([]);
-
-  streams.opacityHarmNorm = new rxjs.BehaviorSubject();
-  streams.opacityHarmNorm.next(startingParams['opacityHarmNorm']);
+  urlStreams.push(streams.baseTones.pipe(
+    urlStringOperator('baseTones', DEFAULT_URLPARAMS)
+  ));
 
   // Take Observables, each of which returns Maps, combineLatest on it merge the
   // Maps.
@@ -497,6 +533,15 @@ function setupStreams(startingParams, scaleFig) {
   streams.primes = new rxjs.BehaviorSubject([]);
   streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, new Map());
   streams.yShifts = new VariableSourceSubject(combineAndMerge, new Map());
+  urlStreams.push(streams.primes.pipe(
+    urlStringOperator('primes', DEFAULT_URLPARAMS)
+  ));
+  urlStreams.push(streams.harmDistSteps.pipe(
+    urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS)
+  ));
+  urlStreams.push(streams.yShifts.pipe(
+    urlStringOperator('yShifts', DEFAULT_URLPARAMS)
+  ));
 
   const buttToggleSettings = document.getElementById('buttToggleSettings');
   streams.settingsExpanded = new rxjs.BehaviorSubject(
@@ -528,8 +573,10 @@ function setupStreams(startingParams, scaleFig) {
       divCanvas.style.width = '100%';
       divKeyCanvas.style.width = '100%';
     }
-    updateURL();
   });
+  urlStreams.push(streams.settingsExpanded.pipe(
+    urlStringOperator('settingsExpanded', DEFAULT_URLPARAMS)
+  ));
 
   const headGeneral = document.getElementById('headGeneral');
   streams.generalExpanded = new rxjs.BehaviorSubject(
@@ -549,8 +596,10 @@ function setupStreams(startingParams, scaleFig) {
       iconGeneral.style.transform = 'rotate(90deg)';
       contentGeneral.style.display = 'none';
     }
-    updateURL();
   });
+  urlStreams.push(streams.generalExpanded.pipe(
+    urlStringOperator('generalExpanded', DEFAULT_URLPARAMS)
+  ));
 
   const headTones = document.getElementById('headTones');
   streams.tonesExpanded = new rxjs.BehaviorSubject(
@@ -570,8 +619,10 @@ function setupStreams(startingParams, scaleFig) {
       iconTones.style.transform = 'rotate(90deg)';
       contentTones.style.display = 'none';
     }
-    updateURL();
   });
+  urlStreams.push(streams.tonesExpanded.pipe(
+    urlStringOperator('tonesExpanded', DEFAULT_URLPARAMS)
+  ));
 
   const headStyle = document.getElementById('headStyle');
   streams.styleExpanded = new rxjs.BehaviorSubject(
@@ -591,7 +642,12 @@ function setupStreams(startingParams, scaleFig) {
       iconStyle.style.transform = 'rotate(90deg)';
       contentStyle.style.display = 'none';
     }
-    updateURL();
   });
+  urlStreams.push(streams.styleExpanded.pipe(
+    urlStringOperator('styleExpanded', DEFAULT_URLPARAMS)
+  ));
+
+  // Update the URL everytime a parameter changes.
+  rxjs.combineLatest(...urlStreams).subscribe(setURL);
   return streams;
 }

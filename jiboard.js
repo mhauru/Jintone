@@ -96,7 +96,7 @@ const startingParams = readURL(DEFAULT_URLPARAMS);
 
 // streams is a global object that works as a namespace for all globally
 // available streams.
-const streams = setupStreams(startingParams, scaleFig);
+const streams = setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig);
 
 // TODO What's the right place to have this bit?
 const allTones = new Map();
