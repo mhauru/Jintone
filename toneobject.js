@@ -15,9 +15,10 @@ function iteratorUnion(it1, it2) {
   return new Set([...it1, ...it2]);
 }
 
-function opacityFromRelHn(hn) {
-  const minopacity = 0.15
-  return (1.0 - minopacity) * hn + minopacity
+function opacityFromRelHn(hn, minOpacity) {
+  let opacity = (1.0 - minOpacity) * hn + minOpacity;
+  if (opacity < 0.0) opacity = 0.0;
+  return opacity;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -406,29 +407,21 @@ class ToneObject {
     );
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
-      rxjs.operators.map(([hn, maxhn]) => {
-        let relHn = Math.max(1.0 - hn/maxhn, 0.0);
-        // TODO Should opacityHarmNorm really be checked here, and not in the
-        // drawing function?
-        if (!streams.opacityHarmNorm && relHn > 0.0) {
-          relHn = 1.0;
-        }
-        return relHn;
-      })
+      rxjs.operators.map(([hn, maxhn]) => Math.max(1.0 - hn/maxhn, 0.0))
     );
 
     this.subscriptions.push(rxjs.combineLatest(xpos, ypos).subscribe(
       ([x, y]) => this.svgTone.move(x, y)
     ));
     this.subscriptions.push(xpos.subscribe((x) => this.svgPitchline.x(x)));
-    
+
     this.subscriptions.push(
       rxjs.combineLatest(relHarmNorm, inbounds).subscribe(([hn, ib]) => {
         const svgPitchline = this.svgPitchline;
         const svgTone = this.svgTone;
         if (ib && hn > 0) {
-          // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may not
-          // be a thing for SVG.
+          // TODO Should we use 'visible' instead of 'inherit'? 'inherit' may
+          // not be a thing for SVG.
           svgPitchline.attr('visibility', 'inherit');
           svgTone.attr('visibility', 'inherit');
         } else {
@@ -488,6 +481,7 @@ class ToneObject {
       streams.toneColor,
       streams.baseToneBorderColor,
       streams.baseToneBorderSize,
+      streams.minToneOpacity,
     ).subscribe(([
       isOn,
       ib,
@@ -496,6 +490,7 @@ class ToneObject {
       toneColorNonActive,
       baseToneBorderColor,
       baseToneBorderSize,
+      minOpacity,
     ]) => {
       const svgTone = this.svgTone;
       const svgCircle = this.svgCircle;
@@ -528,7 +523,7 @@ class ToneObject {
         'fill': toneColor,
       });
       svgTone.attr({
-        'fill-opacity': opacityFromRelHn(relHn),
+        'fill-opacity': opacityFromRelHn(relHn, minOpacity),
       });
     }));
 
@@ -538,11 +533,13 @@ class ToneObject {
       relHarmNorm,
       streams.pitchlineColor,
       streams.pitchlineColorActive,
+      streams.minToneOpacity,
     ).subscribe(([
       isOn,
       relHn,
       pitchlineColorNonActive,
       pitchlineColorActive,
+      minOpacity,
     ]) => {
       const svgPitchline = this.svgPitchline;
       let pitchlineColor;
@@ -557,7 +554,7 @@ class ToneObject {
         'stroke-miterlimit': 4.0,
         'stroke-dasharray': '0.5, 0.5',
         'stroke-dashoffset': 0.0,
-        'stroke-opacity': opacityFromRelHn(relHn),
+        'stroke-opacity': opacityFromRelHn(relHn, minOpacity),
       });
     }));
 

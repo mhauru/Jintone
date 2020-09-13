@@ -58,7 +58,7 @@ DEFAULT_URLPARAMS.set('toneColor', '#D82A1E');
 DEFAULT_URLPARAMS.set('toneColorActive', '#D8B71E');
 DEFAULT_URLPARAMS.set('baseToneBorderColor', '#000000');
 DEFAULT_URLPARAMS.set('baseToneBorderSize', 5.0);
-DEFAULT_URLPARAMS.set('opacityHarmNorm', true);
+DEFAULT_URLPARAMS.set('minToneOpacity', 0.15);
 DEFAULT_URLPARAMS.set('horizontalZoom', 300.0);
 DEFAULT_URLPARAMS.set('verticalZoom', 100.0);
 DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);

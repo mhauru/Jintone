@@ -382,10 +382,11 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       'parser': parseFloat,
     },
     {
-      'paramName': 'opacityHarmNorm',
-      'elemName': 'cboxOpacityHarmNorm',
-      'eventName': 'click',
-      'observableProperty': 'checked',
+      'paramName': 'minToneOpacity',
+      'elemName': 'rangeMinToneOpacity',
+      'eventName': 'input',
+      'observableProperty': 'value',
+      'parser': parseFloat,
     },
     {
       'paramName': 'showPitchlines',
