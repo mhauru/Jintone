@@ -15,13 +15,13 @@
 TODO:
 
 Next:
-- Add a UI element for setting minimum tone opacity, have it replace the "Opacity by harm norm" checkbox.
-- A UI element for adding and removing base tones.
 - Ismo says: Give it an option of having labels that are like the usual fractions, but they are all octave-moved to be between 0 and 1. Makes for duplicate labels but that's okay, and makes their harmonic meaning clearer.
 - Is the canvas too wide because it doesn't take into account the sustain and pan buttons?
 - Should we switch from primes to more generic generating intervals? This would be fine, as long as we check that they are linearly independent. It would make the "closure" much smaller. Right now everything that's within a pitch factor of 5 needs to be included (with limit 5). Think through though, using the lattice/theory, that this would really guarantee generating all tones that should exist.
 - Fix touch in Chrome: Tones stay playing and gliding doesn't work.
 - Clean up the whole code base and try to improve performance, especially at start-up.
+- Can we have the canvas update as tones are being drawn, instead of everything freezing? Some judicious use of async?
+- Make everything in Settings prettier.
 
 Convenience:
 - Make the height of the keyboard adjustable.
@@ -35,7 +35,7 @@ Zoom:
 Possible improvements:
 - Should there be a button to center the view?
 - URL representations of yShifts, baseTones, harmDistSteps, and midCoords could be prettier/shorter.
-- Should the keyboard carry tone names?
+- Should the EDO keyboard carry tone names?
 - Make every number selector be such that when it's active, it spawns a hovering slider next to it. Get rid of ranges inputs.
 - Could we give up drawing open-ended steps? Would simplify things. (Would it?) Besides, the gradients for them are wrong anyway, since they always draw as if the rel_hn of the endpoint is 0, even though it could be negative. Actually, even drawing steps to tones outside the viewbox is problematic, since those tones may not be generated. There's more thoughts in a TODO note in the .js.
 - Visualize the vertical gap being adjusted when changing y-shifts?
@@ -57,7 +57,7 @@ Possible improvements:
 Help:
 - Implement the help/info page/overlay.
 - Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
-- Before the first note is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info."
+- Before the first tone is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info, or Settings to tinker."
 
 Style:
 - Make a common way for inputting intervals and base tones.
@@ -75,6 +75,5 @@ Style:
 Code style and performance:
 - Use more CSS classes.
 - Go through TODOs in source.
-- Optimize performance by storing data to avoid recomputation.
 - Document and pretty the code: Maybe separate JS files, certainly a separate CSS file, ...
 - Should I load Tone.js and SVG.js from some CDN or other external source?
