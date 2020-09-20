@@ -1,7 +1,7 @@
 'use strict';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
-export {toneToString, ToneObject};
+export {toneToString, toneToFraction, primeDecompose, ToneObject};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Generic utility functions
@@ -61,11 +61,11 @@ function sumTones(tone1, tone2) {
 function toneToFraction(interval) {
   let num = 1.0;
   let denom = 1.0;
-  interval.forEach((c, p) => {
+  for (const [p, c] of interval) {
     // TODO Could we rely on always assuming that c != 0?
     if (c > 0) num *= Math.pow(p, c);
     else denom *= Math.pow(p, -c);
-  });
+  }
   return [num, denom];
 }
 
@@ -79,7 +79,7 @@ function primeDecompose(num, denom) {
   // divisible by p any more, move to the next prime. Return once the numerator
   // and denominator have both been reduced to 1.
   while (i < ALLPRIMES.length) {
-    const p = scaleFig.primes[i];
+    const p = ALLPRIMES[i];
     const numDivisible = (num % p == 0);
     const denomDivisible = (denom % p == 0);
     if (numDivisible) {

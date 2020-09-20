@@ -6,7 +6,7 @@ const starttime = Date.now(); // DEBUG
 // javascript module ecosystem is a massive mess that drives me nuts.
 import './node_modules/tone/build/Tone.js';
 import {readURL, setupStreams} from './streams.js';
-import {toneToString, ToneObject} from './toneobject.js';
+import {toneToString, toneToFraction, primeDecompose, ToneObject} from './toneobject.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
 
@@ -113,6 +113,9 @@ streams.baseTones.subscribe((baseTones) => {
 const yShiftStreams = new Map();
 const harmDistStepStreams = new Map();
 
+// TODO add/remove axis/basetone all access the global streams object. That's
+// probably not good, but more generally, I'm not sure where these functions
+// should be defined in the first place.
 function addAxis(
   startingYyshift = 0.0,
   startingHarmStep = streams.maxHarmNorm.getValue()
@@ -235,14 +238,68 @@ function removeAxis() {
 const buttAddAxis = document.getElementById('buttAddAxis');
 buttAddAxis.onclick = function buttAddAxisOnclick() {
   addAxis();
-  updateURL();
 }
 
 const buttRemoveAxis = document.getElementById('buttRemoveAxis');
 buttRemoveAxis.onclick = function buttRemoveAxisOnclick() {
   removeAxis();
-  updateURL();
+};
+
+function addBaseTone(tone = null) {
+  let bt;
+  let num;
+  let denom;
+  if (tone == null) {
+    const inNumerator = document.getElementById('inNewBaseToneNumerator');
+    const inDenominator = document.getElementById('inNewBaseToneDenominator');
+    num = inNumerator.valueAsNumber;
+    denom = inDenominator.valueAsNumber;
+    bt = primeDecompose(num, denom);
+  } else {
+    bt = tone;
+    [num, denom] = toneToFraction(bt);
+  }
+
+  if (denom == 0 || !Number.isInteger(denom) || !Number.isInteger(num)) {
+    // TODO Create some kind of pop-up warning.
+    console.log(`Invalid base tone: ${num} / ${denom}`);
+    return false;
+  }
+
+  const btStr = toneToString(bt);
+  const currentBts = streams.baseTones.getValue();
+  if (currentBts.has(btStr)) {
+    // TODO Create some kind of pop-up warning.
+    console.log(`Base tone already exists: ${num} / ${denom}`);
+    return false;
+  }
+
+  currentBts.set(btStr, bt);
+  streams.baseTones.next(currentBts);
+
+  const par = document.createElement('p');
+  const label = document.createElement('span');
+  label.innerHTML = `${num} / ${denom}`;
+  const butt = document.createElement('button');
+  butt.innerHTML = 'X';
+
+  par.appendChild(label);
+  par.appendChild(butt);
+
+  document.getElementById('contentBaseTones').appendChild(par);
+
+  butt.onclick = function remove() {
+    const currentBts = streams.baseTones.getValue();
+    document.getElementById('contentBaseTones').removeChild(par);
+    currentBts.delete(btStr);
+    streams.baseTones.next(currentBts);
+  };
 }
+
+const buttAddBaseTone = document.getElementById('buttAddBaseTone');
+buttAddBaseTone.onclick = () => {
+  addBaseTone();
+};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -381,68 +438,21 @@ tone of any tone.`;
     }
   });
 }
-*/
 
-/*
-function yShiftOnchange(prime, shift) {
-  const pStr = prime.toString();
-  const inNum = document.getElementById(`inNumYshift_${prime}`);
-  const inRange = document.getElementById(`inRangeYshift_${prime}`);
-  if (inNum != null) inNum.value = shift;
-  if (inRange != null) inRange.value = shift.toString();
-  // TODO Reading scaleFig from global scope?
-  const oldShift = scaleFig.yShifts[pStr];
-  scaleFig.yShifts[pStr] = shift;
-  repositionAll(scaleFig);
-  // TODO We assume here that the viewbox is always centered at the origin.
-  if (Math.abs(oldShift) > Math.abs(shift)) {
-    generateTones();
-  } else {
-    deleteTones();
-  }
-  updateURL();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-resizeCanvas();
-resizeKeyCanvas();
-resizeSettings();
-
-readURL();
-updateURL();
-
-streams.horizontalZoom.subscribe((value) => updateURL());
-streams.verticalZoom.subscribe((value) => updateURL());
 checkTones(); // TODO Only here for testing during development.
 */
 
 addEDOKeys();
 
-// TODO Make default be read from URL
-addAxis(1.2, 0.0)
-addAxis(1.8, 1.5)
-addAxis(1.0, 1.7)
+for (const p of startingParams['primes']) {
+  const yShift = startingParams['yShifts'].get(p);
+  const hds = startingParams['harmDistSteps'].get(p);
+  addAxis(yShift, hds);
+}
 
-const startingBaseTones = new Map();
 startingParams['baseTones'].forEach((bt) => {
-  const btStr = toneToString(bt);
-  startingBaseTones.set(btStr, bt);
+  addBaseTone(bt);
 });
-streams.baseTones.next(startingBaseTones);
 
-// DEBUG
-//new ToneObject(new Map(), true, streams, allTones)
-//const t1 = new Map()
-//const t2 = new Map()
-//const t3 = new Map()
-//t1.set(2, -1)
-//t1.set(3, 1)
-//t2.set(2, -1)
-//t2.set(5, 1)
-//t3.set(2, 1)
-//new ToneObject(t1, false, streams, allTones)
-//new ToneObject(t2, false, streams, allTones)
-//new ToneObject(t3, false, streams, allTones)
 const endtime = Date.now(); // DEBUG
 console.log('Seconds till the end of script:', (endtime - starttime)/1000.0); // DEBUG

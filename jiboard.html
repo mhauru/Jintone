@@ -105,16 +105,21 @@
             Tones
           </h3>
           <div id="contentTones">
-            <div id="contentBaseTones">
-              <!--
-              <input id="inNewBaseTone" type="text">
-              <button id="buttAddBaseTones">Add base tone</button>
-              --!>
-            </div>
-            <div id="contentAxes">
-            </div>
             <button id="buttAddAxis">Add axis</button>
             <button id="buttRemoveAxis">Remove axis</button>
+            <div id="contentAxes">
+            </div>
+            New base tone:
+            <input id="inNewBaseToneNumerator" type="number" class="num" min="1000000"
+                                                                         max="1000000"
+                                                                         step="1">
+            /
+            <input id="inNewBaseToneDenominator" type="number" class="num" min="1000000"
+                                                                           max="1000000"
+                                                                           step="1">
+            <button id="buttAddBaseTone">Add base tone</button>
+            <div id="contentBaseTones">
+            </div>
           </div>
         </div>
 

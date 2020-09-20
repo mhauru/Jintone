@@ -516,8 +516,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
 
-  // TODO Make new values be registered.
-  streams.baseTones = new rxjs.BehaviorSubject([]);
+  streams.baseTones = new rxjs.BehaviorSubject(new Map());
   urlStreams.push(streams.baseTones.pipe(
     urlStringOperator('baseTones', DEFAULT_URLPARAMS_STRS)
   ));
