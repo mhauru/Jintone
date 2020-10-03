@@ -53,7 +53,7 @@ DEFAULT_URLPARAMS.set('showPitchlines', true);
 DEFAULT_URLPARAMS.set('showKeys', true);
 DEFAULT_URLPARAMS.set('showSteps', false);
 DEFAULT_URLPARAMS.set('toneRadius', 22.0);
-DEFAULT_URLPARAMS.set('toneLabelTextStyle', 'fractions');
+DEFAULT_URLPARAMS.set('toneLabelTextStyle', 'reducedfractions');
 DEFAULT_URLPARAMS.set('toneColor', '#D82A1E');
 DEFAULT_URLPARAMS.set('toneColorActive', '#D8B71E');
 DEFAULT_URLPARAMS.set('baseToneBorderColor', '#000000');

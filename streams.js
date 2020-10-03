@@ -471,10 +471,13 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   const radioToneLabelNone = document.getElementById('radioToneLabelNone');
   const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
   const radioToneLabelFrac = document.getElementById('radioToneLabelFrac');
+  const radioToneLabelRedFrac =
+    document.getElementById('radioToneLabelRedFrac');
   rxjs.merge(
     rxjs.fromEvent(radioToneLabelNone, 'click'),
     rxjs.fromEvent(radioToneLabelEDO, 'click'),
     rxjs.fromEvent(radioToneLabelFrac, 'click'),
+    rxjs.fromEvent(radioToneLabelRedFrac, 'click'),
   ).pipe(
     rxjs.operators.pluck('target', 'value'),
   ).subscribe(streams.toneLabelTextStyle);
@@ -485,6 +488,8 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       radioToneLabelNone.checked = true;
     } else if (value == 'fractions') {
       radioToneLabelFrac.checked = true;
+    } else if (value == 'reducedfractions') {
+      radioToneLabelRedFrac.checked = true;
     }
   });
   urlStreams.push(streams.toneLabelTextStyle.pipe(

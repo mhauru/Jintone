@@ -21,6 +21,24 @@ function opacityFromRelHn(hn, minOpacity) {
   return opacity;
 }
 
+function reduceFraction(num, denom) {
+  while (num/denom >= 2) {
+    if (num % 2 == 0) {
+      num = num / 2;
+    } else {
+      denom = denom * 2;
+    }
+  }
+  while (num/denom < 1) {
+    if (denom % 2 == 0) {
+      denom = denom / 2;
+    } else {
+      num = num * 2;
+    }
+  }
+  return [num, denom]
+}
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Functions for arithmetic with coordinate representations of tones.
 //
@@ -591,10 +609,15 @@ class ToneObject {
             'font-size': subFontSize,
           });
         };
-      } else if (labelStyle == 'fractions') {
-        const [num, denom] = fraction;
-        // These are just constant, figured out by trial and error, that seem to
-        // do the job.
+      } else if (
+        labelStyle == 'fractions' || labelStyle == 'reducedfractions'
+      ) {
+        let [num, denom] = fraction;
+        if (labelStyle == 'reducedfractions') {
+          [num, denom] = reduceFraction(num, denom);
+        }
+        // These are just constant, figured out by trial and error, that seem
+        // to do the job.
         const solidusShift = 3;
         const denomShift = 3;
         const numFontSize = 15;
