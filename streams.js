@@ -664,6 +664,26 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     urlStringOperator('styleExpanded', DEFAULT_URLPARAMS_STRS)
   ));
 
+  const buttToggleHelp = document.getElementById('buttToggleHelp');
+  streams.helpExpanded = new rxjs.BehaviorSubject(
+    startingParams['helpExpanded']
+  );
+  rxjs.fromEvent(buttToggleHelp, 'click').subscribe((ev) => {
+    const expanded = streams.helpExpanded.getValue();
+    streams.helpExpanded.next(!expanded);
+  });
+  streams.helpExpanded.subscribe((expanded) => {
+    const divHelpOverlay = document.getElementById('divHelpOverlay');
+    if (expanded) {
+      divHelpOverlay.style.display = 'block';
+    } else {
+      divHelpOverlay.style.display = 'none';
+    }
+  });
+  urlStreams.push(streams.helpExpanded.pipe(
+    urlStringOperator('helpExpanded', DEFAULT_URLPARAMS_STRS)
+  ));
+
   // Update the URL everytime a parameter changes.
   rxjs.combineLatest(...urlStreams).subscribe(setURL);
   return streams;

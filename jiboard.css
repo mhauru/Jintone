@@ -35,6 +35,62 @@ body {
   overflow: hidden;
 }
 
+#startPopUp {
+  touch-action: none;
+  box-sizing: border-box;
+  overflow: auto;
+  width: 30%;
+  max-height: 70%;
+  border: 0px;
+  border-radius: 30px;
+  position: absolute;
+  background: #d3e5f5;
+  top: 15%;
+  left: 35%;
+  margin: 0;
+  padding: 30px;
+  display: none;
+  z-index: 1000;
+}
+
+#divHelpOverlay {
+  touch-action: none;
+  box-sizing: border-box;
+  overflow: auto;
+  width: 94%;
+  max-height: 94%;
+  border: 0px;
+  border-radius: 30px;
+  position: absolute;
+  background: #d3e5f5;
+  top: 3%;
+  left: 3%;
+  margin: 0;
+  padding: 30px;
+  display: none;
+  z-index: 100;
+}
+
+#buttToggleHelp {
+  touch-action: none;
+  font-size: 2.5em;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 80px;
+  height: 80px;
+  border-radius: 0 0 150px 0;
+  border: 0;
+  border-bottom: 3px solid black;
+  border-right: 3px solid black;
+  position: absolute;
+  background: #d3e5f5;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 10px 0 0 15px;
+  z-index: 200;
+}
+
 #divCanvas {
   touch-action: none;
   box-sizing: border-box;

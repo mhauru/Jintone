@@ -67,6 +67,7 @@ DEFAULT_URLPARAMS.set('settingsExpanded', true);
 DEFAULT_URLPARAMS.set('generalExpanded', true);
 DEFAULT_URLPARAMS.set('tonesExpanded', false);
 DEFAULT_URLPARAMS.set('styleExpanded', false);
+DEFAULT_URLPARAMS.set('helpExpanded', false);
 DEFAULT_URLPARAMS.set('primes', [2, 3, 5]);
 DEFAULT_URLPARAMS.set('yShifts', new Map([[2, 1.2], [3, 1.8], [5, 1.0]]));
 DEFAULT_URLPARAMS.set('harmDistSteps', new Map([[2, 0.0], [3, 1.5], [5, 1.7]]));
@@ -453,6 +454,19 @@ for (const p of startingParams['primes']) {
 startingParams['baseTones'].forEach((bt) => {
   addBaseTone(bt);
 });
+
+if (!streams.helpExpanded.getValue()) {
+  const startPopUp = document.getElementById('startPopUp');
+  startPopUp.style.display = 'block';
+  // Remove the starting pop up once anything is clicked.
+  document.body.addEventListener(
+    'pointerdown',
+    (e) => {
+      startPopUp.style.display = 'none';
+    },
+    {once: true}
+  );
+}
 
 const endtime = Date.now(); // DEBUG
 console.log('Seconds till the end of script:', (endtime - starttime)/1000.0); // DEBUG
