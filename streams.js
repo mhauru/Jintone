@@ -129,7 +129,9 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   ).pipe(rxjs.operators.map((ev) => false));
 
   streams.sustainDown = new rxjs.BehaviorSubject(false);
-  rxjs.merge(trueOnSustainDown, falseOnSustainUp).subscribe(streams.sustainDown);
+  rxjs.merge(
+    trueOnSustainDown, falseOnSustainUp
+  ).subscribe(streams.sustainDown);
 
   // TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
   // CSS class whether they are up or down?
@@ -567,6 +569,10 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     const divCanvas = document.getElementById('divCanvas');
     const divKeyCanvas = document.getElementById('divKeyCanvas');
     const button = document.getElementById('buttToggleSettings');
+    // TODO The widths, given in percentages, don't take into account the width
+    // of divMods (sustain and pan), which is a constant 60px. Because of this
+    // the canvas actually extends 60px too far to the right. Doesn't really
+    // affect much, but not nice.
     if (expanded) {
       button.style.transform = '';
       button.style.borderLeft = '1px solid black';
