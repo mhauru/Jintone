@@ -1,8 +1,8 @@
 1/1     unison
 16/15   minor second
 9/8     major second
-5/4     minor third
-6/5     major third
+6/5     minor third
+5/4     major third
 4/3     perfect fourth
 3/2     perfect fifth
 5/3     minor sixth
@@ -16,11 +16,15 @@ TODO
 
 BEFORE RELEASE:
 
+Help:
+- Write help overlay text, and explanations in Settings.
+
 Axes:
 - Redo the representation of axes in the UI.
 - Should we switch from primes to more generic generating intervals? This would be fine, as long as we check that they are linearly independent. It would make the "closure" much smaller. Right now everything that's within a pitch factor of 5 needs to be included (with limit 5). Think through though, using the lattice/theory, that this would really guarantee generating all tones that should exist.
 
 Other:
+- Rename "base tone" to "root tone" everywhere?
 - Come up with a better name?
 
 Settings:
@@ -34,11 +38,6 @@ Settings:
 Code quality:
 - Figure out imports and dependency management.
 - Try Typescript?
-
-Help:
-- Implement the help/info page/overlay.
-- Write Help documentation. One global one, but maybe also smaller ones for various subparts of Settings.
-- Before the first tone is played, show the following tooltip, or something like it: "Click or poke red dots to play them. The stronger the red the closer harmonically that tone is to the base tone, circled in black. Click ? for more info, or Settings to tinker."
 
 AFTER RELEASE:
 

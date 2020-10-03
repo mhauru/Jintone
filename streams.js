@@ -673,10 +673,13 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     streams.helpExpanded.next(!expanded);
   });
   streams.helpExpanded.subscribe((expanded) => {
+    const buttToggleHelp = document.getElementById('buttToggleHelp');
     const divHelpOverlay = document.getElementById('divHelpOverlay');
     if (expanded) {
+      buttToggleHelp.innerHTML = '✖';
       divHelpOverlay.style.display = 'block';
     } else {
+      buttToggleHelp.innerHTML = '?';
       divHelpOverlay.style.display = 'none';
     }
   });

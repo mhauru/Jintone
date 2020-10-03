@@ -18,8 +18,164 @@
     </div>
 
     <div id="divHelpOverlay">
-      <p>
-      Dadada
+      <p class="helpQuestion">
+      What is this thing?
+      </p>
+      <p class="helpAnswer">
+      It's a keyboard for playing music in an unusual tuning system, called just
+      intonation.
+      </p>
+      <p class="helpQuestion">
+      Why would I want to play music in this "just intonation" tuning?
+      </p>
+      <p class="helpAnswer">
+      Because it sounds more harmonious, or as music nerds would say, consonant (the
+      opposite of dissonant), than the tuning system that all modern music uses. In a
+      sense, all modern music is out of tune, because the tuning system itself that it's
+      all based on, is a bit off.
+      </p>
+      <p class="helpQuestion">
+      Wait, what?! Are you saying that all modern instruments are tuned wrong?
+      </p>
+      <p class="helpAnswer">
+      Well, not wrong, but it's not the most consonant way of tuning your instruments,
+      it's imperfect. Let me explain.
+      </p>
+      <p class="helpAnswer">
+      Imagine you want to build yourself a brand new tuning system. What does that
+      entail? Well, a tuning system is a collection of tones with different pitches, so
+      we need to choose which tones we want. By that, I don't mean something like "let's
+      take C and E, but not B♯", but rather what we are trying to do, is define what
+      we want the pitch of C and E and B♯ to be. And by pitch, I really mean frequency,
+      because the frequency of a sound is what humans perceive as pitch: Higher
+      frequency, higher pitch.
+      </p>
+      <p class="helpAnswer">
+      So to specify a tuning system, we have to specify a set of frequencies for our
+      tones. To start, let's fix one tone, call it A, to have a frequency of 440Hz. We'll
+      choose the other frequencies in relation to this one.
+      </p>
+      <p class="helpAnswer">
+      Next, you want to go looking for other frequencies that sound pleasant to the human
+      ear when played together with the A of 440Hz. You'll most probably pretty quickly
+      land on 220Hz and 880Hz, so double and half of the root frequency. In fact, to the
+      human ear these sound so pleasant together with the A at 440Hz, and they too, are
+      usually called A, but just one octave below (220Hz) and above (880Hz) the original
+      one. So the interval of an octave just means that the frequencies of two tones are
+      related by a ratio of 2/1.
+      </p>
+      <p class="helpAnswer">
+      Once you've added those to your tuning system, and go look for more frequencies
+      that ring nicely and consonantly with the ones you already have, you'll quickly
+      find that all the ones that are related to the base tone of 440Hz by simple ratios
+      stand out. 3/2 * 440Hz = 660Hz and 4/3 * 440Hz ≈ 587Hz are usually called the
+      perfect fifth, and perfect fourth of the A at 440Hz, because they resonate so
+      beautifully with it. Note that whether the frequency expressed in Hz is a "round
+      number" has nothing to do with this: What matters is that the _ratio_ of the
+      frequencies is something simple, like 3/2.
+      </p>
+      <p class="helpAnswer">
+      The list of simple ratios goes on: 5/4 gives a major third, 6/5 a minor third, etc.
+      The more complicated the ratios get, the less consonant they start to sound. For
+      instance, two tones with frequencies related by a ratio of 65/53 probably aren't
+      going to sound especially harmonious.
+      </p>
+      <p class="helpAnswer">
+      So this way, starting from a single tone with a fixed frequency, for instance our A
+      at 440Hz, you can generate a whole tuning system by including all the tones whose
+      frequencies are of the form of a some simple ratio times 440Hz. What exactly counts
+      as simple, is in the ear of the listener. You most probably want 2/1, 3/2, and
+      4/3, probably also 6/5 and 5/4. Maybe also for instance 9/8 and 16/9. If you are
+      adventurous, you can also try 7/4 or 16/11. Whatever pleases you ears.
+      </p>
+      <p class="helpAnswer">
+      A tuning system like this, is called a just intonation tuning. 
+      </p>
+      <p class="helpQuestion">
+      Okay, that makes sense. But this isn't the way we usually tune our instruments then?
+      </p>
+      <p class="helpAnswer">
+      Not at all! The usual (Western) tuning system that's probably used by all music
+      you've ever heard works like this: Take the octave, the ratio of 2/1, and split it
+      into 12 equal parts, and those are your tones. So, starting again from the A at
+      440Hz, you would include A♯ at 2^{1/12} 440Hz, B at 2^{2/12} 440Hz, etc., all the
+      way to G♯ at 2^{11/12} 440Hz and the next A at 2^{12/12} 440Hz = 880z. This system
+      is called the 12-EDO, (Equal Division of Octave) or 12-TET (12-Tone Equal
+      Temperament) tuning.
+      </p>
+      <p class="helpQuestion">
+      But why on Earth does that work at all? You just said that to get tones that sound
+      nice and consonant together you need the frequencies to be related by simple
+      ratios, but numbers like 2^{3/12} are not simple ratios at all!
+      </p>
+      <p class="helpAnswer">
+      That's true, but the magic of the 12-EDO tuning system is that they happen to be
+      pretty good approximations to the simple ratios. For instance, 2^{7/12} ≈ 1.498,
+      which is very close 3/2 = 1.5. In practice, the human ear can't hear a difference
+      that small. A little less perfect is the 12-EDO idea of what counts as a major
+      third: 2^{4/12} ≈ 1.26, where as the exact ratio that one uses in just intonation
+      is 5/4 = 1.25. That's a difference you can easily hear already, although it's not
+      too jarring (dissonant) to bother most people, especially since we are all very
+      used to it.
+      </p>
+      <p class="helpAnswer">
+      Note that it's very important for this work that you divide your octave into 12
+      equal parts, and not say 11 or 13. Essentially, it's just a very fortunate
+      coincidence, that numbers like 2^{7/12} and 2^{4/12} happen to be very close the
+      simple ratios that sound consonant to us, so that the division of the octave to 12
+      equally spaced pitches produces tones that sound pleasant together.
+      </p>
+      <p class="helpQuestion">
+      If the usual 12-EDO tuning system is just an approximation to just intonation,
+      why are we using it? Why isn't everybody using just intonation?
+      </p>
+      <p class="helpAnswer">
+      There's a few reasons for that. The 12-EDO tuning is extremely versatile, flexible,
+      and fail-safe. For instance, all pairs of neighbouring tones in 12-EDO are always
+      related to each other in exactly the same way: By a ratio of 2^{1/12}. This means
+      that you can easily switch keys without retuning your instruments, and the
+      instrument sounds exactly the same in any key. This isn't true at all in just
+      intonation: In the example above, we built our tuning around the A at 440Hz. If you
+      try to use the same set of tones generated from that to play music that is centered
+      around some other tone (i.e. to play in another key), it's not going to work well.
+      </p>
+      <p class="helpAnswer">
+      12-EDO also never has any _really_ jarring intervals in it, but just intonation
+      may. For instance, consider going up by three perfect fifths and a minor third, and
+      then down by two octaves. In 12-EDO, you end up back where you started. In just
+      intonation, this means going to a tone with a frequency (3/2) * (3/2) * (3/2) *
+      (6/5) * (1/2) * (1/2) = 81/80 ≈ 1.0125 times the original one you started from.
+      That's almost 1.0, which would mean coming back to where you started, but off by
+      just enough that the human ear can tell, and it sounds very, very dissonant and
+      out of tune. (These kinds of problematic intervals are sometimes called "commas"
+      when talking about tuning systems.)
+      </p>
+      <p class="helpAnswer">
+      One final disadvantage of just intonation is that for many types of music you might
+      want to play, you just need a lot of tones. For instance, if you go up by two major
+      thirds, you end up with a ratio of 25/16 ≈ 1.56; up a major sixth is 8/5 ≈ 1.6; and
+      up a perfect fourth and down a major second is 128/81 ≈ 1.58. In 12-EDO all of
+      these are approximated by the same tone with an interval of 2**{8/12} ≈ 1.59. That
+      may be "inaccurate", but from the point of view of building an actual instrument,
+      it's quite a lot easier, when you don't have to build so many keys or frets. This,
+      though, is something that I hope technology can overcome: Part of the point of this
+      page is to try to create an instrument that could have all these different tones,
+      and still be practical to play.
+      </p>
+      <p class="helpAnswer">
+      So the 12-EDO isn't wrong, but it's a compromise. It gives up purity of harmony,
+      that quality of being perfectly in tune, for many practical benefits.
+      </p>
+      <p class="helpQuestion">
+      That's really interesting; This stuff is growing on me! How do I learn more?
+      </p>
+      <p class="helpAnswer">
+      Wikipedia should obviously be your first stop, maybe reading the articles on EDO
+      tunings (there are more than just 12-EDO) and just intonation to get started, and
+      follow the links from there. Beyond that, I was greatly enlightened and inspired by
+      the books of W.A. Mathieu: Bridge of Waves is a paperback popular audience intro
+      to the topic, and Harmonic Experience is the hard cover hard core epic that will
+      teach you everything.
       </p>
     </div>
 
