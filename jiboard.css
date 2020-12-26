@@ -11,6 +11,10 @@
   width: 80px;
 }
 
+.emph {
+  font-style: italic;
+}
+
 .radioIndent {
   margin-left: 40px;
 }
@@ -26,13 +30,18 @@
 }
 
 .iconSubSettings {
-  vertical-align:middle;
+  vertical-align: middle;
   height: 1em;
   width: 1em;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   overflow: hidden;
+  height: 100%;
 }
 
 #startPopUp {
@@ -43,7 +52,7 @@ body {
   max-height: 70%;
   border: 0px;
   border-radius: 30px;
-  position: absolute;
+  position: relative;
   background: #d3e5f5;
   top: 15%;
   left: 35%;
@@ -57,17 +66,27 @@ body {
   touch-action: none;
   box-sizing: border-box;
   overflow: auto;
-  max-height: 90%;
   border: 0px;
   border-radius: 30px;
-  position: absolute;
+  position: relative;
   background: #d3e5f5;
   top: 0px;
   left: 0px;
   margin: 20px;
   padding: 30px;
+  max-height: 90%;
+  max-width: 800px;
   display: none;
   z-index: 100;
+}
+
+.helpQuestion {
+  padding-top: 15px;
+  font-weight: bolder;
+  #font-size: 1.2em;
+}
+
+.helpAnswer {
 }
 
 #buttToggleHelp {
