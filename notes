@@ -25,6 +25,7 @@ Axes:
 
 Other:
 - Rename "base tone" to "root tone" everywhere?
+- Should volume adjust with pitch, to match some human hearing curve?
 - Come up with a better name?
 
 Settings:
@@ -33,6 +34,7 @@ Settings:
 - Make every number selector be such that when it's active, it spawns a hovering slider next to it. Get rid of ranges inputs.
 - For origin frequency, also have some method of picking 12-EDO tones without knowing their frequency. Maybe a dropdown menu?
 - Add a dropdown menu with preset options. (Note: Pythagorean should be one.)
+- Should the settings come on top of the canvas, instead of next to it? Would make opening/closing it faster since it wouldn't cause generation/destruction of tones.
 - Make everything in Settings prettier.
 
 Code quality:
@@ -79,4 +81,4 @@ Style:
 Code style and performance:
 - Use more CSS classes.
 - Go through TODOs in source.
-- Should I load Tone.js and SVG.js from some CDN or other external source?
+- Should I load Tone.js and SVG.js from some CDN or other external source? (No: https://shkspr.mobi/blog/2020/10/please-stop-using-cdns-for-external-javascript-libraries/)
