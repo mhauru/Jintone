@@ -29,7 +29,7 @@
   margin-bottom: 5px;
 }
 
-.iconSubSettings {
+.arrowIcon {
   vertical-align: middle;
   height: 1em;
   width: 1em;
@@ -50,10 +50,10 @@ body {
   overflow: auto;
   width: 30%;
   max-height: 70%;
-  border: 0px;
+  border: 2px solid black;
   border-radius: 30px;
   position: relative;
-  background: #d3e5f5;
+  background: #f9f9f9;
   top: 15%;
   left: 35%;
   margin: 0;
@@ -66,10 +66,10 @@ body {
   touch-action: none;
   box-sizing: border-box;
   overflow: auto;
-  border: 0px;
+  border: 2px solid black;
   border-radius: 30px;
   position: relative;
-  background: #d3e5f5;
+  background: #f9f9f9;
   top: 0px;
   left: 0px;
   margin: 20px;
@@ -91,17 +91,16 @@ body {
 
 #buttToggleHelp {
   touch-action: none;
-  font-size: 2.5em;
   box-sizing: border-box;
   overflow: hidden;
-  width: 80px;
-  height: 80px;
-  border-radius: 0 0 150px 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 0 0 60px 0;
   border: 0;
-  border-bottom: 3px solid black;
-  border-right: 3px solid black;
+  border-bottom: 2px solid black;
+  border-right: 2px solid black;
   position: absolute;
-  background: #d3e5f5;
+  background: #e0e0e0;
   top: 0;
   left: 0;
   margin: 0;
@@ -149,7 +148,7 @@ body {
   left: 0;
   margin: 0;
   padding: 0;
-  border-right: 1px solid black;
+  border-right: 0px solid black;
 }
 
 #divPanMod {
@@ -190,27 +189,33 @@ body {
 }
 
 #buttToggleSettings {
+  box-sizing: border-box;
   background: white;
   position: absolute;
+  background: #e0e0e0;
   top: 0;
   right: 20%;
-  border: 1px solid black;
-  padding:15px;
-  margin:0px;
+  border-left: 2px solid black;
+  border-bottom: 2px solid black;
+  border-radius: 0 0 0 60px;
+  width: 60px;
+  height: 60px;
+  padding: 11px 0 0 24px;
+  margin: 0px;
   border-right: none;
   border-top: none
 }
 
 #iconSettings {
-  vertical-align:middle;
+  vertical-align: middle;
   height: 1em;
   width: 1em;
-  transform:;
 }
 
 #divSettings {
   box-sizing: border-box;
   overflow: hidden;
+  background: #f9f9f9;
   width: 20%;
   height: 100%;
   border: none;
@@ -223,21 +228,24 @@ body {
 }
 
 #settingsHeader {
+  background: #f9f9f9;
   box-sizing: border-box;
   padding-top:15px;
   padding-bottom:15px;
   padding-left:5px;
   margin:0px;
-  border-bottom: 1px solid black;
+  height:60px;
+  border-bottom: 2px solid black;
 }
 
 #divSettingsInner {
+  background: #f9f9f9;
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   overflow: auto;
   height: 80%;
-  border-left: 1px solid black
+  border-left: 2px solid black
 }
 
 #divGeneral {

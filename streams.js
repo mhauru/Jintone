@@ -569,22 +569,21 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     const divCanvas = document.getElementById('divCanvas');
     const divKeyCanvas = document.getElementById('divKeyCanvas');
     const button = document.getElementById('buttToggleSettings');
+    const icon = document.getElementById('iconSettings');
     // TODO The widths, given in percentages, don't take into account the width
     // of divMods (sustain and pan), which is a constant 60px. Because of this
     // the canvas actually extends 60px too far to the right. Doesn't really
     // affect much, but not nice.
     if (expanded) {
-      button.style.transform = '';
-      button.style.borderLeft = '1px solid black';
-      button.style.borderRight = 'none';
+      icon.style.transform = '';
+      button.style.background = '#f9f9f9';
       button.style.right = '20%';
       divSettings.style.right = '0';
       divCanvas.style.width = '80%';
       divKeyCanvas.style.width = '80%';
     } else {
-      button.style.transform = 'scale(-1, 1)';
-      button.style.borderRight = '1px solid black';
-      button.style.borderLeft = 'none';
+      icon.style.transform = 'rotate(180deg)';
+      button.style.background = '#e0e0e0';
       button.style.right = 0;
       divSettings.style.right = '-20%';
       divCanvas.style.width = '100%';
@@ -605,7 +604,6 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   });
   streams.generalExpanded.subscribe((expanded) => {
     const contentGeneral = document.getElementById('contentGeneral');
-    const iconGeneral = document.getElementById('iconGeneral');
     if (expanded) {
       iconGeneral.style.transform = 'rotate(-90deg)';
       contentGeneral.style.display = 'block';
@@ -677,9 +675,11 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     const divHelpOverlay = document.getElementById('divHelpOverlay');
     if (expanded) {
       buttToggleHelp.innerHTML = '✖';
+      buttToggleHelp.style.background = '#f9f9f9';
       divHelpOverlay.style.display = 'block';
     } else {
       buttToggleHelp.innerHTML = '?';
+      buttToggleHelp.style.background = '#e0e0e0';
       divHelpOverlay.style.display = 'none';
     }
   });
