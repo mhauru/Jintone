@@ -1,5 +1,4 @@
 'use strict';
-import ResizeObserver from './resize-observer.min.js';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 export {readURL, setupStreams};
 
@@ -271,9 +270,25 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.canvasSize = new rxjs.Subject();
   new ResizeObserver((entries, observer) => {
     for (const entry of entries) {
-      const cbs = entry.contentBoxSize;
-      const width = cbs.inlineSize;
-      const height = cbs.blockSize;
+      // Different browsers return different objects, e.g. Chrome always
+      // returns an array from entry.contentBoxSize. Accommodate those
+      // differences.
+      let width;
+      let height;
+      if (entry.contentBoxSize) {
+        if (entry.contentBoxSize[0]) {
+          const cbs = entry.contentBoxSize[0];
+          width = cbs.inlineSize;
+          height = cbs.blockSize;
+        } else {
+          const cbs = entry.contentBoxSize;
+          width = cbs.inlineSize;
+          height = cbs.blockSize;
+        }
+      } else {
+        width = entry.contentRect.width;
+        height = entry.contentRect.height;
+      }
       streams.canvasSize.next([width, height]);
     }
   }).observe(document.getElementById('divCanvas'));
@@ -281,9 +296,25 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.keyCanvasSize = new rxjs.Subject();
   new ResizeObserver((entries, observer) => {
     for (const entry of entries) {
-      const cbs = entry.contentBoxSize;
-      const width = cbs.inlineSize;
-      const height = cbs.blockSize;
+      // Different browsers return different objects, e.g. Chrome always
+      // returns an array from entry.contentBoxSize. Accommodate those
+      // differences.
+      let width;
+      let height;
+      if (entry.contentBoxSize) {
+        if (entry.contentBoxSize[0]) {
+          const cbs = entry.contentBoxSize[0];
+          width = cbs.inlineSize;
+          height = cbs.blockSize;
+        } else {
+          const cbs = entry.contentBoxSize;
+          width = cbs.inlineSize;
+          height = cbs.blockSize;
+        }
+      } else {
+        width = entry.contentRect.width;
+        height = entry.contentRect.height;
+      }
       streams.keyCanvasSize.next([width, height]);
     }
   }).observe(document.getElementById('divKeyCanvas'));
