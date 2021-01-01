@@ -100,12 +100,23 @@ body {
   border-bottom: 2px solid black;
   border-right: 2px solid black;
   position: absolute;
-  background: #e0e0e0;
   top: 0;
   left: 0;
   margin: 0;
   padding: 10px 0 0 15px;
   z-index: 200;
+}
+
+.buttonInactive {
+  background: #e0e0e0;
+}
+
+.buttonActive {
+  background: #f9f9f9;
+}
+
+#buttToggleHelp:hover {
+  background: #f9f9f9;
 }
 
 #divCanvas {
@@ -190,9 +201,7 @@ body {
 
 #buttToggleSettings {
   box-sizing: border-box;
-  background: white;
   position: absolute;
-  background: #e0e0e0;
   top: 0;
   right: 20%;
   border-left: 2px solid black;
@@ -204,6 +213,10 @@ body {
   margin: 0px;
   border-right: none;
   border-top: none
+}
+
+#buttToggleSettings:hover {
+  background: #f9f9f9;
 }
 
 #iconSettings {
@@ -224,7 +237,6 @@ body {
   position: absolute;
   top: 0;
   right: 0;
-  background: white;
 }
 
 #settingsHeader {

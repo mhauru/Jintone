@@ -576,14 +576,16 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     // affect much, but not nice.
     if (expanded) {
       icon.style.transform = '';
-      button.style.background = '#f9f9f9';
+      button.classList.remove('buttonInactive');
+      button.classList.add('buttonActive');
       button.style.right = '20%';
       divSettings.style.right = '0';
       divCanvas.style.width = '80%';
       divKeyCanvas.style.width = '80%';
     } else {
       icon.style.transform = 'rotate(180deg)';
-      button.style.background = '#e0e0e0';
+      button.classList.remove('buttonActive');
+      button.classList.add('buttonInactive');
       button.style.right = 0;
       divSettings.style.right = '-20%';
       divCanvas.style.width = '100%';
@@ -675,11 +677,13 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     const divHelpOverlay = document.getElementById('divHelpOverlay');
     if (expanded) {
       buttToggleHelp.innerHTML = '✖';
-      buttToggleHelp.style.background = '#f9f9f9';
+      buttToggleHelp.classList.remove('buttonInactive');
+      buttToggleHelp.classList.add('buttonActive');
       divHelpOverlay.style.display = 'block';
     } else {
       buttToggleHelp.innerHTML = '?';
-      buttToggleHelp.style.background = '#e0e0e0';
+      buttToggleHelp.classList.remove('buttonActive');
+      buttToggleHelp.classList.add('buttonInactive');
       divHelpOverlay.style.display = 'none';
     }
   });
