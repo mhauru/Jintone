@@ -275,9 +275,10 @@ body {
   padding: 0px;
 }
 
-.toggletipContainer {
+.setting {
   position: relative;
-  display: inline-block;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .toggletipButton {
@@ -286,28 +287,29 @@ body {
   padding: 0;
   margin: 0;
   border-radius: 50%;
-  border: 1.5px solid #AAAAAA;
+  border: 1.5px solid #bfbfbf;
   box-shadow: 0;
-  color: #666666;
+  color: #8a8a8a;
   font-weight: bold;
   z-index: 90;
 }
 
 .toggletipButtonActive {
   border: 3px solid #000000 !important;
+  background: #ffffff !important;
   color: #000000 !important;
 }
 
 .toggletipBubble {
   display: none;
   position: absolute;
-  border: 2px solid #000000;
+  border: 2px solid #8a8a8a;
   border-radius: 15px;
-  background: #f9f9f9;
+  background: #ffffff;
   font-size: 0.85em;
-  right: 100%;
-  top: 100%;
-  max-width: 1000px;
+  width: 85%;
+  left: 5%;
+  top: 3em;
   padding: 0.5rem;
   z-index: 100;
 }
