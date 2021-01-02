@@ -340,35 +340,64 @@
           </h3>
           <div id="contentGeneral">
             <p>
-            <label> Horizontal zoom:
+            <label> Horizontal zoom
               <input id="rangeHorzZoom" type="range" min="100" max="700" step="0.01">
             </label>
             </p>
 
             <p>
-            <label> Vertical zoom:
+            <label> Vertical zoom
               <input id="rangeVertZoom" type="range" min="1" max="500" step="0.01">
             </label>
             </p>
             <p>
 
-            <label> Origin frequency:
+            <label> Origin frequency
               <input id="numOriginFreq" class="num" type="number" min="1" max="20000" step="0.01">
               Hz
             </label>
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                The frequency of the root tone, i.e. ¹⁄₁.
+                The default, 261.626 Hz, is the middle A of 12-EDO.
+              </span>
+            </span>
             </p>
 
             <p>
-            <label> Maximum visible harmonic norm
-              <input id="numMaxHarmNorm" type="number" class="num" min="0.01" max="100" step="0.01">
+            <label> Maximum harmonic norm
             </label>
+            <input id="numMaxHarmNorm" type="number" class="num" min="0.01" max="100" step="0.01">
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                Harmonic norm measures the harmonic distance of each tone from the root
+                tone. This is the maximum distance for which the tone is still added to
+                the keyboard.
+              </span>
+            </span>
             </p>
 
             <p>
-            <label> Tone radius:
+            <label> Tone radius
               <input id="numToneRadius" type="number" class="num" min="0.01" max="100" step="0.01">
             </label><br>
-            <span> Tone labels:</span>
+            <span> Tone labels</span>
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                The options are showing the name of the closest 12-EDO tone; the
+                ratio with respect to the root tone as fraction; or the reduced fraction,
+                meaning the fraction but with octave-shifts removed (so ⁸⁄₃ becomes ⁴⁄₃).
+              </span>
+            </span>
             <br>
             <label class="radioIndent">
               <input id="radioToneLabelNone" type="radio" name="label" value="none">
@@ -387,7 +416,7 @@
             <br>
             <label class="radioIndent">
               <input id="radioToneLabelRedFrac" type="radio" name="label"
-              value="reducedfractions">
+                                                             value="reducedfractions">
               Reduced fractions
             </label>
             <br>
@@ -397,18 +426,51 @@
             <label> Show pitchlines
               <input id="cboxPitchlines" type="checkbox">
             </label>
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                Pitchlines are the vertical lines going through the centre of each tone.
+                The left-right axis of the keyboard corresponds to pitch/frequency, and
+                these lines mark the exact position of the tone. They can be compared
+                with the little notches at the top of the keys in the 12-EDO keyboard,
+                which mark the frequencies of the 12-EDO tones.
+              </span>
+            </span>
             </p>
 
             <p>
             <label> Show 12-EDO keyboard
               <input id="cboxKeys" type="checkbox">
-            </label><br>
+            </label>
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                That's the traditional piano keys at the bottom.
+              </span>
+            </span>
+            <br>
             </p>
 
             <p>
             <label> Minimum tone opacity
               <input id="rangeMinToneOpacity" type="range" min="0" max="1" step="0.01">
             </label>
+            <span class="toggletipContainer">
+              <button class="toggletipButton">
+                ?
+              </button>
+              <span class="toggletipBubble">
+                The opacity of the tones is determined by their harmonic norm: The
+                closer, harmonically speaking, the tone is to the root, the more opaque
+                it is. This is the opacity given to the tone that is right at threshold
+                of whether it's even included in the keyboard (see "maximum harmonic
+                norm" above).
+              </span>
+            </span>
             </p>
           </div>
         </div>
@@ -423,7 +485,7 @@
             <button id="buttRemoveAxis">Remove axis</button>
             <div id="contentAxes">
             </div>
-            New base tone:
+            New base tone
             <input id="inNewBaseToneNumerator" type="number" class="num" min="1000000"
                                                                          max="1000000"
                                                                          step="1">
@@ -444,25 +506,25 @@
           </h3>
           <div id="contentStyle">
           <p>
-            <label> Tone color:
+            <label> Tone color
               <input id="toneColor" type="color">
             </label><br>
-            <label> Tone color when played:
+            <label> Tone color when played
               <input id="toneColorActive" type="color">
             </label><br>
-            <label> Base tone border color:
+            <label> Base tone border color
               <input id="baseToneBorderColor" type="color">
             </label><br>
-            <label> Base tone border size:
+            <label> Base tone border size
               <input id="numBaseToneBorderSize" type="number" class="num" min="0.0" max="10" step="0.01">
             </label>
           </p>
 
           <p>
-            <label> Pitchline color:
+            <label> Pitchline color
               <input id="colorPitchlines" type="color">
             </label><br>
-            <label> Pitchline color when played:
+            <label> Pitchline color when played
               <input id="colorPitchlinesActive" type="color">
             </label>
           </p>

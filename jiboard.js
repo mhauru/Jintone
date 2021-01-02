@@ -5,6 +5,7 @@ const starttime = Date.now(); // DEBUG
 // copied from a CDN. None of these things seem possible because the
 // javascript module ecosystem is a massive mess that drives me nuts.
 import './node_modules/tone/build/Tone.js';
+import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
 import {toneToString, toneToFraction, primeDecompose, ToneObject} from './toneobject.js';
 import {EDOTones} from './edo.js';
@@ -75,6 +76,9 @@ DEFAULT_URLPARAMS.set('harmDistSteps', new Map([[2, 0.0], [3, 1.5], [5, 1.7]]));
 // scaleFig is a global object that essentially functions as a namespace.
 // Its fields are various global variables related to the SVG canvasses.
 const scaleFig = {};
+
+// Make the toggletips react to being clicked.
+setupToggletips();
 
 // Set up the SVG canvases.
 scaleFig.canvas = new SVG('divCanvas');
