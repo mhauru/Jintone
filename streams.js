@@ -78,7 +78,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     })),
     rxjs.fromEvent(window, 'keydown').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 17)
+      rxjs.operators.filter((ev) => ev.keyCode == 17),
     ),
   ).pipe(rxjs.operators.map((ev) => true));
 
@@ -91,26 +91,28 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(divPanMod, 'pointerleave'),
     rxjs.fromEvent(window, 'keyup').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 17)
+      rxjs.operators.filter((ev) => ev.keyCode == 17),
     ),
   ).pipe(rxjs.operators.map((ev) => false));
 
   streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
-    rxjs.operators.startWith(false)
+    rxjs.operators.startWith(false),
   );
 
   const trueOnSustainDown = rxjs.merge(
     rxjs.fromEvent(divSustainMod, 'mousedown'),
     rxjs.fromEvent(divSustainMod, 'touchstart'),
-    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(rxjs.operators.map((ev) => {
+    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(rxjs.operators.map(
       // Allow pointer event target to jump between objects when pointer is
       // moved.
-      ev.target.releasePointerCapture(ev.pointerId);
-      return ev;
-    })),
+      (ev) => {
+        ev.target.releasePointerCapture(ev.pointerId);
+        return ev;
+      },
+    )),
     rxjs.fromEvent(window, 'keydown').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 16)
+      rxjs.operators.filter((ev) => ev.keyCode == 16),
     ),
   ).pipe(rxjs.operators.map((ev) => true));
 
@@ -123,14 +125,14 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(divSustainMod, 'pointerleave'),
     // TODO Define the keyCodes somewhere else.
     rxjs.fromEvent(window, 'keyup').pipe(
-      rxjs.operators.filter((ev) => ev.keyCode == 16)
+      rxjs.operators.filter((ev) => ev.keyCode == 16),
     ),
   ).pipe(rxjs.operators.map((ev) => false));
 
   streams.sustainDown = new rxjs.BehaviorSubject(false);
-  rxjs.merge(
-    trueOnSustainDown, falseOnSustainUp
-  ).subscribe(streams.sustainDown);
+  rxjs.merge(trueOnSustainDown, falseOnSustainUp).subscribe(
+    streams.sustainDown,
+  );
 
   // TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
   // CSS class whether they are up or down?
@@ -184,11 +186,11 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // Events that don't have client coordinates well defined are filtered out.
   streams.clientCoordsOnClick = rxjs.merge(
     rxjs.fromEvent(scaleFig.canvas, 'mousedown').pipe(rxjs.operators.filter(
-      (ev) => ev.buttons == 1)
+      (ev) => ev.buttons == 1),
     ),
     rxjs.fromEvent(scaleFig.canvas, 'touchstart'),
     rxjs.fromEvent(scaleFig.canvas, 'pointerdown').pipe(rxjs.operators.filter(
-      (ev) => ev.buttons == 1)
+      (ev) => ev.buttons == 1),
     ),
   ).pipe(
     rxjs.operators.map(eventClientCoords),
@@ -197,7 +199,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
 
   // Streams that return true/false when the canvas is down-clicked or released.
   const trueOnCanvasOn = streams.clientCoordsOnClick.pipe(
-    rxjs.operators.map((ev) => true)
+    rxjs.operators.map((ev) => true),
   );
   const falseOnCanvasOff = rxjs.merge(
     rxjs.fromEvent(scaleFig.canvas, 'mouseup'),
@@ -208,12 +210,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(scaleFig.canvas, 'pointerleave'),
   ).pipe(rxjs.operators.map((ev) => false));
   const canvasOn = rxjs.merge(falseOnCanvasOff, trueOnCanvasOn).pipe(
-    rxjs.operators.startWith(false)
+    rxjs.operators.startWith(false),
   );
 
   // A stream that returns whether we are in canvas-panning mode.
   streams.panning = rxjs.combineLatest(streams.panDown, canvasOn).pipe(
-    rxjs.operators.map(([v1, v2]) => v1 && v2)
+    rxjs.operators.map(([v1, v2]) => v1 && v2),
   );
 
   // Streams for the latest coordinates for the mid-point of the canvas.
@@ -223,10 +225,10 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.midCoords = new rxjs.BehaviorSubject();
   streams.midCoords.next(startingParams['midCoords']);
   streams.midCoordsOnClick = streams.midCoords.pipe(
-    rxjs.operators.sample(streams.clientCoordsOnClick)
+    rxjs.operators.sample(streams.clientCoordsOnClick),
   );
   urlStreams.push(streams.midCoords.pipe(
-    urlStringOperator('midCoords', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('midCoords', DEFAULT_URLPARAMS_STRS),
   ));
 
   // Return the client-coordinates of the pointer on the canvas every time the
@@ -237,7 +239,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.clientCoordsOnMove = rxjs.merge(
     rxjs.fromEvent(scaleFig.canvas, 'mousemove'),
     rxjs.fromEvent(scaleFig.canvas, 'touchmove'),
-    rxjs.fromEvent(scaleFig.canvas, 'pointermove')
+    rxjs.fromEvent(scaleFig.canvas, 'pointermove'),
   ).pipe(
     rxjs.operators.map((ev) => {
       // To not duplicate events as touch/pointer/mouse.
@@ -252,7 +254,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.clientCoordsOnMove.pipe(
     rxjs.operators.withLatestFrom(
       rxjs.combineLatest(streams.panning, streams.clientCoordsOnClick,
-        streams.midCoordsOnClick)
+        streams.midCoordsOnClick),
     ),
     rxjs.operators.filter((arg) => arg[1][0]), // Filter out panning=false.
     rxjs.operators.map((x) => {
@@ -339,7 +341,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       const [x, y] = coords;
       canvas.viewbox(-w/2+x, -h/2+y, w, h);
       streams.canvasViewbox.next(canvas.viewbox());
-    }
+    },
   );
 
   // Adjust the canvas viewbox for the EDO keyboard every time the key canvas is
@@ -350,7 +352,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       const x = coords[0];
       const keyCanvas = scaleFig.keyCanvas;
       keyCanvas.viewbox(-w/2+x, 0, w, 1);
-    }
+    },
   );
 
   // Adjust divSettingsInner height every time the size of divSettings changes.
@@ -364,7 +366,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       const divInner = document.getElementById('divSettingsInner');
       const innerHeight = div.offsetHeight - header.offsetHeight;
       divInner.style.height = `${innerHeight}px`;
-    }
+    },
   );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -471,7 +473,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streamElements.forEach((e) => {
     const elem = document.getElementById(e.elemName);
     streams[e.paramName] = new rxjs.BehaviorSubject(
-      startingParams[e.paramName]
+      startingParams[e.paramName],
     );
     const eventStream = rxjs.fromEvent(elem, e.eventName);
     let valueStream;
@@ -479,11 +481,11 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       valueStream = eventStream.pipe(rxjs.operators.map(
         (x) => {
           return e.parser(x.target[e.observableProperty]);
-        }
+        },
       ));
     } else {
       valueStream = eventStream.pipe(
-        rxjs.operators.pluck('target', e.observableProperty)
+        rxjs.operators.pluck('target', e.observableProperty),
       );
     }
     valueStream.subscribe((x) => streams[e.paramName].next(x));
@@ -493,13 +495,13 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       elem[e.observableProperty] = value;
     });
     urlStreams.push(streams[e.paramName].pipe(
-      urlStringOperator(e.paramName, DEFAULT_URLPARAMS_STRS)
+      urlStringOperator(e.paramName, DEFAULT_URLPARAMS_STRS),
     ));
   });
 
   // We do the toneLabel one manually, since it requires merging three streams.
   streams.toneLabelTextStyle = new rxjs.BehaviorSubject(
-    startingParams['toneLabelTextStyle']
+    startingParams['toneLabelTextStyle'],
   );
   const radioToneLabelNone = document.getElementById('radioToneLabelNone');
   const radioToneLabelEDO = document.getElementById('radioToneLabelEDO');
@@ -526,7 +528,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.toneLabelTextStyle.pipe(
-    urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS_STRS),
   ));
 
   // Set up some extra subscriptions for a few parameters that have a global
@@ -556,7 +558,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
 
   streams.baseTones = new rxjs.BehaviorSubject(new Map());
   urlStreams.push(streams.baseTones.pipe(
-    urlStringOperator('baseTones', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('baseTones', DEFAULT_URLPARAMS_STRS),
   ));
 
   // Take Observables, each of which returns Maps, combineLatest on it merge the
@@ -566,9 +568,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       rxjs.operators.map((ms) => {
         // ms is an array of Maps, that we merge into a single map.
         const arrs = [];
-        ms.forEach((m) => {
-          arrs.push(...m)
-        });
+        ms.forEach((m) => arrs.push(...m));
         return new Map(arrs);
       }));
     return combined;
@@ -578,18 +578,18 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, new Map());
   streams.yShifts = new VariableSourceSubject(combineAndMerge, new Map());
   urlStreams.push(streams.primes.pipe(
-    urlStringOperator('primes', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('primes', DEFAULT_URLPARAMS_STRS),
   ));
   urlStreams.push(streams.harmDistSteps.pipe(
-    urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS_STRS),
   ));
   urlStreams.push(streams.yShifts.pipe(
-    urlStringOperator('yShifts', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('yShifts', DEFAULT_URLPARAMS_STRS),
   ));
 
   const buttToggleSettings = document.getElementById('buttToggleSettings');
   streams.settingsExpanded = new rxjs.BehaviorSubject(
-    startingParams['settingsExpanded']
+    startingParams['settingsExpanded'],
   );
   rxjs.fromEvent(buttToggleSettings, 'click').subscribe((ev) => {
     const expanded = streams.settingsExpanded.getValue();
@@ -624,12 +624,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.settingsExpanded.pipe(
-    urlStringOperator('settingsExpanded', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('settingsExpanded', DEFAULT_URLPARAMS_STRS),
   ));
 
   const headGeneral = document.getElementById('headGeneral');
   streams.generalExpanded = new rxjs.BehaviorSubject(
-    startingParams['generalExpanded']
+    startingParams['generalExpanded'],
   );
   rxjs.fromEvent(headGeneral, 'click').subscribe((ev) => {
     const expanded = streams.generalExpanded.getValue();
@@ -646,12 +646,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.generalExpanded.pipe(
-    urlStringOperator('generalExpanded', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('generalExpanded', DEFAULT_URLPARAMS_STRS),
   ));
 
   const headTones = document.getElementById('headTones');
   streams.tonesExpanded = new rxjs.BehaviorSubject(
-    startingParams['tonesExpanded']
+    startingParams['tonesExpanded'],
   );
   rxjs.fromEvent(headTones, 'click').subscribe((ev) => {
     const expanded = streams.tonesExpanded.getValue();
@@ -669,12 +669,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.tonesExpanded.pipe(
-    urlStringOperator('tonesExpanded', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('tonesExpanded', DEFAULT_URLPARAMS_STRS),
   ));
 
   const headStyle = document.getElementById('headStyle');
   streams.styleExpanded = new rxjs.BehaviorSubject(
-    startingParams['styleExpanded']
+    startingParams['styleExpanded'],
   );
   rxjs.fromEvent(headStyle, 'click').subscribe((ev) => {
     const expanded = streams.styleExpanded.getValue();
@@ -692,12 +692,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.styleExpanded.pipe(
-    urlStringOperator('styleExpanded', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('styleExpanded', DEFAULT_URLPARAMS_STRS),
   ));
 
   const buttToggleHelp = document.getElementById('buttToggleHelp');
   streams.helpExpanded = new rxjs.BehaviorSubject(
-    startingParams['helpExpanded']
+    startingParams['helpExpanded'],
   );
   rxjs.fromEvent(buttToggleHelp, 'click').subscribe((ev) => {
     const expanded = streams.helpExpanded.getValue();
@@ -719,7 +719,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
   urlStreams.push(streams.helpExpanded.pipe(
-    urlStringOperator('helpExpanded', DEFAULT_URLPARAMS_STRS)
+    urlStringOperator('helpExpanded', DEFAULT_URLPARAMS_STRS),
   ));
 
   // Update the URL everytime a parameter changes.

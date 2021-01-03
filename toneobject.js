@@ -36,7 +36,7 @@ function reduceFraction(num, denom) {
       num = num * 2;
     }
   }
-  return [num, denom]
+  return [num, denom];
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -212,7 +212,7 @@ class ToneObject {
 
     // TODO Why are some of these this.isOn etc. and not just const isOn?
     this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-      rxjs.operators.startWith(false)
+      rxjs.operators.startWith(false),
     );
 
     // Whenever this key is pressed, the tone is turned on, if it wasn't
@@ -225,7 +225,7 @@ class ToneObject {
         this.isOn.next(false);
       } else {
         streams.sustainDown.pipe(
-          rxjs.operators.first((x) => !x)
+          rxjs.operators.first((x) => !x),
         ).subscribe((x) => {
           this.isOn.next(false);
         });
@@ -235,12 +235,12 @@ class ToneObject {
     const pf = pitchFactor(this.coords);
     const fraction = toneToFraction(this.coords);
     const frequency = new rxjs.BehaviorSubject(
-      streams.originFreq.getValue()*pf
+      streams.originFreq.getValue()*pf,
     );
     this.subscriptions.push(
       streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
-        (x) => frequency.next(x)
-      )
+        (x) => frequency.next(x),
+      ),
     );
 
     this.subscriptions.push(
@@ -250,7 +250,7 @@ class ToneObject {
         } else {
           synth.triggerRelease(frequency.getValue());
         }
-      })
+      }),
     );
 
     const xpos = new rxjs.BehaviorSubject();
@@ -258,15 +258,15 @@ class ToneObject {
       streams.horizontalZoom.subscribe(
         (zoom) => {
           xpos.next(zoom * Math.log2(pf));
-        }
-      )
+        },
+      ),
     );
 
     const ypos = new rxjs.BehaviorSubject();
     this.subscriptions.push(
       rxjs.combineLatest(
         streams.verticalZoom,
-        streams.yShifts
+        streams.yShifts,
       ).subscribe(([zoom, yShifts]) => {
         let y = 0.0;
         this.coords.forEach((c, p) => {
@@ -277,11 +277,11 @@ class ToneObject {
         });
         y *= zoom;
         ypos.next(y);
-      })
+      }),
     );
 
     const harmDistsCombined = new VariableSourceSubject(
-      rxjs.combineLatest, []
+      rxjs.combineLatest, [],
     );
     const harmDists = new Map();
 
@@ -329,12 +329,12 @@ class ToneObject {
     this.subscriptions.push(
       harmDistsCombined.pipe(
         rxjs.operators.map((x) => Math.min(...x)),
-        rxjs.operators.distinctUntilChanged()
-      ).subscribe(harmNorm)
+        rxjs.operators.distinctUntilChanged(),
+      ).subscribe(harmNorm),
     );
 
     const harmClose = rxjs.combineLatest(
-      harmNorm, streams.maxHarmNorm
+      harmNorm, streams.maxHarmNorm,
     ).pipe(
       rxjs.operators.map(([hn, maxhn]) => hn <= maxhn),
       rxjs.operators.distinctUntilChanged(),
@@ -421,15 +421,15 @@ class ToneObject {
       ).pipe(
         rxjs.operators.map(([hc, incHor, incVer]) => hc && incHor && incVer),
         rxjs.operators.distinctUntilChanged(),
-      ).subscribe(this.inclosure)
+      ).subscribe(this.inclosure),
     );
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
-      rxjs.operators.map(([hn, maxhn]) => Math.max(1.0 - hn/maxhn, 0.0))
+      rxjs.operators.map(([hn, maxhn]) => Math.max(1.0 - hn/maxhn, 0.0)),
     );
 
     this.subscriptions.push(rxjs.combineLatest(xpos, ypos).subscribe(
-      ([x, y]) => this.svgTone.move(x, y)
+      ([x, y]) => this.svgTone.move(x, y),
     ));
     this.subscriptions.push(xpos.subscribe((x) => this.svgPitchline.x(x)));
 
@@ -446,7 +446,7 @@ class ToneObject {
           svgPitchline.attr('visibility', 'hidden');
           svgTone.attr('visibility', 'hidden');
         }
-      })
+      }),
     );
 
     // This one is just manually made to emit every time the tone labels have
@@ -656,7 +656,7 @@ class ToneObject {
     // report their death when necessary.
     this.neighbours = new Map();
     this.neighboursInclosure = new VariableSourceSubject(
-      rxjs.combineLatest, []
+      rxjs.combineLatest, [],
     );
 
     // Report our birth to the global register of all tones.
@@ -688,7 +688,7 @@ class ToneObject {
           me.neighbourCreated(neighCoords, neighbour);
           neighbour.neighbourCreated(coords, me);
         }
-      }
+      },
     );
 
     // TODO I think this one, and probably many others, could benefit from a
@@ -711,8 +711,8 @@ class ToneObject {
               }
             });
           }
-        }
-      )
+        },
+      ),
     );
 
     this.subscriptions.push(streams.primes.subscribe((primes) => {
@@ -729,7 +729,7 @@ class ToneObject {
     const anyNeighborInclosure = this.neighboursInclosure.pipe(
       rxjs.operators.map((arr) => {
         return arr.some((x) => x);
-      })
+      }),
     );
     // TODO Should we also check for isOn, to make sure we don't leave some
     // note ringing after it's destroyed? At least test what happens if a note
@@ -737,11 +737,11 @@ class ToneObject {
     this.subscriptions.push(rxjs.combineLatest(
       this.inclosure,
       anyNeighborInclosure,
-      this.isBase
+      this.isBase,
     ).subscribe(
       ([incls, neighIncls, ib]) => {
         if (!incls && !neighIncls && !ib) me.destroy();
-      }
+      },
     ));
   }
 

@@ -7,7 +7,12 @@ const starttime = Date.now(); // DEBUG
 import './node_modules/tone/build/Tone.js';
 import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
-import {toneToString, toneToFraction, primeDecompose, ToneObject} from './toneobject.js';
+import {
+  toneToString,
+  toneToFraction,
+  primeDecompose,
+  ToneObject,
+} from './toneobject.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
 
@@ -35,7 +40,7 @@ function addEDOKeys() {
       EDOTone.keytype,
       scaleFig.keyCanvas,
       streams,
-      synth
+      synth,
     );
   });
 }
@@ -123,7 +128,7 @@ const harmDistStepStreams = new Map();
 // should be defined in the first place.
 function addAxis(
   startingYyshift = 0.0,
-  startingHarmStep = streams.maxHarmNorm.getValue()
+  startingHarmStep = streams.maxHarmNorm.getValue(),
 ) {
   const prime = ALLPRIMES[streams.primes.getValue().length];
 
@@ -176,7 +181,7 @@ function addAxis(
   document.getElementById('contentAxes').appendChild(divAxis);
 
   const yShiftStream = new rxjs.BehaviorSubject(
-    new Map([[prime, startingYyshift]])
+    new Map([[prime, startingYyshift]]),
   );
   rxjs.merge(
     rxjs.fromEvent(inNumYshift, 'input'),
@@ -195,7 +200,7 @@ function addAxis(
   });
 
   const harmStepStream = new rxjs.BehaviorSubject(
-    new Map([[prime, startingHarmStep]])
+    new Map([[prime, startingHarmStep]]),
   );
   rxjs.merge(
     rxjs.fromEvent(inNumHarmdiststep, 'input'),
@@ -243,7 +248,7 @@ function removeAxis() {
 const buttAddAxis = document.getElementById('buttAddAxis');
 buttAddAxis.onclick = function buttAddAxisOnclick() {
   addAxis();
-}
+};
 
 const buttRemoveAxis = document.getElementById('buttRemoveAxis');
 buttRemoveAxis.onclick = function buttRemoveAxisOnclick() {
@@ -369,8 +374,8 @@ boundary.`;
         const endpointCoords = sumTones(tone.coords, interval);
         const endpointExists = endpointCoords in scaleFig.tones;
         if (endpointExists) {
-          const msg = `Error: tone at ${endpointCoords} should be the endpoint 
-\of a step from ${step.origin.coords}, but no endpoint has been set.`;
+          const msg = `Error: tone at ${endpointCoords} should be the \
+endpoint of a step from ${step.origin.coords}, but no endpoint has been set.`;
           console.log(msg);
         }
       }
@@ -468,7 +473,7 @@ if (!streams.helpExpanded.getValue()) {
     (e) => {
       startPopUp.style.display = 'none';
     },
-    {once: true}
+    {once: true},
   );
 }
 
