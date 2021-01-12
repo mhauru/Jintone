@@ -69,10 +69,7 @@ DEFAULT_URLPARAMS.set('minToneOpacity', 0.15);
 DEFAULT_URLPARAMS.set('horizontalZoom', 300.0);
 DEFAULT_URLPARAMS.set('verticalZoom', 100.0);
 DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);
-DEFAULT_URLPARAMS.set('settingsExpanded', true);
-DEFAULT_URLPARAMS.set('generalExpanded', true);
-DEFAULT_URLPARAMS.set('tonesExpanded', false);
-DEFAULT_URLPARAMS.set('styleExpanded', false);
+DEFAULT_URLPARAMS.set('settingsExpanded', false);
 DEFAULT_URLPARAMS.set('helpExpanded', false);
 const genInts = [
   new Map([[2, 1]]),
