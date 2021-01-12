@@ -199,7 +199,7 @@ function addGeneratingInterval(
 
   const divAxis = document.createElement('div');
   divAxis.id = `divAxis_${genIntStr}`;
-  divAxis.innerHTML = `Generating interval: ${num}/${denom}`;
+  divAxis.innerHTML = `Generating interval ${num}/${denom}`;
   divAxis.appendChild(removeButt);
   divAxis.appendChild(parYShift);
   divAxis.appendChild(parHarmDistStep);

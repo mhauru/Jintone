@@ -413,7 +413,8 @@
             <span class="toggletipBubble">
               The options are showing the name of the closest 12-EDO tone; the
               ratio with respect to the root tone as fraction; or the reduced fraction,
-              meaning the fraction but with octave-shifts removed (so ⁸⁄₃ becomes ⁴⁄₃).
+              meaning the fraction octave-shifted to be between ¹⁄₁ and ²⁄₁
+              (so ⁸⁄₃ becomes ⁴⁄₃).
             </span>
             <br>
             <label class="radioIndent">
@@ -492,14 +493,90 @@
             Tones
           </h3>
           <div id="contentTones">
-            New generating interval
-            <input id="inNewGenIntNumerator" type="number" class="num" min="1000000"
-                                                                       max="1000000"
-                                                                       step="1">
+            <p class=setting>
+            This section allows you to customise the way the keyboard is laid out, as well
+            as adjusting which tones are drawn. If you dislike the way tones are divided
+            into bands based on jumps of minor and major thirds, or want to add some
+            7-based tones to your keyboard, you are in the right place. For more
+            information, click here:
+            <button class="toggletipButton">
+              ?
+            </button>
+            <span class="toggletipBubble">
+              <span class=toggletipBubbleSubpar>
+              Jiboard draws the keyboard by starting from the root tone ¹⁄₁, and taking steps
+              by what are called generating intervals. For instance, if an octave, so ²⁄₁
+              would be the only generating interval, then Jiboard would first generate the
+              tones ²⁄₁ and ½, since they are one octave jump away from the root, then ⁴⁄₁
+              and ¼, and so on. If you would then add a second generating interval, say ³⁄₂
+              aka perfect fifth, then all tones that can be reached from the root by going up
+              or down by any number of octaves or perfect fifths would be drawn.
+              </span>
+              <span class=toggletipBubbleSubpar>
+              To avoid generating a humonguous number of tones, we also say that every step
+              we take increases the tone's harmonic distance from the root. For instance, we
+              might say that taking an octave-step increases the harmonic distance by 0.1,
+              but taking a step of a perfect fifth increases it by 0.8. This would then give
+              each tone a total harmonic distance from the root. We then put a limit on how
+              harmonically-far-away tones are drawn (see "max harmonic norm" above), and also
+              colour the more far-away tones more faintly (see "minimum tone opacity" above).
+              This way the more prominent tones are clearly visible, and the keyboard isn't
+              cluttered with tones like ⁵³¹⁴⁴¹⁄₁₀₄₈₅₇₆ (12 perfect fifths up and 8 octaves
+              down).
+              </span>
+              <span class=toggletipBubbleSubpar>
+              The horizontal axis of the keyboard corresponds directly to pitch. The position
+              on the vertical axis, however, is determined by the generating intervals: Each
+              generating interval comes with a "y-shift", the distance by which we move up or
+              down on the screen when we take a step by that generating interval. This
+              guarantees that <span class=emph>shapes correspond to chords</span> on the
+              screen. So for instance, four tones that form a maj7 chord are always
+              positioned in exactly the same way relative to each other, regardless of what
+              the root tone of the chord is.
+              </span>
+              <span class=toggletipBubbleSubpar>
+              Below you can add new generating intervals, by entering the fraction that you
+              want that interval to be and clicking Add. You can also remove any generating
+              interval currently in use. And you can adjust the harmonic distance and y-shift
+              associated to each interval.
+              </span>
+              <span class=toggletipBubbleSubpar>
+              A word of warning is in order: Some choices of parameters may lead to crazy
+              numbers (up to and including infinity) of tones being generated, which will
+              choke up your computer/phone/tablet. Be especially careful with setting a small
+              value of harmonic distance to several generating intervals.
+              </span>
+              <span class=toggletipBubbleSubpar>
+              Finally, you can't add new generating intervals that could be formed by
+              combining the existing ones. For instance, if you already have the octave (²⁄₁)
+              and perfect fifth (³⁄₂), then you can't add perfect fourth (⁴⁄₃), because
+              that's just the same as going up an octave and down a perfect fifth (²⁄₁ / ³⁄₂
+              = ⁴⁄₃). That would simply be redundant and unnecessary (and mess up the way
+              y-shifts and harmonic distances work).
+              </span>
+            </span>
+            </p>
+            <p class=setting>
+            New generating interval<br>
+            <input
+              id="inNewGenIntNumerator"
+              type="number"
+              class="num"
+              min="-100"
+              max="100"
+              step="1"
+              style='width: 50px;'
+              >
             /
-            <input id="inNewGenIntDenominator" type="number" class="num" min="1000000"
-                                                                         max="1000000"
-                                                                         step="1">
+            <input
+              id="inNewGenIntDenominator"
+              type="number"
+              class="num"
+              min="-100"
+              max="100"
+              step="1"
+              style='width: 50px;'
+              >
             <button id="buttAddGeneratingInterval">Add</button>
             <div id="contentAxes">
             </div>

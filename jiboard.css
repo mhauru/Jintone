@@ -317,3 +317,10 @@ body {
 .toggletipBubbleVisible {
   display: inline-block !important;
 }
+
+.toggletipBubbleSubpar {
+  display: block;
+  position: relative;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em;
+}
