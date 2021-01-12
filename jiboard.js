@@ -124,7 +124,7 @@ const allTones = new Map();
 // Create the root tone.
 new ToneObject(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
 
-// TODO Which file do addAxis and removeAxis go in?
+// TODO Which file do addGenInt and removeGenInt go in?
 // Associate each prime to each it's streams, to make it possible to remove the
 // right ones with removeSource.
 const yShiftStreams = new Map();
@@ -162,13 +162,6 @@ function addGeneratingInterval(
   inNumYshift.step = 0.01;
   inNumYshift.style.width = '80px';
 
-  const inRangeYshift = document.createElement('input');
-  inRangeYshift.id = `inRangeYshift_${genIntStr}`;
-  inRangeYshift.type = 'range';
-  inRangeYshift.step = 0.01;
-  inRangeYshift.max = 10.0;
-  inRangeYshift.min = -10.0;
-
   const inNumHarmdiststep = document.createElement('input');
   inNumHarmdiststep.id = `inNumHarmdiststep_${genIntStr}`;
   inNumHarmdiststep.type = 'number';
@@ -177,43 +170,32 @@ function addGeneratingInterval(
   inNumHarmdiststep.step = 0.01;
   inNumHarmdiststep.style.width = '80px';
 
-  const inRangeHarmdiststep = document.createElement('input');
-  inRangeHarmdiststep.id = `inRangeHarmdiststep_${genIntStr}`;
-  inRangeHarmdiststep.type = 'range';
-  inRangeHarmdiststep.step = 0.01;
-  inRangeHarmdiststep.max = 10.0;
-  inRangeHarmdiststep.min = 0.0;
-
   const parYShift = document.createElement('p');
   parYShift.innerHTML = 'y-shift: ';
   parYShift.appendChild(inNumYshift);
-  parYShift.appendChild(inRangeYshift);
 
   const parHarmDistStep = document.createElement('p');
   parHarmDistStep.innerHTML = 'Harmonic distance: ';
   parHarmDistStep.appendChild(inNumHarmdiststep);
-  parHarmDistStep.appendChild(inRangeHarmdiststep);
 
   const removeButt = document.createElement('button');
   removeButt.innerHTML = 'Remove';
+  removeButt.classList.add('genIntButton');
 
-  const divAxis = document.createElement('div');
-  divAxis.id = `divAxis_${genIntStr}`;
-  divAxis.innerHTML = `Generating interval ${num}/${denom}`;
-  divAxis.appendChild(removeButt);
-  divAxis.appendChild(parYShift);
-  divAxis.appendChild(parHarmDistStep);
+  const divGenInt = document.createElement('div');
+  divGenInt.id = `divGenInt${genIntStr}`;
+  divGenInt.innerHTML = `Generating interval ${num}/${denom}`;
+  divGenInt.appendChild(removeButt);
+  divGenInt.appendChild(parYShift);
+  divGenInt.appendChild(parHarmDistStep);
+  divGenInt.classList.add('divGenInt')
 
-
-  document.getElementById('contentAxes').appendChild(divAxis);
+  document.getElementById('contentAxes').appendChild(divGenInt);
 
   const yShiftStream = new rxjs.BehaviorSubject(
     new Map([[genIntStr, startingYyshift]]),
   );
-  rxjs.merge(
-    rxjs.fromEvent(inNumYshift, 'input'),
-    rxjs.fromEvent(inRangeYshift, 'input'),
-  ).pipe(
+  rxjs.fromEvent(inNumYshift, 'change').pipe(
     rxjs.operators.pluck('target', 'value'),
     rxjs.operators.map((value) => {
       return new Map([[genIntStr, value]]);
@@ -222,17 +204,12 @@ function addGeneratingInterval(
   yShiftStream.subscribe((m) => {
     const value = m.get(genIntStr);
     inNumYshift.value = value;
-    // TODO This used be value.toString(). Why?
-    inRangeYshift.value = value;
   });
 
   const harmStepStream = new rxjs.BehaviorSubject(
     new Map([[genIntStr, startingHarmStep]]),
   );
-  rxjs.merge(
-    rxjs.fromEvent(inNumHarmdiststep, 'input'),
-    rxjs.fromEvent(inRangeHarmdiststep, 'input'),
-  ).pipe(
+  rxjs.fromEvent(inNumHarmdiststep, 'change').pipe(
     rxjs.operators.pluck('target', 'value'),
     rxjs.operators.map((value) => {
       return new Map([[genIntStr, value]]);
@@ -241,8 +218,6 @@ function addGeneratingInterval(
   harmStepStream.subscribe((m) => {
     const value = m.get(genIntStr);
     inNumHarmdiststep.value = value;
-    // TODO This used be value.toString(). Why?
-    inRangeHarmdiststep.value = value;
   });
 
   streams.harmDistSteps.addSource(harmStepStream);
@@ -259,8 +234,8 @@ function addGeneratingInterval(
 }
 
 function removeGeneratingInterval(genIntStr) {
-  const divAxis = document.getElementById(`divAxis_${genIntStr}`);
-  document.getElementById('contentAxes').removeChild(divAxis);
+  const divGenInt = document.getElementById(`divGenInt${genIntStr}`);
+  document.getElementById('contentAxes').removeChild(divGenInt);
   const yShiftStream = yShiftStreams.get(genIntStr);
   const harmStepStream = harmDistStepStreams.get(genIntStr);
   streams.yShifts.removeSource(yShiftStream);

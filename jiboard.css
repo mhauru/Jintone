@@ -324,3 +324,14 @@ body {
   padding-top: 0.2em;
   padding-bottom: 0.2em;
 }
+
+.divGenInt {
+  border-top: 1px solid black;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.genIntButton {
+  padding: 0px;
+  margin: 2px 10px 2px 10px;
+}
