@@ -404,14 +404,14 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       'observableProperty': 'value',
     },
     {
-      'paramName': 'baseToneBorderColor',
-      'elemName': 'baseToneBorderColor',
+      'paramName': 'rootToneBorderColor',
+      'elemName': 'rootToneBorderColor',
       'eventName': 'input',
       'observableProperty': 'value',
     },
     {
-      'paramName': 'baseToneBorderSize',
-      'elemName': 'numBaseToneBorderSize',
+      'paramName': 'rootToneBorderSize',
+      'elemName': 'numRootToneBorderSize',
       'eventName': 'input',
       'observableProperty': 'value',
       'parser': parseFloat,
@@ -556,11 +556,6 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
   });
 
-  streams.baseTones = new rxjs.BehaviorSubject(new Map());
-  urlStreams.push(streams.baseTones.pipe(
-    urlStringOperator('baseTones', DEFAULT_URLPARAMS_STRS),
-  ));
-
   // Take Observables, each of which returns Maps, combineLatest on it merge the
   // Maps.
   function combineAndMerge(...x) {
@@ -574,11 +569,11 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     return combined;
   }
 
-  streams.primes = new rxjs.BehaviorSubject([]);
+  streams.generatingIntervals = new rxjs.BehaviorSubject(new Map());
   streams.harmDistSteps = new VariableSourceSubject(combineAndMerge, new Map());
   streams.yShifts = new VariableSourceSubject(combineAndMerge, new Map());
-  urlStreams.push(streams.primes.pipe(
-    urlStringOperator('primes', DEFAULT_URLPARAMS_STRS),
+  urlStreams.push(streams.generatingIntervals.pipe(
+    urlStringOperator('generatingIntervals', DEFAULT_URLPARAMS_STRS),
   ));
   urlStreams.push(streams.harmDistSteps.pipe(
     urlStringOperator('harmDistSteps', DEFAULT_URLPARAMS_STRS),

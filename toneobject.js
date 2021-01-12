@@ -1,7 +1,13 @@
 'use strict';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
-export {toneToString, toneToFraction, primeDecompose, ToneObject};
+export {
+  toneToString,
+  toneToFraction,
+  primeDecompose,
+  linearlyIndependent,
+  ToneObject
+};
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Generic utility functions
@@ -75,6 +81,12 @@ function sumTones(tone1, tone2) {
   return sum;
 }
 
+// Scale a tone by a scalar a * tone
+function scaleTone(a, tone) {
+  // TODO The Array trick is ugly
+  return new Map([...tone.entries()].map(([k, v]) => [k, a*v]));
+}
+
 // Given an interval, compute the fraction representation as [num, denom].
 function toneToFraction(interval) {
   let num = 1.0;
@@ -133,12 +145,41 @@ function pitchFactor(interval) {
   return pf;
 }
 
+// Return a matrix, with columns representing the intervals. Rows with
+// only zeros are omitted.
+function intervalsToMatrix(intervals) {
+  const primeSet = new Set();
+  for (const i of intervals) {
+    for (const p of i.keys()) {
+      primeSet.add(p);
+    }
+  }
+  const primeArray = Array.from(primeSet).sort();
+  const columns = intervals.map((i) => {
+    return primeArray.map((p) => (i.get(p) || 0));
+  });
+  return columns;
+}
+
+// Return whether a set of intervals is linearlyIndependent or not.
+function linearlyIndependent(intervals) {
+  const mat = intervalsToMatrix(intervals);
+  const r = math.qr(mat).R;
+  const [n, m] = math.size(r);
+  const mindim = Math.min(n, m);
+  if (n > m) return false;
+  for (let i = 0; i < m; i++) {
+    if (r[i][i] == 0) return false;
+  }
+  return true;
+}
+
 // TODO The 'Object' part of the name is to avoid a name collission with
 // Tone.js. Think about namespace management.
 class ToneObject {
-  constructor(coordinates, isBase, svgGroups, streams, allTones, synth) {
-    this.coords = coordinates;
-    this.isBase = new rxjs.BehaviorSubject(isBase);
+  constructor(genIntCoords, isRoot, svgGroups, streams, allTones, synth) {
+    this.genIntCoords = genIntCoords;
+    this.isRoot = isRoot;
     this.allTones = allTones;
     this.subscriptions = [];
 
@@ -149,6 +190,13 @@ class ToneObject {
     const pitchlineGroup = svgGroups['pitchlines'];
     this.svgPitchline = pitchlineGroup.path('M 0,-1000 V 2000');
 
+    this.primeCoords = new Map();
+    for (const [genIntStr, c] of genIntCoords.entries()) {
+      // TODO A bit wasteful doing getValue() repeatedly
+      const genInt = streams.generatingIntervals.getValue().get(genIntStr);
+      this.primeCoords = sumTones(this.primeCoords, scaleTone(c, genInt));
+    }
+
     // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
     // on the browser, the same click or touch may fire several, e.g. both
     // touch and mouse or both pointer and mouse. This ensures maximum
@@ -156,16 +204,6 @@ class ToneObject {
     // performance. Note though that the same tone isn't played twice. Come
     // back to this later and check whether we could switch for instance using
     // only PointerEvents, once they have widespread support.
-
-    this.subscriptions.push(streams.baseTones.subscribe((baseTones) => {
-      const coordsStr = toneToString(this.coords);
-      const inBaseTones = baseTones.has(coordsStr);
-      if (inBaseTones && !this.isBase.getValue()) {
-        this.isBase.next(true);
-      } else if (!inBaseTones && this.isBase.getValue()) {
-        this.isBase.next(false);
-      }
-    }));
 
     const trueOnClickDown = rxjs.merge(
       //rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
@@ -232,8 +270,8 @@ class ToneObject {
       }
     }));
 
-    const pf = pitchFactor(this.coords);
-    const fraction = toneToFraction(this.coords);
+    const pf = pitchFactor(this.primeCoords);
+    const fraction = toneToFraction(this.primeCoords);
     const frequency = new rxjs.BehaviorSubject(
       streams.originFreq.getValue()*pf,
     );
@@ -269,10 +307,10 @@ class ToneObject {
         streams.yShifts,
       ).subscribe(([zoom, yShifts]) => {
         let y = 0.0;
-        this.coords.forEach((c, p) => {
+        this.genIntCoords.forEach((c, genIntStr) => {
           // TODO Is the check necessary?
-          if (yShifts.has(p)) {
-            y += -yShifts.get(p) * c;
+          if (yShifts.has(genIntStr)) {
+            y += -yShifts.get(genIntStr) * c;
           }
         });
         y *= zoom;
@@ -280,58 +318,26 @@ class ToneObject {
       }),
     );
 
-    const harmDistsCombined = new VariableSourceSubject(
-      rxjs.combineLatest, [],
-    );
-    const harmDists = new Map();
-
-    this.subscriptions.push(streams.baseTones.subscribe((baseTones) => {
-      // Remove harmDists if the corresponding baseTone is no longer a
-      // baseTone.
-      for (const btStr of harmDists.keys()) {
-        if (!baseTones.has(btStr)) {
-          harmDistsCombined.removeSource(harmDists.get(btStr));
-          harmDists.delete(btStr);
-        }
-      }
-
-      // Add new harmDists if new baseTones are present.
-      baseTones.forEach((bt, btStr) => {
-        if (!harmDists.has(btStr)) {
-          const interval = subtractTone(this.coords, bt);
-          const primes = Array.from(interval.keys());
-          const facts = primes.map((p) => Math.abs(interval.get(p)));
-          const dist = streams.harmDistSteps.pipe(rxjs.operators.map(
-            (hds) => {
-              let d = 0;
-              for (let i = 0; i < primes.length; i++) {
-                const p = primes[i];
-                const c = facts[i];
-                let s;
-                // If there is no harmonic distance defined for this prime,
-                // assume it's infinite.
-                if (!hds.has(p)) {
-                  s = Infinity;
-                } else {
-                  s = hds.get(p);
-                }
-                if (c != 0.0) d += s*c;
-              }
-              return d;
-            }));
-          harmDists.set(btStr, dist);
-          harmDistsCombined.addSource(dist);
-        }
-      });
-    }));
-
     const harmNorm = new rxjs.BehaviorSubject(0.0);
-    this.subscriptions.push(
-      harmDistsCombined.pipe(
-        rxjs.operators.map((x) => Math.min(...x)),
-        rxjs.operators.distinctUntilChanged(),
-      ).subscribe(harmNorm),
-    );
+    this.subscriptions.push(streams.harmDistSteps.pipe(
+      rxjs.operators.map(
+        (hds) => {
+          let d = 0;
+          for (const [genIntStr, c] of genIntCoords) {
+            // If there is no harmonic distance defined for this generating
+            // interval assume it's infinite.
+            let s;
+            if (!hds.has(genIntStr)) {
+              s = Infinity;
+            } else {
+              s = hds.get(genIntStr);
+            }
+            if (c != 0.0) d += s * Math.abs(c);
+          }
+          return d;
+        }),
+      rxjs.operators.distinctUntilChanged(),
+    ).subscribe(harmNorm));
 
     const harmClose = rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm,
@@ -370,18 +376,19 @@ class ToneObject {
       xpos,
       streams.horizontalZoom,
       streams.canvasViewbox,
-      streams.primes,
+      streams.generatingIntervals,
     ).pipe(
       rxjs.operators.map(([
         x,
         horizontalZoom,
         viewbox,
-        primes,
+        genInts,
       ]) => {
         const viewboxLeft = viewbox.x;
         const viewboxRight = viewboxLeft + viewbox.width;
-        const maxPrime = Math.max(...primes);
-        const maxXjump = horizontalZoom * Math.log2(maxPrime);
+        // TODO This line is ugly
+        const maxPitchFactor = Math.max(...[...genInts.values()].map(pitchFactor));
+        const maxXjump = horizontalZoom * Math.log2(maxPitchFactor);
         const closureLeft = viewboxLeft - maxXjump;
         const closureRight = viewboxRight + maxXjump;
         return closureLeft < x && x < closureRight;
@@ -458,14 +465,13 @@ class ToneObject {
     // TODO This doesn't actually depend on the value of toneLabelTextStyle,
     // it just should be redone every time that changes.
     this.subscriptions.push(rxjs.combineLatest(
-      this.isBase,
       streams.toneRadius,
-      streams.baseToneBorderSize,
+      streams.rootToneBorderSize,
       toneLabelRedrawTrigger,
-    ).subscribe(([isBase, toneRadius, borderSize, _]) => {
+    ).subscribe(([toneRadius, borderSize, _]) => {
       const svgCircle = this.svgCircle;
       const svgLabel = this.svgLabel;
-      if (isBase) {
+      if (isRoot) {
         svgCircle.radius(toneRadius + borderSize/2);
       } else {
         svgCircle.radius(toneRadius);
@@ -493,21 +499,19 @@ class ToneObject {
     // TODO Should split this into smaller, independent parts.
     this.subscriptions.push(rxjs.combineLatest(
       this.isOn,
-      this.isBase,
       relHarmNorm,
       streams.toneColorActive,
       streams.toneColor,
-      streams.baseToneBorderColor,
-      streams.baseToneBorderSize,
+      streams.rootToneBorderColor,
+      streams.rootToneBorderSize,
       streams.minToneOpacity,
     ).subscribe(([
       isOn,
-      ib,
       relHn,
       toneColorActive,
       toneColorNonActive,
-      baseToneBorderColor,
-      baseToneBorderSize,
+      rootToneBorderColor,
+      rootToneBorderSize,
       minOpacity,
     ]) => {
       const svgTone = this.svgTone;
@@ -525,9 +529,9 @@ class ToneObject {
       } else {
         toneColor = toneColorNonActive;
       }
-      if (ib) {
-        const borderColor = baseToneBorderColor;
-        const borderSize = baseToneBorderSize;
+      if (isRoot) {
+        const borderColor = rootToneBorderColor;
+        const borderSize = rootToneBorderSize;
         svgCircle.attr({
           'stroke': borderColor,
           'stroke-width': borderSize,
@@ -660,24 +664,25 @@ class ToneObject {
     );
 
     // Report our birth to the global register of all tones.
-    allTones.set(toneToString(this.coords), this);
+    allTones.set(toneToString(this.genIntCoords), this);
 
     const me = this;
-    const coords = this.coords;
 
     const prospectiveNeighbors = new rxjs.BehaviorSubject([]);
-    this.subscriptions.push(streams.primes.subscribe((primes) => {
-      const neighs = [];
-      for (const p of primes) {
-        [-1, +1].forEach(function(increment) {
-          const step = new Map([[p, increment]]);
-          const neighCoords = sumTones(coords, step);
-          const neighCoordsStr = toneToString(neighCoords);
-          neighs.push([neighCoordsStr, neighCoords]);
-        });
-      }
-      prospectiveNeighbors.next(neighs);
-    }));
+    this.subscriptions.push(streams.generatingIntervals.subscribe(
+      (genInts) => {
+        const neighs = [];
+        for (const giStr of genInts.keys()) {
+          [-1, +1].forEach(function(increment) {
+            const step = new Map([[giStr, increment]]);
+            const neighCoords = sumTones(genIntCoords, step);
+            const neighCoordsStr = toneToString(neighCoords);
+            neighs.push([neighCoordsStr, neighCoords]);
+          });
+        }
+        prospectiveNeighbors.next(neighs);
+      },
+    ));
 
     // Add any already existing neighbours, and report to them that they have a
     // new neighbour.
@@ -686,7 +691,7 @@ class ToneObject {
         if (allTones.has(neighCoordsStr)) {
           const neighbour = allTones.get(neighCoordsStr);
           me.neighbourCreated(neighCoords, neighbour);
-          neighbour.neighbourCreated(coords, me);
+          neighbour.neighbourCreated(genIntCoords, me);
         }
       },
     );
@@ -715,14 +720,19 @@ class ToneObject {
       ),
     );
 
-    this.subscriptions.push(streams.primes.subscribe((primes) => {
-      for (const p of coords.keys()) {
-        if (!primes.includes(p)) {
-          me.destroy();
-          break;
+    // The root tone should not be destroyed.
+    if (!this.isRoot) {
+      this.subscriptions.push(streams.generatingIntervals.subscribe(
+        (genInts) => {
+          for (const giStr of genIntCoords.keys()) {
+            if (!genInts.has(giStr)) {
+              me.destroy();
+              break;
+            }
+          }
         }
-      }
-    }));
+      ));
+    }
 
     // TODO Could just create anyNeighborInclosure directly as
     // VariableSourceSubject.
@@ -734,27 +744,28 @@ class ToneObject {
     // TODO Should we also check for isOn, to make sure we don't leave some
     // note ringing after it's destroyed? At least test what happens if a note
     // that is playing is destroyed.
-    this.subscriptions.push(rxjs.combineLatest(
-      this.inclosure,
-      anyNeighborInclosure,
-      this.isBase,
-    ).subscribe(
-      ([incls, neighIncls, ib]) => {
-        if (!incls && !neighIncls && !ib) me.destroy();
-      },
-    ));
+    if (!this.isRoot) {
+      this.subscriptions.push(rxjs.combineLatest(
+        this.inclosure,
+        anyNeighborInclosure,
+      ).subscribe(
+        ([incls, neighIncls]) => {
+          if (!incls && !neighIncls) me.destroy();
+        },
+      ));
+    }
   }
 
-  neighbourCreated(coords, tone) {
-    const coordsStr = toneToString(coords);
+  neighbourCreated(genIntCoords, tone) {
+    const coordsStr = toneToString(genIntCoords);
     if (!this.neighbours.has(coordsStr)) {
       this.neighbours.set(coordsStr, tone);
       this.neighboursInclosure.addSource(tone.inclosure);
     }
   }
 
-  neighbourDestroyed(coords) {
-    const coordsStr = toneToString(coords);
+  neighbourDestroyed(genIntCoords) {
+    const coordsStr = toneToString(genIntCoords);
     if (this.neighbours.has(coordsStr)) {
       const tone = this.neighbours.get(coordsStr);
       this.neighbours.delete(coordsStr);
@@ -769,9 +780,9 @@ class ToneObject {
       s.unsubscribe();
     }
     this.neighbours.forEach((neighbour, neigCoords) => {
-      neighbour.neighbourDestroyed(this.coords);
+      neighbour.neighbourDestroyed(this.genIntCoords);
     });
-    this.allTones.delete(toneToString(this.coords));
+    this.allTones.delete(toneToString(this.genIntCoords));
     this.svgTone.remove();
     this.svgPitchline.remove();
   }

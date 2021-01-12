@@ -492,20 +492,16 @@
             Tones
           </h3>
           <div id="contentTones">
-            <button id="buttAddAxis">Add axis</button>
-            <button id="buttRemoveAxis">Remove axis</button>
-            <div id="contentAxes">
-            </div>
-            New base tone
-            <input id="inNewBaseToneNumerator" type="number" class="num" min="1000000"
+            New generating interval
+            <input id="inNewGenIntNumerator" type="number" class="num" min="1000000"
+                                                                       max="1000000"
+                                                                       step="1">
+            /
+            <input id="inNewGenIntDenominator" type="number" class="num" min="1000000"
                                                                          max="1000000"
                                                                          step="1">
-            /
-            <input id="inNewBaseToneDenominator" type="number" class="num" min="1000000"
-                                                                           max="1000000"
-                                                                           step="1">
-            <button id="buttAddBaseTone">Add base tone</button>
-            <div id="contentBaseTones">
+            <button id="buttAddGeneratingInterval">Add</button>
+            <div id="contentAxes">
             </div>
           </div>
         </div>
@@ -523,11 +519,11 @@
             <label> Tone color when played
               <input id="toneColorActive" type="color">
             </label><br>
-            <label> Base tone border color
-              <input id="baseToneBorderColor" type="color">
+            <label> Root tone border color
+              <input id="rootToneBorderColor" type="color">
             </label><br>
-            <label> Base tone border size
-              <input id="numBaseToneBorderSize" type="number" class="num" min="0.0" max="10" step="0.01">
+            <label> Root tone border size
+              <input id="numRootToneBorderSize" type="number" class="num" min="0.0" max="10" step="0.01">
             </label>
           </p>
 
@@ -545,6 +541,7 @@
     </div>
 
     <script src="./node_modules/rxjs/bundles/rxjs.umd.min.js"></script>
+    <script src="./node_modules/mathjs/lib/browser/math.js"></script>
     <script src="./node_modules/svgjs/dist/svg.min.js"></script>
     <script type="module" src="jiboard.js"></script>
 </body>

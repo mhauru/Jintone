@@ -11,6 +11,7 @@ import {
   toneToString,
   toneToFraction,
   primeDecompose,
+  linearlyIndependent,
   ToneObject,
 } from './toneobject.js';
 import {EDOTones} from './edo.js';
@@ -62,21 +63,34 @@ DEFAULT_URLPARAMS.set('toneRadius', 22.0);
 DEFAULT_URLPARAMS.set('toneLabelTextStyle', 'reducedfractions');
 DEFAULT_URLPARAMS.set('toneColor', '#D82A1E');
 DEFAULT_URLPARAMS.set('toneColorActive', '#D8B71E');
-DEFAULT_URLPARAMS.set('baseToneBorderColor', '#000000');
-DEFAULT_URLPARAMS.set('baseToneBorderSize', 5.0);
+DEFAULT_URLPARAMS.set('rootToneBorderColor', '#000000');
+DEFAULT_URLPARAMS.set('rootToneBorderSize', 5.0);
 DEFAULT_URLPARAMS.set('minToneOpacity', 0.15);
 DEFAULT_URLPARAMS.set('horizontalZoom', 300.0);
 DEFAULT_URLPARAMS.set('verticalZoom', 100.0);
 DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);
-DEFAULT_URLPARAMS.set('baseTones', new Map([['', new Map()]]));
 DEFAULT_URLPARAMS.set('settingsExpanded', true);
 DEFAULT_URLPARAMS.set('generalExpanded', true);
 DEFAULT_URLPARAMS.set('tonesExpanded', false);
 DEFAULT_URLPARAMS.set('styleExpanded', false);
 DEFAULT_URLPARAMS.set('helpExpanded', false);
-DEFAULT_URLPARAMS.set('primes', [2, 3, 5]);
-DEFAULT_URLPARAMS.set('yShifts', new Map([[2, 1.2], [3, 1.8], [5, 1.0]]));
-DEFAULT_URLPARAMS.set('harmDistSteps', new Map([[2, 0.0], [3, 1.5], [5, 1.7]]));
+const genInts = [
+  new Map([[2, 1]]),
+  new Map([[3, 1], [2, -1]]),
+  new Map([[5, 1], [2, -2]]),
+];
+const genIntStrs = genInts.map(toneToString);
+DEFAULT_URLPARAMS.set(
+  'generatingIntervals', new Map(genIntStrs.map((e, i) => [e, genInts[i]])),
+);
+DEFAULT_URLPARAMS.set(
+  'yShifts',
+  new Map([[genIntStrs[0], 1.2], [genIntStrs[1], 0.6], [genIntStrs[2], -1.4]]),
+);
+DEFAULT_URLPARAMS.set(
+  'harmDistSteps',
+  new Map([[genIntStrs[0], 0.0], [genIntStrs[1], 1.5], [genIntStrs[2], 1.7]]),
+);
 
 // scaleFig is a global object that essentially functions as a namespace.
 // Its fields are various global variables related to the SVG canvasses.
@@ -107,15 +121,8 @@ const streams = setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig);
 
 // TODO What's the right place to have this bit?
 const allTones = new Map();
-streams.baseTones.subscribe((baseTones) => {
-  // We only have to care about creating new Tones here. Each tone object
-  // subscribes to baseTones to check if its own isBase should change.
-  baseTones.forEach((bt, btStr) => {
-    if (!allTones.has(btStr)) {
-      new ToneObject(bt, true, scaleFig.svgGroups, streams, allTones, synth);
-    }
-  });
-});
+// Create the root tone.
+new ToneObject(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
 
 // TODO Which file do addAxis and removeAxis go in?
 // Associate each prime to each it's streams, to make it possible to remove the
@@ -123,17 +130,32 @@ streams.baseTones.subscribe((baseTones) => {
 const yShiftStreams = new Map();
 const harmDistStepStreams = new Map();
 
-// TODO add/remove axis/basetone all access the global streams object. That's
-// probably not good, but more generally, I'm not sure where these functions
-// should be defined in the first place.
-function addAxis(
+// TODO add/remove axis access the global streams object. That's probably not
+// good, but more generally, I'm not sure where these functions should be
+// defined in the first place.
+function addGeneratingInterval(
+  genInt,
   startingYyshift = 0.0,
   startingHarmStep = streams.maxHarmNorm.getValue(),
 ) {
-  const prime = ALLPRIMES[streams.primes.getValue().length];
+  const [num, denom] = toneToFraction(genInt);
 
+  if (denom == 0 || !Number.isInteger(denom) || !Number.isInteger(num)) {
+    // TODO Create some kind of pop-up warning.
+    console.log(`Invalid generating interval: ${num} / ${denom}`);
+    return false;
+  }
+
+  const currentGenInts = streams.generatingIntervals.getValue();
+  if (!linearlyIndependent([genInt, ...currentGenInts.values()])) {
+    // TODO Create some kind of pop-up warning.
+    console.log(`The proposed generating interval is not independent of the others: ${num} / ${denom}`);
+    return false;
+  }
+
+  const genIntStr = toneToString(genInt);
   const inNumYshift = document.createElement('input');
-  inNumYshift.id = `inNumYshift_${prime}`;
+  inNumYshift.id = `inNumYshift_${genIntStr}`;
   inNumYshift.type = 'number';
   inNumYshift.min = -10;
   inNumYshift.max = 10;
@@ -141,14 +163,14 @@ function addAxis(
   inNumYshift.style.width = '80px';
 
   const inRangeYshift = document.createElement('input');
-  inRangeYshift.id = `inRangeYshift_${prime}`;
+  inRangeYshift.id = `inRangeYshift_${genIntStr}`;
   inRangeYshift.type = 'range';
   inRangeYshift.step = 0.01;
   inRangeYshift.max = 10.0;
   inRangeYshift.min = -10.0;
 
   const inNumHarmdiststep = document.createElement('input');
-  inNumHarmdiststep.id = `inNumHarmdiststep_${prime}`;
+  inNumHarmdiststep.id = `inNumHarmdiststep_${genIntStr}`;
   inNumHarmdiststep.type = 'number';
   inNumHarmdiststep.min = -20;
   inNumHarmdiststep.max = 20;
@@ -156,7 +178,7 @@ function addAxis(
   inNumHarmdiststep.style.width = '80px';
 
   const inRangeHarmdiststep = document.createElement('input');
-  inRangeHarmdiststep.id = `inRangeHarmdiststep_${prime}`;
+  inRangeHarmdiststep.id = `inRangeHarmdiststep_${genIntStr}`;
   inRangeHarmdiststep.type = 'range';
   inRangeHarmdiststep.step = 0.01;
   inRangeHarmdiststep.max = 10.0;
@@ -172,16 +194,21 @@ function addAxis(
   parHarmDistStep.appendChild(inNumHarmdiststep);
   parHarmDistStep.appendChild(inRangeHarmdiststep);
 
+  const removeButt = document.createElement('button');
+  removeButt.innerHTML = 'Remove';
+
   const divAxis = document.createElement('div');
-  divAxis.id = `divAxis_${prime}`;
-  divAxis.innerHTML = `Axis: ${prime}`;
+  divAxis.id = `divAxis_${genIntStr}`;
+  divAxis.innerHTML = `Generating interval: ${num}/${denom}`;
+  divAxis.appendChild(removeButt);
   divAxis.appendChild(parYShift);
   divAxis.appendChild(parHarmDistStep);
+
 
   document.getElementById('contentAxes').appendChild(divAxis);
 
   const yShiftStream = new rxjs.BehaviorSubject(
-    new Map([[prime, startingYyshift]]),
+    new Map([[genIntStr, startingYyshift]]),
   );
   rxjs.merge(
     rxjs.fromEvent(inNumYshift, 'input'),
@@ -189,18 +216,18 @@ function addAxis(
   ).pipe(
     rxjs.operators.pluck('target', 'value'),
     rxjs.operators.map((value) => {
-      return new Map([[prime, value]]);
+      return new Map([[genIntStr, value]]);
     }),
   ).subscribe(yShiftStream);
   yShiftStream.subscribe((m) => {
-    const value = m.get(prime);
+    const value = m.get(genIntStr);
     inNumYshift.value = value;
     // TODO This used be value.toString(). Why?
     inRangeYshift.value = value;
   });
 
   const harmStepStream = new rxjs.BehaviorSubject(
-    new Map([[prime, startingHarmStep]]),
+    new Map([[genIntStr, startingHarmStep]]),
   );
   rxjs.merge(
     rxjs.fromEvent(inNumHarmdiststep, 'input'),
@@ -208,11 +235,11 @@ function addAxis(
   ).pipe(
     rxjs.operators.pluck('target', 'value'),
     rxjs.operators.map((value) => {
-      return new Map([[prime, value]]);
+      return new Map([[genIntStr, value]]);
     }),
   ).subscribe(harmStepStream);
   harmStepStream.subscribe((m) => {
-    const value = m.get(prime);
+    const value = m.get(genIntStr);
     inNumHarmdiststep.value = value;
     // TODO This used be value.toString(). Why?
     inRangeHarmdiststep.value = value;
@@ -220,95 +247,43 @@ function addAxis(
 
   streams.harmDistSteps.addSource(harmStepStream);
   streams.yShifts.addSource(yShiftStream);
-  const primes = streams.primes.getValue();
-  primes.push(prime);
-  streams.primes.next(primes);
-  yShiftStreams.set(prime, yShiftStream);
-  harmDistStepStreams.set(prime, harmStepStream);
-}
+  const genInts = streams.generatingIntervals.getValue();
+  genInts.set(genIntStr, genInt);
+  streams.generatingIntervals.next(genInts);
+  yShiftStreams.set(genIntStr, yShiftStream);
+  harmDistStepStreams.set(genIntStr, harmStepStream);
 
-function removeAxis() {
-  const primes = streams.primes.getValue();
-  const prime = primes.pop();
-  const divAxis = document.getElementById(`divAxis_${prime}`);
-  document.getElementById('contentAxes').removeChild(divAxis);
-  const yShiftStream = yShiftStreams.get(prime);
-  const harmStepStream = harmDistStepStreams.get(prime);
-  streams.yShifts.removeSource(yShiftStream);
-  streams.harmDistSteps.removeSource(harmStepStream);
-  yShiftStreams.delete(prime);
-  harmDistStepStreams.delete(prime);
-  streams.primes.next(primes);
-
-  // TODO This used to have a bit that went through baseTones, and removed all
-  // the ones that had a component along this axis. Should we have something
-  // similar now?
-}
-
-const buttAddAxis = document.getElementById('buttAddAxis');
-buttAddAxis.onclick = function buttAddAxisOnclick() {
-  addAxis();
-};
-
-const buttRemoveAxis = document.getElementById('buttRemoveAxis');
-buttRemoveAxis.onclick = function buttRemoveAxisOnclick() {
-  removeAxis();
-};
-
-function addBaseTone(tone = null) {
-  let bt;
-  let num;
-  let denom;
-  if (tone == null) {
-    const inNumerator = document.getElementById('inNewBaseToneNumerator');
-    const inDenominator = document.getElementById('inNewBaseToneDenominator');
-    num = inNumerator.valueAsNumber;
-    denom = inDenominator.valueAsNumber;
-    bt = primeDecompose(num, denom);
-  } else {
-    bt = tone;
-    [num, denom] = toneToFraction(bt);
-  }
-
-  if (denom == 0 || !Number.isInteger(denom) || !Number.isInteger(num)) {
-    // TODO Create some kind of pop-up warning.
-    console.log(`Invalid base tone: ${num} / ${denom}`);
-    return false;
-  }
-
-  const btStr = toneToString(bt);
-  const currentBts = streams.baseTones.getValue();
-  if (currentBts.has(btStr)) {
-    // TODO Create some kind of pop-up warning.
-    console.log(`Base tone already exists: ${num} / ${denom}`);
-    return false;
-  }
-
-  currentBts.set(btStr, bt);
-  streams.baseTones.next(currentBts);
-
-  const par = document.createElement('p');
-  const label = document.createElement('span');
-  label.innerHTML = `${num} / ${denom}`;
-  const butt = document.createElement('button');
-  butt.innerHTML = 'X';
-
-  par.appendChild(label);
-  par.appendChild(butt);
-
-  document.getElementById('contentBaseTones').appendChild(par);
-
-  butt.onclick = function remove() {
-    const currentBts = streams.baseTones.getValue();
-    document.getElementById('contentBaseTones').removeChild(par);
-    currentBts.delete(btStr);
-    streams.baseTones.next(currentBts);
+  removeButt.onclick = function remove() {
+    removeGeneratingInterval(genIntStr);
   };
 }
 
-const buttAddBaseTone = document.getElementById('buttAddBaseTone');
-buttAddBaseTone.onclick = () => {
-  addBaseTone();
+function removeGeneratingInterval(genIntStr) {
+  const divAxis = document.getElementById(`divAxis_${genIntStr}`);
+  document.getElementById('contentAxes').removeChild(divAxis);
+  const yShiftStream = yShiftStreams.get(genIntStr);
+  const harmStepStream = harmDistStepStreams.get(genIntStr);
+  streams.yShifts.removeSource(yShiftStream);
+  streams.harmDistSteps.removeSource(harmStepStream);
+  yShiftStreams.delete(genIntStr);
+  harmDistStepStreams.delete(genIntStr);
+  const genInts = streams.generatingIntervals.getValue();
+  genInts.delete(genIntStr);
+  streams.generatingIntervals.next(genInts);
+}
+
+function readNewGeneratingInterval() {
+  const inNumerator = document.getElementById('inNewGenIntNumerator');
+  const inDenominator = document.getElementById('inNewGenIntDenominator');
+  const num = inNumerator.valueAsNumber;
+  const denom = inDenominator.valueAsNumber;
+  const genInt = primeDecompose(num, denom);
+  return genInt;
+}
+
+document.getElementById('buttAddGeneratingInterval').onclick = () => {
+  const genInt = readNewGeneratingInterval();
+  addGeneratingInterval(genInt);
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -454,15 +429,11 @@ checkTones(); // TODO Only here for testing during development.
 
 addEDOKeys();
 
-for (const p of startingParams['primes']) {
-  const yShift = startingParams['yShifts'].get(p);
-  const hds = startingParams['harmDistSteps'].get(p);
-  addAxis(yShift, hds);
+for (const [genIntStr, genInt] of startingParams['generatingIntervals'].entries()) {
+  const yShift = startingParams['yShifts'].get(genIntStr);
+  const hds = startingParams['harmDistSteps'].get(genIntStr);
+  addGeneratingInterval(genInt, yShift, hds);
 }
-
-startingParams['baseTones'].forEach((bt) => {
-  addBaseTone(bt);
-});
 
 if (!streams.helpExpanded.getValue()) {
   const startPopUp = document.getElementById('startPopUp');
