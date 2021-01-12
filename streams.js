@@ -592,8 +592,6 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   });
   streams.settingsExpanded.subscribe((expanded) => {
     const divSettings = document.getElementById('divSettings');
-    const divCanvas = document.getElementById('divCanvas');
-    const divKeyCanvas = document.getElementById('divKeyCanvas');
     const button = document.getElementById('buttToggleSettings');
     const icon = document.getElementById('iconSettings');
     // TODO The widths, given in percentages, don't take into account the width
@@ -606,16 +604,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       button.classList.add('buttonActive');
       button.style.right = '20%';
       divSettings.style.right = '0';
-      divCanvas.style.width = '80%';
-      divKeyCanvas.style.width = '80%';
     } else {
       icon.style.transform = 'rotate(180deg)';
       button.classList.remove('buttonActive');
       button.classList.add('buttonInactive');
       button.style.right = 0;
       divSettings.style.right = '-20%';
-      divCanvas.style.width = '100%';
-      divKeyCanvas.style.width = '100%';
     }
   });
   urlStreams.push(streams.settingsExpanded.pipe(
