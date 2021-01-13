@@ -185,12 +185,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // presuming that these coordinates exist for the type of click executed.
   // Events that don't have client coordinates well defined are filtered out.
   streams.clientCoordsOnClick = rxjs.merge(
-    rxjs.fromEvent(scaleFig.canvas, 'mousedown').pipe(rxjs.operators.filter(
-      (ev) => ev.buttons == 1),
+    rxjs.fromEvent(scaleFig.canvas.node, 'mousedown').pipe(
+      rxjs.operators.filter((ev) => ev.buttons == 1),
     ),
-    rxjs.fromEvent(scaleFig.canvas, 'touchstart'),
-    rxjs.fromEvent(scaleFig.canvas, 'pointerdown').pipe(rxjs.operators.filter(
-      (ev) => ev.buttons == 1),
+    rxjs.fromEvent(scaleFig.canvas.node, 'touchstart'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'pointerdown').pipe(
+      rxjs.operators.filter((ev) => ev.buttons == 1),
     ),
   ).pipe(
     rxjs.operators.map(eventClientCoords),
@@ -237,9 +237,9 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // the listener for this whenever panning is set to true, and remove it when
   // its set to false. Could be faster?
   streams.clientCoordsOnMove = rxjs.merge(
-    rxjs.fromEvent(scaleFig.canvas, 'mousemove'),
-    rxjs.fromEvent(scaleFig.canvas, 'touchmove'),
-    rxjs.fromEvent(scaleFig.canvas, 'pointermove'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'mousemove'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'touchmove'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'pointermove'),
   ).pipe(
     rxjs.operators.map((ev) => {
       // To not duplicate events as touch/pointer/mouse.
