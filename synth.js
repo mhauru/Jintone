@@ -16,7 +16,6 @@ const d = (1 - minvelo)/(logMinfreqRatio * logMinfreqRatio);
 function velocity(freq) {
   const logratio = Math.log10(freq/3500);
   const v = d * logratio * logratio + minvelo;
-  console.log(freq, v)
   // The ifs should not get triggered except for extreme frequencies.
   if (v > 1) return 1;
   if (v < 0) return 0;
