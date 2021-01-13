@@ -1,5 +1,4 @@
 'use strict';
-const starttime = Date.now(); // DEBUG
 // TODO I would like to ES6 module import also SVG.js and rxjs, and locally
 // import ResizeObserver from a module folder rather than a .min.js I manually
 // copied from a CDN. None of these things seem possible because the
@@ -392,7 +391,9 @@ checkTones(); // TODO Only here for testing during development.
 
 addEDOKeys();
 
-for (const [genIntStr, genInt] of startingParams['generatingIntervals'].entries()) {
+for (
+  const [genIntStr, genInt] of startingParams['generatingIntervals'].entries()
+) {
   const yShift = startingParams['yShifts'].get(genIntStr);
   const hds = startingParams['harmDistSteps'].get(genIntStr);
   addGeneratingInterval(genInt, yShift, hds);
@@ -410,6 +411,3 @@ if (!streams.helpExpanded.getValue()) {
     {once: true},
   );
 }
-
-const endtime = Date.now(); // DEBUG
-console.log('Seconds till the end of script:', (endtime - starttime)/1000.0); // DEBUG
