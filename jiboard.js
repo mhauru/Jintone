@@ -4,7 +4,6 @@ const starttime = Date.now(); // DEBUG
 // import ResizeObserver from a module folder rather than a .min.js I manually
 // copied from a CDN. None of these things seem possible because the
 // javascript module ecosystem is a massive mess that drives me nuts.
-import './node_modules/tone/build/Tone.js';
 import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
 import {
@@ -16,23 +15,12 @@ import {
 } from './toneobject.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
+import {Synth} from './synth.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
-// TODO This is duplicated here and in toneobject.js. Fix.
-const ALLPRIMES = [
-  2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
-  73, 79, 83, 89, 97,
-];
-
-const synth = new Tone.PolySynth(10, Tone.Synth, {
-  oscillator: {
-    type: 'sine',
-    // Relative amplitudes of overtones.
-    partials: [1, 0.3, 0.2],
-  },
-}).toMaster();
+const synth = new Synth();
 
 function addEDOKeys() {
   EDOTones.forEach((EDOTone) => {

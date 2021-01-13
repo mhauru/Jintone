@@ -157,9 +157,9 @@ class EDOKey {
 
     this.isOn.subscribe((val) => {
       if (val) {
-        synth.triggerAttack(this.frequency);
+        synth.startTone(this.frequency);
       } else {
-        synth.triggerRelease(this.frequency);
+        synth.stopTone(this.frequency);
       }
     });
 

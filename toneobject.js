@@ -284,9 +284,9 @@ class ToneObject {
     this.subscriptions.push(
       this.isOn.subscribe((val) => {
         if (val) {
-          synth.triggerAttack(frequency.getValue());
+          synth.startTone(frequency.getValue());
         } else {
-          synth.triggerRelease(frequency.getValue());
+          synth.stopTone(frequency.getValue());
         }
       }),
     );
