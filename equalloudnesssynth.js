@@ -25,7 +25,7 @@ function velocity(freq) {
 
 class EqualLoudnessSynth {
   constructor() {
-    this.synth = new PolySynth(10, Synth, {
+    this.synth = new PolySynth(16, Synth, {
       oscillator: {
         type: 'sine',
         // Relative amplitudes of overtones.
