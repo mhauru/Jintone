@@ -66,6 +66,7 @@ class EDOKey {
     const keyColor = (this.type == 'black') ? '#000000' : '#FFFFFF';
     svgKey.attr({
       'fill': keyColor,
+      'stroke': '#000000',
       'stroke-width': '0.001',
     });
 
@@ -83,11 +84,11 @@ class EDOKey {
     // we could switch for instance using only PointerEvents, once they have
     // widespread support. See https://caniuse.com/#feat=pointer
     const trueOnClickDown = rxjs.merge(
-      //rxjs.fromEvent(svg, 'mousedown').pipe(
+      //rxjs.fromEvent(svg.node, 'mousedown').pipe(
       //  rxjs.operators.filter((ev) => ev.buttons == 1),
       //),
-      //rxjs.fromEvent(svg, 'touchstart'),
-      rxjs.fromEvent(svg, 'pointerenter').pipe(
+      //rxjs.fromEvent(svg.node, 'touchstart'),
+      rxjs.fromEvent(svg.node, 'pointerenter').pipe(
         rxjs.operators.filter((ev) => ev.pressure > 0.0),
         rxjs.operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
@@ -95,7 +96,7 @@ class EDOKey {
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-      rxjs.fromEvent(svg, 'pointerdown').pipe(
+      rxjs.fromEvent(svg.node, 'pointerdown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
         rxjs.operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
@@ -110,11 +111,11 @@ class EDOKey {
     }));
 
     const falseOnClickUp = rxjs.merge(
-      //rxjs.fromEvent(svg, 'mouseup'),
-      //rxjs.fromEvent(svg, 'mouseleave'),
-      //rxjs.fromEvent(svg, 'touchend'),
-      //rxjs.fromEvent(svg, 'touchcancel'),
-      rxjs.fromEvent(svg, 'pointerup').pipe(
+      //rxjs.fromEvent(svg.node, 'mouseup'),
+      //rxjs.fromEvent(svg.node, 'mouseleave'),
+      //rxjs.fromEvent(svg.node, 'touchend'),
+      //rxjs.fromEvent(svg.node, 'touchcancel'),
+      rxjs.fromEvent(svg.node, 'pointerup').pipe(
         rxjs.operators.map((ev) => {
           // TODO Does this really do something when releasing?
           // Allow pointer event target to jump between objects when pointer is
@@ -122,7 +123,7 @@ class EDOKey {
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-      rxjs.fromEvent(svg, 'pointerleave'),
+      rxjs.fromEvent(svg.node, 'pointerleave'),
     ).pipe(rxjs.operators.map((ev) => false));
 
     // TODO Does this need to have the "this." part?
@@ -180,11 +181,21 @@ class EDOKey {
     );
     const pos = rxjs.combineLatest(
       frequencyRatio,
-      streams.horizontalZoom
+      streams.horizontalZoom,
     ).pipe(rxjs.operators.map(([fr, hz]) => hz * Math.log2(fr)));
-    streams.horizontalZoom.subscribe((hz) => svg.scale(hz, 1));
+    streams.horizontalZoom.subscribe((hz) => {
+      const old = svg.transform();
+      svg.transform(
+        {a: hz, b: 0, c: 0, d: 1, e: old.e, f: old.f},
+      );
+    });
     pos.subscribe((p) => {
-      if (isFinite(p)) svg.translate(p, 0);
+      if (isFinite(p)) {
+        const old = svg.transform();
+        svg.transform(
+          {a: old.a, b: old.b, c: old.c, d: old.d, e: p, f: 0},
+        );
+      }
     });
   }
 }

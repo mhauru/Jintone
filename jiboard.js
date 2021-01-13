@@ -85,8 +85,8 @@ const scaleFig = {};
 setupToggletips();
 
 // Set up the SVG canvases.
-scaleFig.canvas = new SVG('divCanvas');
-scaleFig.keyCanvas = new SVG('divKeyCanvas');
+scaleFig.canvas = SVG().addTo('#divCanvas').size('100%', '100%');
+scaleFig.keyCanvas = SVG().addTo('#divKeyCanvas').size('100%', '100%');
 scaleFig.keyCanvas.attr('preserveAspectRatio', 'none');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.

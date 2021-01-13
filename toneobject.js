@@ -206,11 +206,11 @@ class ToneObject {
     // only PointerEvents, once they have widespread support.
 
     const trueOnClickDown = rxjs.merge(
-      //rxjs.fromEvent(this.svgTone, 'mousedown').pipe(
+      //rxjs.fromEvent(this.svgTone.node, 'mousedown').pipe(
       //  rxjs.operators.filter((ev) => ev.buttons == 1),
       //),
-      //rxjs.fromEvent(this.svgTone, 'touchstart'),
-      rxjs.fromEvent(this.svgTone, 'pointerenter').pipe(
+      //rxjs.fromEvent(this.svgTone.node, 'touchstart'),
+      rxjs.fromEvent(this.svgTone.node, 'pointerenter').pipe(
         rxjs.operators.filter((ev) => ev.pressure > 0.0),
         rxjs.operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
@@ -218,7 +218,7 @@ class ToneObject {
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-      rxjs.fromEvent(this.svgTone, 'pointerdown').pipe(
+      rxjs.fromEvent(this.svgTone.node, 'pointerdown').pipe(
         rxjs.operators.filter((ev) => ev.buttons == 1),
         rxjs.operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
@@ -233,11 +233,11 @@ class ToneObject {
     }));
 
     const falseOnClickUp = rxjs.merge(
-      //rxjs.fromEvent(this.svgTone, 'mouseup'),
-      //rxjs.fromEvent(this.svgTone, 'mouseleave'),
-      //rxjs.fromEvent(this.svgTone, 'touchend'),
-      //rxjs.fromEvent(this.svgTone, 'touchcancel'),
-      rxjs.fromEvent(this.svgTone, 'pointerup').pipe(
+      //rxjs.fromEvent(this.svgTone.node, 'mouseup'),
+      //rxjs.fromEvent(this.svgTone.node, 'mouseleave'),
+      //rxjs.fromEvent(this.svgTone.node, 'touchend'),
+      //rxjs.fromEvent(this.svgTone.node, 'touchcancel'),
+      rxjs.fromEvent(this.svgTone.node, 'pointerup').pipe(
         rxjs.operators.map((ev) => {
           // TODO Does this really do something when releasing?
           // Allow pointer event target to jump between objects when pointer is
@@ -245,7 +245,7 @@ class ToneObject {
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-      rxjs.fromEvent(this.svgTone, 'pointerleave'),
+      rxjs.fromEvent(this.svgTone.node, 'pointerleave'),
     ).pipe(rxjs.operators.map((ev) => false));
 
     // TODO Why are some of these this.isOn etc. and not just const isOn?
@@ -436,7 +436,7 @@ class ToneObject {
     );
 
     this.subscriptions.push(rxjs.combineLatest(xpos, ypos).subscribe(
-      ([x, y]) => this.svgTone.move(x, y),
+      ([x, y]) => this.svgTone.transform({translateX: x, translateY: y}),
     ));
     this.subscriptions.push(xpos.subscribe((x) => this.svgPitchline.x(x)));
 
@@ -493,7 +493,7 @@ class ToneObject {
       // thought that either it doesn't matter, or it needs to be done the
       // other way around, but that doesn't work.
       svgLabel.center(0, 0);
-      if (isFinite(scaleFactor)) svgLabel.scale(scaleFactor);
+      if (isFinite(scaleFactor)) svgLabel.transform({scale: scaleFactor});
     }));
 
     // TODO Should split this into smaller, independent parts.

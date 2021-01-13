@@ -202,12 +202,12 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.operators.map((ev) => true),
   );
   const falseOnCanvasOff = rxjs.merge(
-    rxjs.fromEvent(scaleFig.canvas, 'mouseup'),
-    rxjs.fromEvent(scaleFig.canvas, 'mouseleave'),
-    rxjs.fromEvent(scaleFig.canvas, 'touchend'),
-    rxjs.fromEvent(scaleFig.canvas, 'touchcancel'),
-    rxjs.fromEvent(scaleFig.canvas, 'pointerup'),
-    rxjs.fromEvent(scaleFig.canvas, 'pointerleave'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'mouseup'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'mouseleave'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'touchend'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'touchcancel'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'pointerup'),
+    rxjs.fromEvent(scaleFig.canvas.node, 'pointerleave'),
   ).pipe(rxjs.operators.map((ev) => false));
   const canvasOn = rxjs.merge(falseOnCanvasOff, trueOnCanvasOn).pipe(
     rxjs.operators.startWith(false),
