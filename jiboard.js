@@ -4,6 +4,9 @@ const starttime = Date.now(); // DEBUG
 // import ResizeObserver from a module folder rather than a .min.js I manually
 // copied from a CDN. None of these things seem possible because the
 // javascript module ecosystem is a massive mess that drives me nuts.
+import * as rxjs from 'rxjs';
+import * as operators from 'rxjs/operators';
+import {SVG} from '@svgdotjs/svg.js'
 import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
 import {
@@ -15,12 +18,12 @@ import {
 } from './toneobject.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
-import {Synth} from './synth.js';
+import {EqualLoudnessSynth} from './equalloudnesssynth.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
 
-const synth = new Synth();
+const synth = new EqualLoudnessSynth();
 
 function addEDOKeys() {
   EDOTones.forEach((EDOTone) => {
@@ -181,8 +184,8 @@ function addGeneratingInterval(
     new Map([[genIntStr, startingYyshift]]),
   );
   rxjs.fromEvent(inNumYshift, 'change').pipe(
-    rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.map((value) => {
+    operators.pluck('target', 'value'),
+    operators.map((value) => {
       return new Map([[genIntStr, value]]);
     }),
   ).subscribe(yShiftStream);
@@ -195,8 +198,8 @@ function addGeneratingInterval(
     new Map([[genIntStr, startingHarmStep]]),
   );
   rxjs.fromEvent(inNumHarmdiststep, 'change').pipe(
-    rxjs.operators.pluck('target', 'value'),
-    rxjs.operators.map((value) => {
+    operators.pluck('target', 'value'),
+    operators.map((value) => {
       return new Map([[genIntStr, value]]);
     }),
   ).subscribe(harmStepStream);

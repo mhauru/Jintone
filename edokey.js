@@ -1,4 +1,6 @@
 'use strict';
+import * as rxjs from 'rxjs';
+import * as operators from 'rxjs/operators';
 import {edofactorlog} from './edo.js';
 export {EDOKey};
 
@@ -85,26 +87,26 @@ class EDOKey {
     // widespread support. See https://caniuse.com/#feat=pointer
     const trueOnClickDown = rxjs.merge(
       //rxjs.fromEvent(svg.node, 'mousedown').pipe(
-      //  rxjs.operators.filter((ev) => ev.buttons == 1),
+      //  operators.filter((ev) => ev.buttons == 1),
       //),
       //rxjs.fromEvent(svg.node, 'touchstart'),
       rxjs.fromEvent(svg.node, 'pointerenter').pipe(
-        rxjs.operators.filter((ev) => ev.pressure > 0.0),
-        rxjs.operators.map((ev) => {
+        operators.filter((ev) => ev.pressure > 0.0),
+        operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
           // moved.
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
       rxjs.fromEvent(svg.node, 'pointerdown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-        rxjs.operators.map((ev) => {
+        operators.filter((ev) => ev.buttons == 1),
+        operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
           // moved.
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-    ).pipe(rxjs.operators.map((ev) => {
+    ).pipe(operators.map((ev) => {
       // TODO Why does on-click require this, but off-click doesn't?
       ev.preventDefault();
       return true;
@@ -116,7 +118,7 @@ class EDOKey {
       //rxjs.fromEvent(svg.node, 'touchend'),
       //rxjs.fromEvent(svg.node, 'touchcancel'),
       rxjs.fromEvent(svg.node, 'pointerup').pipe(
-        rxjs.operators.map((ev) => {
+        operators.map((ev) => {
           // TODO Does this really do something when releasing?
           // Allow pointer event target to jump between objects when pointer is
           // moved.
@@ -124,12 +126,12 @@ class EDOKey {
           return ev;
         })),
       rxjs.fromEvent(svg.node, 'pointerleave'),
-    ).pipe(rxjs.operators.map((ev) => false));
+    ).pipe(operators.map((ev) => false));
 
     // TODO Does this need to have the "this." part?
     this.isBeingClicked = new rxjs.BehaviorSubject(false);
     rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-      rxjs.operators.startWith(false)
+      operators.startWith(false)
     ).subscribe((x) => this.isBeingClicked.next(x));
 
     // Whenever this key is pressed, the tone is turned on, if it wasn't
@@ -145,12 +147,12 @@ class EDOKey {
     rxjs.merge(
       trueOnClickDown,
       rxjs.combineLatest(this.isBeingClicked, streams.sustainDown).pipe(
-        rxjs.operators.filter(([click, sustain]) => {
+        operators.filter(([click, sustain]) => {
           // Check that both the latest click and the latest sustain were
           // false.
           return !click && !sustain;
         }),
-        rxjs.operators.map((click, sustain) => {
+        operators.map((click, sustain) => {
           return false;
         })
       )
@@ -177,12 +179,12 @@ class EDOKey {
       });
 
     const frequencyRatio = streams.originFreq.pipe(
-      rxjs.operators.map((of) => this.frequency/of),
+      operators.map((of) => this.frequency/of),
     );
     const pos = rxjs.combineLatest(
       frequencyRatio,
       streams.horizontalZoom,
-    ).pipe(rxjs.operators.map(([fr, hz]) => hz * Math.log2(fr)));
+    ).pipe(operators.map(([fr, hz]) => hz * Math.log2(fr)));
     streams.horizontalZoom.subscribe((hz) => {
       const old = svg.transform();
       svg.transform(

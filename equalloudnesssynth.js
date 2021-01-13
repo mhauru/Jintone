@@ -1,5 +1,5 @@
-import './node_modules/tone/build/Tone.js';
-export {Synth};
+import {PolySynth, Synth} from 'tone';
+export {EqualLoudnessSynth};
 
 // My very own equal loudness function: Given a frequency, return the velocity
 // that it should be played at, to achieve a standard level of loudness.
@@ -23,9 +23,9 @@ function velocity(freq) {
   return v;
 }
 
-class Synth {
+class EqualLoudnessSynth {
   constructor() {
-    this.synth = new Tone.PolySynth(10, Tone.Synth, {
+    this.synth = new PolySynth(10, Synth, {
       oscillator: {
         type: 'sine',
         // Relative amplitudes of overtones.

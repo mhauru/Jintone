@@ -1,4 +1,7 @@
 'use strict';
+import * as rxjs from 'rxjs';
+import * as operators from 'rxjs/operators';
+import {qr, size} from 'mathjs'
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
 export {
@@ -164,9 +167,8 @@ function intervalsToMatrix(intervals) {
 // Return whether a set of intervals is linearlyIndependent or not.
 function linearlyIndependent(intervals) {
   const mat = intervalsToMatrix(intervals);
-  const r = math.qr(mat).R;
-  const [n, m] = math.size(r);
-  const mindim = Math.min(n, m);
+  const r = qr(mat).R;
+  const [n, m] = size(r);
   if (n > m) return false;
   for (let i = 0; i < m; i++) {
     if (r[i][i] == 0) return false;
@@ -207,26 +209,26 @@ class ToneObject {
 
     const trueOnClickDown = rxjs.merge(
       //rxjs.fromEvent(this.svgTone.node, 'mousedown').pipe(
-      //  rxjs.operators.filter((ev) => ev.buttons == 1),
+      //  operators.filter((ev) => ev.buttons == 1),
       //),
       //rxjs.fromEvent(this.svgTone.node, 'touchstart'),
       rxjs.fromEvent(this.svgTone.node, 'pointerenter').pipe(
-        rxjs.operators.filter((ev) => ev.pressure > 0.0),
-        rxjs.operators.map((ev) => {
+        operators.filter((ev) => ev.pressure > 0.0),
+        operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
           // moved.
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
       rxjs.fromEvent(this.svgTone.node, 'pointerdown').pipe(
-        rxjs.operators.filter((ev) => ev.buttons == 1),
-        rxjs.operators.map((ev) => {
+        operators.filter((ev) => ev.buttons == 1),
+        operators.map((ev) => {
           // Allow pointer event target to jump between objects when pointer is
           // moved.
           ev.target.releasePointerCapture(ev.pointerId);
           return ev;
         })),
-    ).pipe(rxjs.operators.map((ev) => {
+    ).pipe(operators.map((ev) => {
       // TODO Why does on-click require this, but off-click doesn't?
       ev.preventDefault();
       return true;
@@ -238,7 +240,7 @@ class ToneObject {
       //rxjs.fromEvent(this.svgTone.node, 'touchend'),
       //rxjs.fromEvent(this.svgTone.node, 'touchcancel'),
       rxjs.fromEvent(this.svgTone.node, 'pointerup').pipe(
-        rxjs.operators.map((ev) => {
+        operators.map((ev) => {
           // TODO Does this really do something when releasing?
           // Allow pointer event target to jump between objects when pointer is
           // moved.
@@ -246,11 +248,11 @@ class ToneObject {
           return ev;
         })),
       rxjs.fromEvent(this.svgTone.node, 'pointerleave'),
-    ).pipe(rxjs.operators.map((ev) => false));
+    ).pipe(operators.map((ev) => false));
 
     // TODO Why are some of these this.isOn etc. and not just const isOn?
     this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-      rxjs.operators.startWith(false),
+      operators.startWith(false),
     );
 
     // Whenever this key is pressed, the tone is turned on, if it wasn't
@@ -263,7 +265,7 @@ class ToneObject {
         this.isOn.next(false);
       } else {
         streams.sustainDown.pipe(
-          rxjs.operators.first((x) => !x),
+          operators.first((x) => !x),
         ).subscribe((x) => {
           this.isOn.next(false);
         });
@@ -276,7 +278,7 @@ class ToneObject {
       streams.originFreq.getValue()*pf,
     );
     this.subscriptions.push(
-      streams.originFreq.pipe(rxjs.operators.map((x) => pf*x)).subscribe(
+      streams.originFreq.pipe(operators.map((x) => pf*x)).subscribe(
         (x) => frequency.next(x),
       ),
     );
@@ -320,7 +322,7 @@ class ToneObject {
 
     const harmNorm = new rxjs.BehaviorSubject(0.0);
     this.subscriptions.push(streams.harmDistSteps.pipe(
-      rxjs.operators.map(
+      operators.map(
         (hds) => {
           let d = 0;
           for (const [genIntStr, c] of genIntCoords) {
@@ -336,40 +338,40 @@ class ToneObject {
           }
           return d;
         }),
-      rxjs.operators.distinctUntilChanged(),
+      operators.distinctUntilChanged(),
     ).subscribe(harmNorm));
 
     const harmClose = rxjs.combineLatest(
       harmNorm, streams.maxHarmNorm,
     ).pipe(
-      rxjs.operators.map(([hn, maxhn]) => hn <= maxhn),
-      rxjs.operators.distinctUntilChanged(),
+      operators.map(([hn, maxhn]) => hn <= maxhn),
+      operators.distinctUntilChanged(),
     );
 
     const inboundsHor = rxjs.combineLatest(xpos, streams.canvasViewbox).pipe(
-      rxjs.operators.map(([x, viewbox]) => {
+      operators.map(([x, viewbox]) => {
         const viewboxLeft = viewbox.x;
         const viewboxRight = viewboxLeft + viewbox.width;
         return viewboxLeft < x && x < viewboxRight;
       }),
-      rxjs.operators.distinctUntilChanged(),
+      operators.distinctUntilChanged(),
     );
 
     const inboundsVer = rxjs.combineLatest(ypos, streams.canvasViewbox).pipe(
-      rxjs.operators.map(([y, viewbox]) => {
+      operators.map(([y, viewbox]) => {
         const viewboxTop = viewbox.y;
         const viewboxBottom = viewboxTop + viewbox.height;
         return viewboxTop < y && y < viewboxBottom;
       }),
-      rxjs.operators.distinctUntilChanged(),
+      operators.distinctUntilChanged(),
     );
 
     const inbounds = new rxjs.BehaviorSubject(false);
     this.subscriptions.push(rxjs.combineLatest(
       harmClose, inboundsHor, inboundsVer,
     ).pipe(
-      rxjs.operators.map(([hc, inHor, inVer]) => hc && inHor && inVer),
-      rxjs.operators.distinctUntilChanged(),
+      operators.map(([hc, inHor, inVer]) => hc && inHor && inVer),
+      operators.distinctUntilChanged(),
     ).subscribe(inbounds));
 
     const inclosureHorizontal = rxjs.combineLatest(
@@ -378,7 +380,7 @@ class ToneObject {
       streams.canvasViewbox,
       streams.generatingIntervals,
     ).pipe(
-      rxjs.operators.map(([
+      operators.map(([
         x,
         horizontalZoom,
         viewbox,
@@ -393,7 +395,7 @@ class ToneObject {
         const closureRight = viewboxRight + maxXjump;
         return closureLeft < x && x < closureRight;
       }),
-      rxjs.operators.distinctUntilChanged(),
+      operators.distinctUntilChanged(),
     );
 
     const inclosureVertical = rxjs.combineLatest(
@@ -402,7 +404,7 @@ class ToneObject {
       streams.yShifts,
       streams.canvasViewbox,
     ).pipe(
-      rxjs.operators.map(([
+      operators.map(([
         y,
         verticalZoom,
         yShifts,
@@ -416,7 +418,7 @@ class ToneObject {
         const closureBottom = viewboxBottom + maxYjump;
         return closureTop < y && y < closureBottom;
       }),
-      rxjs.operators.distinctUntilChanged(),
+      operators.distinctUntilChanged(),
     );
 
     this.inclosure = new rxjs.BehaviorSubject(false);
@@ -426,13 +428,13 @@ class ToneObject {
         inclosureHorizontal,
         inclosureVertical,
       ).pipe(
-        rxjs.operators.map(([hc, incHor, incVer]) => hc && incHor && incVer),
-        rxjs.operators.distinctUntilChanged(),
+        operators.map(([hc, incHor, incVer]) => hc && incHor && incVer),
+        operators.distinctUntilChanged(),
       ).subscribe(this.inclosure),
     );
 
     const relHarmNorm = rxjs.combineLatest(harmNorm, streams.maxHarmNorm).pipe(
-      rxjs.operators.map(([hn, maxhn]) => Math.max(1.0 - hn/maxhn, 0.0)),
+      operators.map(([hn, maxhn]) => Math.max(1.0 - hn/maxhn, 0.0)),
     );
 
     this.subscriptions.push(rxjs.combineLatest(xpos, ypos).subscribe(
@@ -737,7 +739,7 @@ class ToneObject {
     // TODO Could just create anyNeighborInclosure directly as
     // VariableSourceSubject.
     const anyNeighborInclosure = this.neighboursInclosure.pipe(
-      rxjs.operators.map((arr) => {
+      operators.map((arr) => {
         return arr.some((x) => x);
       }),
     );

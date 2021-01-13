@@ -1,4 +1,6 @@
 'use strict';
+import * as rxjs from 'rxjs';
+import * as operators from 'rxjs/operators';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 export {readURL, setupStreams};
 
@@ -43,7 +45,7 @@ function setURL(strs) {
 }
 
 function urlStringOperator(paramName, DEFAULT_URLPARAMS_STRS) {
-  return rxjs.operators.map((x) => {
+  return operators.map((x) => {
     const xstr = JSON.stringify(x, JSONReplacer);
     // If the string representation of x matches the default values string
     // representation we don't need to store this parameter in the URL.
@@ -70,7 +72,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   const trueOnPanDown = rxjs.merge(
     rxjs.fromEvent(divPanMod, 'mousedown'),
     rxjs.fromEvent(divPanMod, 'touchstart'),
-    rxjs.fromEvent(divPanMod, 'pointerdown').pipe(rxjs.operators.map((ev) => {
+    rxjs.fromEvent(divPanMod, 'pointerdown').pipe(operators.map((ev) => {
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       ev.target.releasePointerCapture(ev.pointerId);
@@ -78,9 +80,9 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     })),
     rxjs.fromEvent(window, 'keydown').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 17),
+      operators.filter((ev) => ev.keyCode == 17),
     ),
-  ).pipe(rxjs.operators.map((ev) => true));
+  ).pipe(operators.map((ev) => true));
 
   const falseOnPanUp = rxjs.merge(
     rxjs.fromEvent(divPanMod, 'mouseup'),
@@ -91,18 +93,18 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(divPanMod, 'pointerleave'),
     rxjs.fromEvent(window, 'keyup').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 17),
+      operators.filter((ev) => ev.keyCode == 17),
     ),
-  ).pipe(rxjs.operators.map((ev) => false));
+  ).pipe(operators.map((ev) => false));
 
   streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
-    rxjs.operators.startWith(false),
+    operators.startWith(false),
   );
 
   const trueOnSustainDown = rxjs.merge(
     rxjs.fromEvent(divSustainMod, 'mousedown'),
     rxjs.fromEvent(divSustainMod, 'touchstart'),
-    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(rxjs.operators.map(
+    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(operators.map(
       // Allow pointer event target to jump between objects when pointer is
       // moved.
       (ev) => {
@@ -112,9 +114,9 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     )),
     rxjs.fromEvent(window, 'keydown').pipe(
       // TODO Define the keyCodes somewhere else.
-      rxjs.operators.filter((ev) => ev.keyCode == 16),
+      operators.filter((ev) => ev.keyCode == 16),
     ),
-  ).pipe(rxjs.operators.map((ev) => true));
+  ).pipe(operators.map((ev) => true));
 
   const falseOnSustainUp = rxjs.merge(
     rxjs.fromEvent(divSustainMod, 'mouseup'),
@@ -125,9 +127,9 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(divSustainMod, 'pointerleave'),
     // TODO Define the keyCodes somewhere else.
     rxjs.fromEvent(window, 'keyup').pipe(
-      rxjs.operators.filter((ev) => ev.keyCode == 16),
+      operators.filter((ev) => ev.keyCode == 16),
     ),
-  ).pipe(rxjs.operators.map((ev) => false));
+  ).pipe(operators.map((ev) => false));
 
   streams.sustainDown = new rxjs.BehaviorSubject(false);
   rxjs.merge(trueOnSustainDown, falseOnSustainUp).subscribe(
@@ -186,20 +188,20 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // Events that don't have client coordinates well defined are filtered out.
   streams.clientCoordsOnClick = rxjs.merge(
     rxjs.fromEvent(scaleFig.canvas.node, 'mousedown').pipe(
-      rxjs.operators.filter((ev) => ev.buttons == 1),
+      operators.filter((ev) => ev.buttons == 1),
     ),
     rxjs.fromEvent(scaleFig.canvas.node, 'touchstart'),
     rxjs.fromEvent(scaleFig.canvas.node, 'pointerdown').pipe(
-      rxjs.operators.filter((ev) => ev.buttons == 1),
+      operators.filter((ev) => ev.buttons == 1),
     ),
   ).pipe(
-    rxjs.operators.map(eventClientCoords),
-    rxjs.operators.filter(([x, y]) => !isNaN(x) && !isNaN(y)),
+    operators.map(eventClientCoords),
+    operators.filter(([x, y]) => !isNaN(x) && !isNaN(y)),
   );
 
   // Streams that return true/false when the canvas is down-clicked or released.
   const trueOnCanvasOn = streams.clientCoordsOnClick.pipe(
-    rxjs.operators.map((ev) => true),
+    operators.map((ev) => true),
   );
   const falseOnCanvasOff = rxjs.merge(
     rxjs.fromEvent(scaleFig.canvas.node, 'mouseup'),
@@ -208,14 +210,14 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(scaleFig.canvas.node, 'touchcancel'),
     rxjs.fromEvent(scaleFig.canvas.node, 'pointerup'),
     rxjs.fromEvent(scaleFig.canvas.node, 'pointerleave'),
-  ).pipe(rxjs.operators.map((ev) => false));
+  ).pipe(operators.map((ev) => false));
   const canvasOn = rxjs.merge(falseOnCanvasOff, trueOnCanvasOn).pipe(
-    rxjs.operators.startWith(false),
+    operators.startWith(false),
   );
 
   // A stream that returns whether we are in canvas-panning mode.
   streams.panning = rxjs.combineLatest(streams.panDown, canvasOn).pipe(
-    rxjs.operators.map(([v1, v2]) => v1 && v2),
+    operators.map(([v1, v2]) => v1 && v2),
   );
 
   // Streams for the latest coordinates for the mid-point of the canvas.
@@ -225,7 +227,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.midCoords = new rxjs.BehaviorSubject();
   streams.midCoords.next(startingParams['midCoords']);
   streams.midCoordsOnClick = streams.midCoords.pipe(
-    rxjs.operators.sample(streams.clientCoordsOnClick),
+    operators.sample(streams.clientCoordsOnClick),
   );
   urlStreams.push(streams.midCoords.pipe(
     urlStringOperator('midCoords', DEFAULT_URLPARAMS_STRS),
@@ -241,23 +243,23 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(scaleFig.canvas.node, 'touchmove'),
     rxjs.fromEvent(scaleFig.canvas.node, 'pointermove'),
   ).pipe(
-    rxjs.operators.map((ev) => {
+    operators.map((ev) => {
       // To not duplicate events as touch/pointer/mouse.
       ev.preventDefault();
       return eventClientCoords(ev);
     }),
-    rxjs.operators.filter(([x, y]) => !isNaN(x) && !isNaN(y)),
+    operators.filter(([x, y]) => !isNaN(x) && !isNaN(y)),
   );
 
   // Make midCoords emit a new value every time the pointer is moved on the
   // canvas, and we are in panning mode.
   streams.clientCoordsOnMove.pipe(
-    rxjs.operators.withLatestFrom(
+    operators.withLatestFrom(
       rxjs.combineLatest(streams.panning, streams.clientCoordsOnClick,
         streams.midCoordsOnClick),
     ),
-    rxjs.operators.filter((arg) => arg[1][0]), // Filter out panning=false.
-    rxjs.operators.map((x) => {
+    operators.filter((arg) => arg[1][0]), // Filter out panning=false.
+    operators.map((x) => {
       const ccOnMove = x[0];
       const ccOnClick= x[1][1];
       const mcOnClick = x[1][2];
@@ -478,14 +480,14 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     const eventStream = rxjs.fromEvent(elem, e.eventName);
     let valueStream;
     if (e.hasOwnProperty('parser')) {
-      valueStream = eventStream.pipe(rxjs.operators.map(
+      valueStream = eventStream.pipe(operators.map(
         (x) => {
           return e.parser(x.target[e.observableProperty]);
         },
       ));
     } else {
       valueStream = eventStream.pipe(
-        rxjs.operators.pluck('target', e.observableProperty),
+        operators.pluck('target', e.observableProperty),
       );
     }
     valueStream.subscribe((x) => streams[e.paramName].next(x));
@@ -514,7 +516,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(radioToneLabelFrac, 'click'),
     rxjs.fromEvent(radioToneLabelRedFrac, 'click'),
   ).pipe(
-    rxjs.operators.pluck('target', 'value'),
+    operators.pluck('target', 'value'),
   ).subscribe(streams.toneLabelTextStyle);
   streams.toneLabelTextStyle.subscribe((value) => {
     if (value == 'EDO') {
@@ -560,7 +562,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   // Maps.
   function combineAndMerge(...x) {
     const combined = rxjs.combineLatest(...x).pipe(
-      rxjs.operators.map((ms) => {
+      operators.map((ms) => {
         // ms is an array of Maps, that we merge into a single map.
         const arrs = [];
         ms.forEach((m) => arrs.push(...m));
