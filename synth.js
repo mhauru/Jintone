@@ -9,13 +9,14 @@ export {Synth};
 // https://www.wikiaudio.org/wp-content/uploads/2020/05/is-01e.pdf
 // but not rigorously based on anything.
 const minfreq = 3500;
-const minvelo = 0.1;
+const veloAtMin = 0.2;
+const veloAt20 = 1.0;
 const logMinfreqRatio = Math.log10(20/minfreq);
-const d = (1 - minvelo)/(logMinfreqRatio * logMinfreqRatio);
+const d = (veloAt20 - veloAtMin)/(logMinfreqRatio * logMinfreqRatio);
 
 function velocity(freq) {
-  const logratio = Math.log10(freq/3500);
-  const v = d * logratio * logratio + minvelo;
+  const logratio = Math.log10(freq/minfreq);
+  const v = d * logratio * logratio + veloAtMin;
   // The ifs should not get triggered except for extreme frequencies.
   if (v > 1) return 1;
   if (v < 0) return 0;
