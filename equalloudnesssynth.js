@@ -29,7 +29,7 @@ class EqualLoudnessSynth {
       oscillator: {
         type: 'sine',
         // Relative amplitudes of overtones.
-        partials: [1, 0.3, 0.2],
+        partials: [1, 0.3, 0.2, 0.05],
       },
     }).toMaster();
   }
