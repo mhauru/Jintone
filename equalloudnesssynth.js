@@ -10,7 +10,7 @@ export {EqualLoudnessSynth};
 // but not rigorously based on anything.
 const minfreq = 3500;
 const veloAtMin = 0.2;
-const veloAt20 = 1.0;
+const veloAt20 = 0.8;
 const logMinfreqRatio = Math.log10(20/minfreq);
 const d = (veloAt20 - veloAtMin)/(logMinfreqRatio * logMinfreqRatio);
 
@@ -25,13 +25,13 @@ function velocity(freq) {
 
 class EqualLoudnessSynth {
   constructor() {
-    this.synth = new PolySynth(16, Synth, {
+    this.synth = new PolySynth(Synth, {
       oscillator: {
         type: 'sine',
         // Relative amplitudes of overtones.
         partials: [1, 0.3, 0.2, 0.05],
       },
-    }).toMaster();
+    }).toDestination();
   }
 
   startTone(freq) {
