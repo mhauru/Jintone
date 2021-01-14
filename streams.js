@@ -2,6 +2,7 @@
 import * as rxjs from 'rxjs';
 import * as operators from 'rxjs/operators';
 import {VariableSourceSubject} from './variablesourcesubject.js';
+import {createResizeObserverSubject} from './resizeobserversubject.js';
 export {readURL, setupStreams};
 
 function JSONReplacer(key, value) {
@@ -269,69 +270,21 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }),
   ).subscribe((x) => streams.midCoords.next(x));
 
-  // Use ResizeObserver to make Observables out of the sizes of elements.
-  // TODO Turn this into a new subclass of Subject?
-  streams.canvasSize = new rxjs.Subject();
-  new ResizeObserver((entries, observer) => {
-    for (const entry of entries) {
-      // Different browsers return different objects, e.g. Chrome always
-      // returns an array from entry.contentBoxSize. Accommodate those
-      // differences.
-      let width;
-      let height;
-      if (entry.contentBoxSize) {
-        if (entry.contentBoxSize[0]) {
-          const cbs = entry.contentBoxSize[0];
-          width = cbs.inlineSize;
-          height = cbs.blockSize;
-        } else {
-          const cbs = entry.contentBoxSize;
-          width = cbs.inlineSize;
-          height = cbs.blockSize;
-        }
-      } else {
-        width = entry.contentRect.width;
-        height = entry.contentRect.height;
-      }
-      streams.canvasSize.next([width, height]);
-    }
-  }).observe(document.getElementById('divCanvas'));
+  streams.canvasSize = createResizeObserverSubject(
+    document.getElementById('divCanvas'),
+  );
+  streams.keyCanvasSize = createResizeObserverSubject(
+    document.getElementById('divKeyCanvas'),
+  );
+  streams.settingsSize = createResizeObserverSubject(
+    document.getElementById('divSettings'),
+  );
 
-  streams.keyCanvasSize = new rxjs.Subject();
-  new ResizeObserver((entries, observer) => {
-    for (const entry of entries) {
-      // Different browsers return different objects, e.g. Chrome always
-      // returns an array from entry.contentBoxSize. Accommodate those
-      // differences.
-      let width;
-      let height;
-      if (entry.contentBoxSize) {
-        if (entry.contentBoxSize[0]) {
-          const cbs = entry.contentBoxSize[0];
-          width = cbs.inlineSize;
-          height = cbs.blockSize;
-        } else {
-          const cbs = entry.contentBoxSize;
-          width = cbs.inlineSize;
-          height = cbs.blockSize;
-        }
-      } else {
-        width = entry.contentRect.width;
-        height = entry.contentRect.height;
-      }
-      streams.keyCanvasSize.next([width, height]);
-    }
-  }).observe(document.getElementById('divKeyCanvas'));
-
-  streams.settingsSize = new rxjs.Subject();
-  new ResizeObserver((entries, observer) => {
-    for (const entry of entries) {
-      const cbs = entry.contentBoxSize;
-      const width = cbs.inlineSize;
-      const height = cbs.blockSize;
-      streams.settingsSize.next([width, height]);
-    }
-  }).observe(document.getElementById('divSettings'));
+  streams.canvasSize.subscribe(([w, h]) => {
+    const divSettings = document.getElementById('divSettings');
+    const width = Math.min(w*0.8, 500);
+    divSettings.style.width = `${width}px`;
+  });
 
   streams.canvasViewbox = new rxjs.BehaviorSubject(scaleFig.canvas.viewbox());
   // Adjust the canvas viewbox every time the canvas is resized or we pan to
@@ -601,17 +554,15 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     // the canvas actually extends 60px too far to the right. Doesn't really
     // affect much, but not nice.
     if (expanded) {
-      icon.style.transform = '';
+      button.innerHTML = '✖';
       button.classList.remove('buttonInactive');
       button.classList.add('buttonActive');
-      button.style.right = '20%';
-      divSettings.style.right = '0';
+      divSettings.style.display = 'block';
     } else {
-      icon.style.transform = 'rotate(180deg)';
+      button.innerHTML = '⚙';
       button.classList.remove('buttonActive');
       button.classList.add('buttonInactive');
-      button.style.right = 0;
-      divSettings.style.right = '-20%';
+      divSettings.style.display = 'none';
     }
   });
   urlStreams.push(streams.settingsExpanded.pipe(

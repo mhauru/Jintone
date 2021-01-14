@@ -1,3 +1,4 @@
+'use strict';
 import {PolySynth, Synth} from 'tone';
 export {EqualLoudnessSynth};
 
