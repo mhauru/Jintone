@@ -4,6 +4,7 @@ import * as operators from 'rxjs/operators';
 import {qr, size} from 'mathjs'
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
+import {makeElementPlayable} from './makeelementplayable.js';
 export {
   toneToString,
   toneToFraction,
@@ -199,79 +200,6 @@ class ToneObject {
       this.primeCoords = sumTones(this.primeCoords, scaleTone(c, genInt));
     }
 
-    // TODO We fire a lot of events, mouse, touch and pointer ones. Depending
-    // on the browser, the same click or touch may fire several, e.g. both
-    // touch and mouse or both pointer and mouse. This ensures maximum
-    // compatibility with different browsers, but probably costs something in
-    // performance. Note though that the same tone isn't played twice. Come
-    // back to this later and check whether we could switch for instance using
-    // only PointerEvents, once they have widespread support.
-
-    const trueOnClickDown = rxjs.merge(
-      //rxjs.fromEvent(this.svgTone.node, 'mousedown').pipe(
-      //  operators.filter((ev) => ev.buttons == 1),
-      //),
-      //rxjs.fromEvent(this.svgTone.node, 'touchstart'),
-      rxjs.fromEvent(this.svgTone.node, 'pointerenter').pipe(
-        operators.filter((ev) => ev.pressure > 0.0),
-        operators.map((ev) => {
-          // Allow pointer event target to jump between objects when pointer is
-          // moved.
-          ev.target.releasePointerCapture(ev.pointerId);
-          return ev;
-        })),
-      rxjs.fromEvent(this.svgTone.node, 'pointerdown').pipe(
-        operators.filter((ev) => ev.buttons == 1),
-        operators.map((ev) => {
-          // Allow pointer event target to jump between objects when pointer is
-          // moved.
-          ev.target.releasePointerCapture(ev.pointerId);
-          return ev;
-        })),
-    ).pipe(operators.map((ev) => {
-      // TODO Why does on-click require this, but off-click doesn't?
-      ev.preventDefault();
-      return true;
-    }));
-
-    const falseOnClickUp = rxjs.merge(
-      //rxjs.fromEvent(this.svgTone.node, 'mouseup'),
-      //rxjs.fromEvent(this.svgTone.node, 'mouseleave'),
-      //rxjs.fromEvent(this.svgTone.node, 'touchend'),
-      //rxjs.fromEvent(this.svgTone.node, 'touchcancel'),
-      rxjs.fromEvent(this.svgTone.node, 'pointerup').pipe(
-        operators.map((ev) => {
-          // TODO Does this really do something when releasing?
-          // Allow pointer event target to jump between objects when pointer is
-          // moved.
-          ev.target.releasePointerCapture(ev.pointerId);
-          return ev;
-        })),
-      rxjs.fromEvent(this.svgTone.node, 'pointerleave'),
-    ).pipe(operators.map((ev) => false));
-
-    // TODO Why are some of these this.isOn etc. and not just const isOn?
-    this.isBeingClicked = rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-      operators.startWith(false),
-    );
-
-    // Whenever this key is pressed, the tone is turned on, if it wasn't
-    // already. Whenever this key is released, either turn the tone off if
-    // sustain is not down, or start listening for when sustain is released.
-    this.isOn = new rxjs.BehaviorSubject(false);
-    this.subscriptions.push(trueOnClickDown.subscribe(this.isOn));
-    this.subscriptions.push(falseOnClickUp.subscribe((f) => {
-      if (!streams.sustainDown.getValue()) {
-        this.isOn.next(false);
-      } else {
-        streams.sustainDown.pipe(
-          operators.first((x) => !x),
-        ).subscribe((x) => {
-          this.isOn.next(false);
-        });
-      }
-    }));
-
     const pf = pitchFactor(this.primeCoords);
     const fraction = toneToFraction(this.primeCoords);
     const frequency = new rxjs.BehaviorSubject(
@@ -283,15 +211,11 @@ class ToneObject {
       ),
     );
 
-    this.subscriptions.push(
-      this.isOn.subscribe((val) => {
-        if (val) {
-          synth.startTone(frequency.getValue());
-        } else {
-          synth.stopTone(frequency.getValue());
-        }
-      }),
+    const mepRetval = makeElementPlayable(
+      this.svgTone.node, frequency, streams, synth,
     );
+    const isOn = mepRetval[0];
+    this.subscriptions.push(...mepRetval[2]);
 
     const xpos = new rxjs.BehaviorSubject();
     this.subscriptions.push(
@@ -500,7 +424,7 @@ class ToneObject {
 
     // TODO Should split this into smaller, independent parts.
     this.subscriptions.push(rxjs.combineLatest(
-      this.isOn,
+      isOn,
       relHarmNorm,
       streams.toneColorActive,
       streams.toneColor,
@@ -553,7 +477,7 @@ class ToneObject {
 
     // TODO Should split this into subparts
     this.subscriptions.push(rxjs.combineLatest(
-      this.isOn,
+      isOn,
       relHarmNorm,
       streams.pitchlineColor,
       streams.pitchlineColorActive,
