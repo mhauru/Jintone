@@ -548,11 +548,6 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   streams.settingsExpanded.subscribe((expanded) => {
     const divSettings = document.getElementById('divSettings');
     const button = document.getElementById('buttToggleSettings');
-    const icon = document.getElementById('iconSettings');
-    // TODO The widths, given in percentages, don't take into account the width
-    // of divMods (sustain and pan), which is a constant 60px. Because of this
-    // the canvas actually extends 60px too far to the right. Doesn't really
-    // affect much, but not nice.
     if (expanded) {
       button.innerHTML = '✖';
       button.classList.remove('buttonInactive');
