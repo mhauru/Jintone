@@ -39,7 +39,6 @@ body {
 }
 
 #startPopUp {
-  touch-action: none;
   box-sizing: border-box;
   overflow: auto;
   width: 30%;
@@ -57,7 +56,6 @@ body {
 }
 
 #divHelpOverlay {
-  touch-action: none;
   box-sizing: border-box;
   overflow: auto;
   border: 2px solid black;
@@ -77,14 +75,12 @@ body {
 .helpQuestion {
   padding-top: 15px;
   font-weight: bolder;
-  #font-size: 1.2em;
 }
 
 .helpAnswer {
 }
 
 #buttToggleHelp {
-  touch-action: none;
   text-align: center;
   box-sizing: border-box;
   font-size: 3em;
