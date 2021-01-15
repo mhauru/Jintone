@@ -49,15 +49,15 @@ DEFAULT_URLPARAMS.set('pitchlineColorActive', '#000000');
 DEFAULT_URLPARAMS.set('showPitchlines', true);
 DEFAULT_URLPARAMS.set('showKeys', true);
 DEFAULT_URLPARAMS.set('showSteps', false);
-DEFAULT_URLPARAMS.set('toneRadius', 22.0);
+DEFAULT_URLPARAMS.set('toneRadius', 30.0);
 DEFAULT_URLPARAMS.set('toneLabelTextStyle', 'reducedfractions');
 DEFAULT_URLPARAMS.set('toneColor', '#D82A1E');
 DEFAULT_URLPARAMS.set('toneColorActive', '#D8B71E');
 DEFAULT_URLPARAMS.set('rootToneBorderColor', '#000000');
 DEFAULT_URLPARAMS.set('rootToneBorderSize', 5.0);
 DEFAULT_URLPARAMS.set('minToneOpacity', 0.15);
-DEFAULT_URLPARAMS.set('horizontalZoom', 300.0);
-DEFAULT_URLPARAMS.set('verticalZoom', 100.0);
+DEFAULT_URLPARAMS.set('horizontalZoom', 400.0);
+DEFAULT_URLPARAMS.set('verticalZoom', 120.0);
 DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);
 DEFAULT_URLPARAMS.set('settingsExpanded', false);
 DEFAULT_URLPARAMS.set('helpExpanded', false);
@@ -72,11 +72,11 @@ DEFAULT_URLPARAMS.set(
 );
 DEFAULT_URLPARAMS.set(
   'yShifts',
-  new Map([[genIntStrs[0], 1.2], [genIntStrs[1], 0.6], [genIntStrs[2], -1.4]]),
+  new Map([[genIntStrs[0], 1.2], [genIntStrs[1], 0.6], [genIntStrs[2], 2.0]]),
 );
 DEFAULT_URLPARAMS.set(
   'harmDistSteps',
-  new Map([[genIntStrs[0], 0.0], [genIntStrs[1], 1.5], [genIntStrs[2], 1.7]]),
+  new Map([[genIntStrs[0], 0.0], [genIntStrs[1], 1.6], [genIntStrs[2], 1.7]]),
 );
 
 // scaleFig is a global object that essentially functions as a namespace.
