@@ -10,7 +10,7 @@ import {
   primeDecompose,
   linearlyIndependent,
   JITone,
-} from './toneobject.js';
+} from './jitone.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
 import {EqualLoudnessSynth} from './equalloudnesssynth.js';
