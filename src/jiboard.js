@@ -6,7 +6,12 @@ import {toneToString, JITone} from './jitone.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
 import {EqualLoudnessSynth} from './equalloudnesssynth.js';
-import {addGeneratingInterval} from './tonesettings.js';
+import {
+  addGeneratingInterval,
+  applyTonePreset,
+  tonePresets,
+  readNewGeneratingInterval,
+} from './tonesettings.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Hard-coded default parameters.
@@ -30,23 +35,18 @@ DEFAULT_URLPARAMS.set('verticalZoom', 120.0);
 DEFAULT_URLPARAMS.set('midCoords', [0.0, 0.0]);
 DEFAULT_URLPARAMS.set('settingsExpanded', false);
 DEFAULT_URLPARAMS.set('helpExpanded', false);
-const genInts = [
-  new Map([[2, 1]]),
-  new Map([[3, 1], [2, -1]]),
-  new Map([[5, 1], [2, -2]]),
-];
-const genIntStrs = genInts.map(toneToString);
-DEFAULT_URLPARAMS.set(
-  'generatingIntervals', new Map(genIntStrs.map((e, i) => [e, genInts[i]])),
-);
-DEFAULT_URLPARAMS.set(
-  'yShifts',
-  new Map([[genIntStrs[0], 1.2], [genIntStrs[1], 0.6], [genIntStrs[2], 2.0]]),
-);
-DEFAULT_URLPARAMS.set(
-  'harmDistSteps',
-  new Map([[genIntStrs[0], 0.0], [genIntStrs[1], 1.6], [genIntStrs[2], 1.7]]),
-);
+// The default generating intervals are the ones of the basic5Limit preset.
+DEFAULT_URLPARAMS.set('generatingIntervals', new Map());
+DEFAULT_URLPARAMS.set('yShifts', new Map());
+DEFAULT_URLPARAMS.set('harmDistSteps', new Map());
+const preset = tonePresets.get('basic5Limit');
+for (const genIntData of preset) {
+  const [genInt, yShift, harmDistStep] = genIntData;
+  const genIntStr = toneToString(genInt);
+  DEFAULT_URLPARAMS.get('generatingIntervals').set(genIntStr, genInt);
+  DEFAULT_URLPARAMS.get('yShifts').set(genIntStr, yShift);
+  DEFAULT_URLPARAMS.get('harmDistSteps').set(genIntStr, harmDistStep);
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Global constants.
@@ -96,6 +96,10 @@ EDOTones.forEach((EDOTone) => {
 document.getElementById('buttAddGeneratingInterval').onclick = () => {
   const genInt = readNewGeneratingInterval();
   addGeneratingInterval(genInt, streams);
+};
+document.getElementById('buttApplyTonePreset').onclick = () => {
+  const selectPreset = document.getElementById('selectTonePreset');
+  applyTonePreset(selectPreset.value, streams, DEFAULT_URLPARAMS);
 };
 
 // Create the starting generating intervals (read from defaults or from the

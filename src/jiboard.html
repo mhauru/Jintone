@@ -290,17 +290,15 @@
       previous chord, and you can probably easily hear the difference. If you play them
       at the same time, you can hear the beating between them.
       </p>
-      <!-- TODO presets
       <p class="helpAnswer">
       If you get into it and spend a while studying the various interesting pure chords
       and intervals you can play, at some point I would also recommend go to the
-      Settings, scrolling down to the sections called Tones, and choosing the 7-limit
+      Settings, scrolling down to the sections called Tones, and trying the basic 7-limit
       preset. This adds more tones to the keyboard, and many of these are such that they
       just can't be even decently approximated in the 12-EDO system. Try for instance
       playing a chord with ¹⁄₁, ⁷⁄₆, and ³⁄₂. It's a beautiful sound, but one that is
       impossible to recreate on a piano, and simply absent from modern Western music.
       </p>
-      -->
       <p class="helpQuestion">
       You mentioned the Settings tab a couple of times. What's that?
       </p>
@@ -311,7 +309,7 @@
         <li>vertical and horizontal zoom</li>
         <li>hiding/showing features like the 12-EDO keyboard</li>
         <li>how you want the tones to be labeled (fractions vs letters)</li>
-        <!-- TODO <li>presets for how the tones should be laid out</li> -->
+        <li>presets for how the tones should be laid out</li>
       </ul>
       And if you dig deeper you'll find that you can customise almost anything:
       <ul>
@@ -589,6 +587,18 @@
               up the way y-shifts and harmonic distances work).
               </span>
             </span>
+            </p>
+            <p class=setting>
+            <label>Presets
+              <select name="tone presets" id="selectTonePreset">
+                <option value="basic5Limit">Basic 5-limit (default)</option>
+                <option value="basic7Limit">Basic 7-limit</option>
+                <option value="pythagorean">Pythagorean (3-limit)</option>
+                <option value="alternative5Limit">Alternative 5-limit</option>
+                <option value="alternative7Limit">Alternative 7-limit</option>
+              </select>
+            </label>
+            <button id="buttApplyTonePreset" class="genIntButton">Apply</button>
             </p>
             <p class=setting>
             New generating interval<br>

@@ -11,7 +11,37 @@ export {
   addGeneratingInterval,
   removeGeneratingInterval,
   readNewGeneratingInterval,
+  applyTonePreset,
+  tonePresets,
 };
+
+const tonePresets = new Map();
+tonePresets.set('basic5Limit', [
+  [new Map([[2, 1]]), 1.2, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.6, 1.6],
+  [new Map([[5, 1], [2, -2]]), 2.0, 1.7],
+]);
+tonePresets.set('basic7Limit', [
+  [new Map([[2, 1]]), 1.2, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.6, 1.6],
+  [new Map([[5, 1], [2, -2]]), 2.0, 1.7],
+  [new Map([[7, 1], [2, -2]]), 1.75, 6.3],
+]);
+tonePresets.set('pythagorean', [
+  [new Map([[2, 1]]), 0.0, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.15, 0.7],
+]);
+tonePresets.set('alternative5Limit', [
+  [new Map([[2, 1]]), 0.0, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.1, 1.6],
+  [new Map([[5, 1], [2, -2]]), 1.25, 1.7],
+]);
+tonePresets.set('alternative7Limit', [
+  [new Map([[2, 1]]), 0.0, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.1, 2.0],
+  [new Map([[5, 1], [2, -2]]), 1.5, 2.2],
+  [new Map([[7, 1], [2, -2]]), 0.87, 5.0],
+]);
 
 // Associate each prime to each it's streams, to make it possible to remove the
 // right ones with removeSource.
@@ -144,4 +174,16 @@ function readNewGeneratingInterval() {
   const denom = inDenominator.valueAsNumber;
   const genInt = primeDecompose(num, denom);
   return genInt;
+}
+
+function applyTonePreset(presetName, streams) {
+  const genInts = streams.generatingIntervals.getValue();
+  for (const genIntStr of genInts.keys()) {
+    removeGeneratingInterval(genIntStr, streams);
+  }
+  const preset = tonePresets.get(presetName);
+  for (const genIntData of preset) {
+    const [genInt, yShift, harmDistStep] = genIntData;
+    addGeneratingInterval(genInt, streams, yShift, harmDistStep);
+  }
 }
