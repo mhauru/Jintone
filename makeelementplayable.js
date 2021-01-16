@@ -46,33 +46,48 @@ function makeElementPlayable(element, frequency, streams, synth) {
 
   const isBeingClicked = new rxjs.BehaviorSubject(false);
   subscriptions.push(rxjs.merge(trueOnClickDown, falseOnClickUp).pipe(
-    operators.startWith(false),
     operators.distinctUntilChanged(),
-  ).subscribe((x) => isBeingClicked.next(x)));
+  ).subscribe(isBeingClicked));
 
-  // Whenever this key is pressed, the tone is turned on, if it wasn't
-  // already. Whenver either this key is released or sustain is released, and
-  // the latest action on both this key and sustain is a release, then this
-  // tone should be set to false, if it wasn't already.
-  // TODO Note that, done this way, an emission happens for all keys every
-  // time the sustain is released. Think about mitigating this performance
-  // waste by either filtering out repeated isOn emissions before they reach
-  // the observer, or by having isBeingClicked determine whether we listend
-  // to sustainDown at all.
+  // state codes:
+  // 0 = off
+  // 1 = being clicked on
+  // 2 = sustaining
+  // 3 = being click off
+  const state = new rxjs.BehaviorSubject(0);
+  const sustainDown = streams.sustainDown;
+  subscriptions.push(isBeingClicked.pipe(
+    operators.withLatestFrom(state),
+  ).subscribe(([clickedOn, s]) => {
+    if (clickedOn) {
+      if (s == 0) {
+        state.next(1);
+      } else if (s == 2) {
+        state.next(3);
+      }
+    } else {
+      if (s == 1) {
+        if (!sustainDown.getValue()) {
+          state.next(0);
+        } else {
+          state.next(2);
+          rxjs.combineLatest(sustainDown, state).pipe(
+            operators.takeWhile(([sus, s]) => (s == 2)),
+            operators.filter(([sus, s]) => !sus),
+            operators.take(1),
+          ).subscribe((x) => {
+            state.next(0);
+          });
+        }
+      } else if (s == 3) {
+        state.next(0);
+      }
+    }
+  }));
+
   const isOn = new rxjs.BehaviorSubject(false);
-  subscriptions.push(rxjs.merge(
-    trueOnClickDown,
-    rxjs.combineLatest(isBeingClicked, streams.sustainDown).pipe(
-      operators.filter(([click, sustain]) => {
-        // Check that both the latest click and the latest sustain were
-        // false.
-        return !click && !sustain;
-      }),
-      operators.map((click, sustain) => {
-        return false;
-      }),
-    ),
-  ).pipe(
+  subscriptions.push(state.pipe(
+    operators.map((s) => !(s == 0)),
     operators.distinctUntilChanged(),
   ).subscribe(isOn));
 
@@ -83,5 +98,6 @@ function makeElementPlayable(element, frequency, streams, synth) {
       synth.stopTone(frequency.getValue());
     }
   }));
+
   return [isOn, isBeingClicked, subscriptions];
 }
