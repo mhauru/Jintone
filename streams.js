@@ -335,14 +335,14 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     {
       'paramName': 'originFreq',
       'elemName': 'numOriginFreq',
-      'eventName': 'input',
+      'eventName': 'change',
       'observableProperty': 'value',
       'parser': parseFloat,
     },
     {
       'paramName': 'toneRadius',
       'elemName': 'numToneRadius',
-      'eventName': 'input',
+      'eventName': 'change',
       'observableProperty': 'value',
       'parser': parseFloat,
     },
@@ -373,8 +373,8 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     },
     {
       'paramName': 'minToneOpacity',
-      'elemName': 'rangeMinToneOpacity',
-      'eventName': 'input',
+      'elemName': 'numMinToneOpacity',
+      'eventName': 'change',
       'observableProperty': 'value',
       'parser': parseFloat,
     },
@@ -404,24 +404,21 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     },
     {
       'paramName': 'horizontalZoom',
-      'elemName': 'rangeHorzZoom',
-      'eventName': 'input',
+      'elemName': 'numHorzZoom',
+      'eventName': 'change',
       'observableProperty': 'value',
-      'parser': parseFloat,
     },
     {
       'paramName': 'verticalZoom',
-      'elemName': 'rangeVertZoom',
-      'eventName': 'input',
+      'elemName': 'numVertZoom',
+      'eventName': 'change',
       'observableProperty': 'value',
-      'parser': parseFloat,
     },
     {
       'paramName': 'maxHarmNorm',
       'elemName': 'numMaxHarmNorm',
-      'eventName': 'input',
+      'eventName': 'change',
       'observableProperty': 'value',
-      'parser': parseFloat,
     },
   ];
 
