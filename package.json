@@ -9,12 +9,12 @@
   "author": "Markus Hauru",
   "license": "AGPL-3.0",
   "repository": {
-      "type": "git",
-      "url": "https://github.com/mhauru/jiboard.git"
+    "type": "git",
+    "url": "https://github.com/mhauru/jiboard.git"
   },
   "dependencies": {
     "@svgdotjs/svg.js": "^3.0.16",
-    "mathjs": "^8.1.1",
+    "luqr": "^0.3.0",
     "rxjs": "^6.6.3",
     "tone": "^14.8.2"
   },

@@ -1,7 +1,7 @@
 'use strict';
 import * as rxjs from 'rxjs';
 import * as operators from 'rxjs/operators';
-import {qr, size} from 'mathjs';
+import {luqr} from 'luqr';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
 import {makeElementPlayable} from './makeelementplayable.js';
@@ -151,11 +151,13 @@ function intervalsToMatrix(intervals) {
 // Return whether a set of intervals is linearlyIndependent or not.
 function linearlyIndependent(intervals) {
   const mat = intervalsToMatrix(intervals);
-  const r = qr(mat).R;
-  const [n, m] = size(r);
+  const n = mat.length;
+  if (n < 2) return true;
+  const m = mat[0].length;
   if (n > m) return false;
-  for (let i = 0; i < m; i++) {
-    if (r[i][i] == 0) return false;
+  const r = luqr.decomposeQR(mat).R;
+  for (let i = 0; i < n; i++) {
+    if (Math.abs(r[i][i]) < 1e-6) return false;
   }
   return true;
 }
