@@ -138,7 +138,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
       }),
     ),
     rxjs.fromEvent(window, 'keydown').pipe(
-      operators.filter((ev) => ev.key == 'Control'),
+      operators.filter((ev) => (ev.key == 'Control' || ev.key == 'Meta')),
     ),
   ).pipe(operators.map((ev) => true));
 
@@ -146,7 +146,7 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     rxjs.fromEvent(divPanMod, 'pointerup'),
     rxjs.fromEvent(divPanMod, 'pointerleave'),
     rxjs.fromEvent(window, 'keyup').pipe(
-      operators.filter((ev) => ev.key == 'Control'),
+      operators.filter((ev) => (ev.key == 'Control' || ev.key == 'Meta')),
     ),
   ).pipe(operators.map((ev) => false));
 
