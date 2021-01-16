@@ -1,7 +1,7 @@
 'use strict';
 import * as rxjs from 'rxjs';
 import * as operators from 'rxjs/operators';
-import {qr, size} from 'mathjs'
+import {qr, size} from 'mathjs';
 import {VariableSourceSubject} from './variablesourcesubject.js';
 import {EDOTones} from './edo.js';
 import {makeElementPlayable} from './makeelementplayable.js';
@@ -10,7 +10,7 @@ export {
   toneToFraction,
   primeDecompose,
   linearlyIndependent,
-  ToneObject
+  JITone,
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -54,23 +54,6 @@ function reduceFraction(num, denom) {
 //
 function toneToString(tone) {
   return [...tone.entries()].sort().toString();
-}
-
-// Check whether two tones are equal.
-function tonesEqual(tone1, tone2) {
-  return [...subtractTone(tone1, tone2).values()].every((d) => d == 0);
-}
-
-// Take the difference tone1 - tone2.
-function subtractTone(tone1, tone2) {
-  const diff = new Map();
-  iteratorUnion(tone1.keys(), tone2.keys()).forEach((key) => {
-    const c1 = tone1.get(key) || 0;
-    const c2 = tone2.get(key) || 0;
-    const d = c1 - c2;
-    if (d != 0) diff.set(key, d);
-  });
-  return diff;
 }
 
 // Sum tone1 + tone2.
@@ -177,9 +160,7 @@ function linearlyIndependent(intervals) {
   return true;
 }
 
-// TODO The 'Object' part of the name is to avoid a name collission with
-// Tone.js. Think about namespace management.
-class ToneObject {
+class JITone {
   constructor(genIntCoords, isRoot, svgGroups, streams, allTones, synth) {
     this.genIntCoords = genIntCoords;
     this.isRoot = isRoot;
@@ -313,7 +294,9 @@ class ToneObject {
         const viewboxLeft = viewbox.x;
         const viewboxRight = viewboxLeft + viewbox.width;
         // TODO This line is ugly
-        const maxPitchFactor = Math.max(...[...genInts.values()].map(pitchFactor));
+        const maxPitchFactor = Math.max(
+          ...[...genInts.values()].map(pitchFactor),
+        );
         const maxXjump = horizontalZoom * Math.log2(maxPitchFactor);
         const closureLeft = viewboxLeft - maxXjump;
         const closureRight = viewboxRight + maxXjump;
@@ -631,7 +614,7 @@ class ToneObject {
           if (inclsr) {
             prospNeighs.forEach(([neighCoordsStr, neighCoords]) => {
               if (!me.neighbours.has(neighCoordsStr)) {
-                new ToneObject(
+                new JITone(
                   neighCoords,
                   false,
                   svgGroups,
@@ -656,7 +639,7 @@ class ToneObject {
               break;
             }
           }
-        }
+        },
       ));
     }
 

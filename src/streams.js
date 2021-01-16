@@ -471,8 +471,6 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     }
     valueStream.subscribe((x) => streams[e.paramName].next(x));
     streams[e.paramName].subscribe((value) => {
-      // TODO Check that this works for checkboxes on Chrome (seems at the
-      // moment it doesn't.)
       elem[e.observableProperty] = value;
     });
     urlStreams.push(streams[e.paramName].pipe(

@@ -81,8 +81,6 @@ class EDOKey {
     );
     const isOn = mepRetval[0];
 
-    // TODO This could probably be somehow filtered better, to avoid
-    // unnecessary observations.
     rxjs.combineLatest(isOn, streams.toneColorActive).subscribe(
       ([val, color]) => {
         if (val) {

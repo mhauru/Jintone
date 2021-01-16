@@ -1,6 +1,5 @@
 'use strict';
 import * as rxjs from 'rxjs';
-import * as operators from 'rxjs/operators';
 export {VariableSourceSubject};
 
 class VariableSourceSubject extends rxjs.BehaviorSubject {

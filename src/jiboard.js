@@ -1,11 +1,7 @@
 'use strict';
-// TODO I would like to ES6 module import also SVG.js and rxjs, and locally
-// import ResizeObserver from a module folder rather than a .min.js I manually
-// copied from a CDN. None of these things seem possible because the
-// javascript module ecosystem is a massive mess that drives me nuts.
 import * as rxjs from 'rxjs';
 import * as operators from 'rxjs/operators';
-import {SVG} from '@svgdotjs/svg.js'
+import {SVG} from '@svgdotjs/svg.js';
 import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
 import {
@@ -13,7 +9,7 @@ import {
   toneToFraction,
   primeDecompose,
   linearlyIndependent,
-  ToneObject,
+  JITone,
 } from './toneobject.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
@@ -87,8 +83,8 @@ const scaleFig = {};
 setupToggletips();
 
 // Set up the SVG canvases.
-scaleFig.canvas = SVG().addTo('#divCanvas').size('100%', '100%');
-scaleFig.keyCanvas = SVG().addTo('#divKeyCanvas').size('100%', '100%');
+scaleFig.canvas = new SVG().addTo('#divCanvas').size('100%', '100%');
+scaleFig.keyCanvas = new SVG().addTo('#divKeyCanvas').size('100%', '100%');
 scaleFig.keyCanvas.attr('preserveAspectRatio', 'none');
 // Note that the order in which we create these groups sets their draw order,
 // i.e. z-index.
@@ -109,7 +105,7 @@ const streams = setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig);
 // TODO What's the right place to have this bit?
 const allTones = new Map();
 // Create the root tone.
-new ToneObject(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
+new JITone(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
 
 // TODO Which file do addGenInt and removeGenInt go in?
 // Associate each prime to each it's streams, to make it possible to remove the
@@ -128,15 +124,16 @@ function addGeneratingInterval(
   const [num, denom] = toneToFraction(genInt);
 
   if (denom == 0 || !Number.isInteger(denom) || !Number.isInteger(num)) {
-    // TODO Create some kind of pop-up warning.
-    console.log(`Invalid generating interval: ${num} / ${denom}`);
+    window.alert(`Invalid generating interval: ${num} / ${denom}`);
     return false;
   }
 
   const currentGenInts = streams.generatingIntervals.getValue();
   if (!linearlyIndependent([genInt, ...currentGenInts.values()])) {
-    // TODO Create some kind of pop-up warning.
-    console.log(`The proposed generating interval is not independent of the others: ${num} / ${denom}`);
+    window.alert(
+      `The proposed generating interval is not independent of the others: \
+${num} / ${denom}`,
+    );
     return false;
   }
 
@@ -175,7 +172,7 @@ function addGeneratingInterval(
   divGenInt.appendChild(removeButt);
   divGenInt.appendChild(parYShift);
   divGenInt.appendChild(parHarmDistStep);
-  divGenInt.classList.add('divGenInt')
+  divGenInt.classList.add('divGenInt');
 
   document.getElementById('contentAxes').appendChild(divGenInt);
 
@@ -249,145 +246,6 @@ document.getElementById('buttAddGeneratingInterval').onclick = () => {
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-/*
-function checkTones() {
-  // Some consistency checks, for testing purposes.
-  const svgTones = [];
-  const svgPitchlines = [];
-  const svgSteps = [];
-
-  Object.entries(scaleFig.tones).forEach(([coords, tone]) => {
-    const inbounds = tone.inbounds;
-    const inclosure = tone.inclosure;
-    const isboundary = coords in scaleFig.boundaryTones;
-    svgTones.push(tone.svgTone);
-    svgPitchlines.push(tone.svgPitchline);
-
-    if (inbounds && !inclosure) {
-      const msg = `Error: tone ${coords} is inbounds but not inclosure.`;
-      console.log(msg);
-    }
-
-    // TODO Some kind of check of the fact that inbounds and inclosure should
-    // match when viewbox is large enough.
-
-    if (!inclosure && !isboundary) {
-      const msg = `Error: tone ${coords} is not inclosure, but also is not \
-boundary.`;
-      console.log(msg);
-    }
-
-    Object.entries(tone.incomingSteps).forEach(([label, step]) => {
-      const isEndpoint = step.endpoint == tone;
-      if (!isEndpoint) {
-        const msg = `Error: tone ${endpoint} claims to be the endpoint of step\
- ${step} , but isn't actually.`;
-        console.log(msg);
-      }
-    });
-
-    Object.entries(tone.steps).forEach(([label, step]) => {
-      const svgStep = step.svgStep;
-      svgSteps.push(svgStep);
-      if (step.hasEndpoint) {
-        const endpoint = step.endpoint;
-        const endpointKnows = endpoint.incomingSteps[label] === step;
-        if (!endpointKnows) {
-          const msg = `Error: tone ${endpoint} is the endpoint of step ${step}\
- , but doesn't know it.`;
-          console.log(msg);
-        }
-
-        const interval = scaleFig.stepIntervals[label].interval;
-        const endpointCoords = sumTones(tone.coords, interval);
-        if (!tonesEqual(endpointCoords, endpoint.coords)) {
-          const msg = `Error: tone ${endpoint} is the endpoint of step ${step}\
- , but the correct endpoint is at ${endpointCoords}.`;
-          console.log(msg);
-        }
-      } else {
-        const interval = scaleFig.stepIntervals[label].interval;
-        const endpointCoords = sumTones(tone.coords, interval);
-        const endpointExists = endpointCoords in scaleFig.tones;
-        if (endpointExists) {
-          const msg = `Error: tone at ${endpointCoords} should be the \
-endpoint of a step from ${step.origin.coords}, but no endpoint has been set.`;
-          console.log(msg);
-        }
-      }
-
-      const stepInterval = scaleFig.stepIntervals[step.label];
-      const svgInGroup = stepInterval.svgGroup.has(svgStep);
-      if (!svgInGroup) {
-        const msg = `Error: svgStep ${svgStep.id()} is not in the step group.`;
-        console.log(msg);
-      }
-    });
-
-    Object.entries(scaleFig.stepIntervals).forEach(([label, stepInterval]) => {
-      const hasStep = label in tone.steps;
-      if (!hasStep) {
-        const msg = `Error: tone ${tone} does not have a step ${label}.`;
-        console.log(msg);
-      }
-    });
-  });
-
-  Object.entries(scaleFig.boundaryTones).forEach(([coords, tone]) => {
-    const inclosure = tone.inclosure;
-    const intones = coords in scaleFig.tones;
-
-    if (!intones) {
-      const msg = `Error: tone ${coords} is in boundaryTones, but not in \
-tones.`;
-      console.log(msg);
-    }
-
-    if (inclosure) {
-      const msg = `Error: tone ${coords} is boundary, but also inclosure.`;
-      console.log(msg);
-    }
-  });
-
-  svgTones.forEach((svgTone) => {
-    const inGroup = scaleFig.svgGroups.tones.has(svgTone);
-    if (!inGroup) {
-      const msg = `Error: svgTone ${svgTone.id()} is not in the tone group.`;
-      console.log(msg);
-    }
-  });
-
-  svgPitchlines.forEach((svgPitchline) => {
-    const inGroup = scaleFig.svgGroups.pitchlines.has(svgPitchline);
-    if (!inGroup) {
-      const msg = `Error: svgPitchline ${svgPitchline.id()} is not in the \
-pitchline group.`;
-      console.log(msg);
-    }
-  });
-
-  scaleFig.svgGroups.pitchlines.children().forEach((svgPitchline) => {
-    const hasParent = svgPitchlines.includes(svgPitchline);
-    if (!hasParent) {
-      const msg = `Error: svgPitchline ${svgPitchline.id()} is not the \
-pitchline of any tone.`;
-      console.log(msg);
-    }
-  });
-
-  scaleFig.svgGroups.tones.children().forEach((svgTone) => {
-    const hasParent = svgTones.includes(svgTone);
-    if (!hasParent) {
-      const msg = `Error: svgTone ${svgTone.id()} is not the \
-tone of any tone.`;
-      console.log(msg);
-    }
-  });
-}
-
-checkTones(); // TODO Only here for testing during development.
-*/
 
 addEDOKeys();
 
