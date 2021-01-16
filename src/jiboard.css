@@ -213,7 +213,8 @@ body {
   position: absolute;
   font-size: 1.3em;
   top: 50%;
-  transform: translateY(-50%) rotate(-90deg);
+  left: 50%;
+  transform: translateY(-50%) translateX(-50%) rotate(-90deg);
   padding: 0;
   margin: 0;
 }
