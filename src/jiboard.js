@@ -1,42 +1,15 @@
 'use strict';
-import * as rxjs from 'rxjs';
-import * as operators from 'rxjs/operators';
 import {SVG} from '@svgdotjs/svg.js';
 import {setupToggletips} from './toggletips.js';
 import {readURL, setupStreams} from './streams.js';
-import {
-  toneToString,
-  toneToFraction,
-  primeDecompose,
-  linearlyIndependent,
-  JITone,
-} from './jitone.js';
+import {toneToString, JITone} from './jitone.js';
 import {EDOTones} from './edo.js';
 import {EDOKey} from './edokey.js';
 import {EqualLoudnessSynth} from './equalloudnesssynth.js';
+import {addGeneratingInterval} from './tonesettings.js';
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Global constants.
-
-const synth = new EqualLoudnessSynth();
-
-function addEDOKeys() {
-  EDOTones.forEach((EDOTone) => {
-    new EDOKey(
-      EDOTone.frequency,
-      EDOTone.keytype,
-      scaleFig.keyCanvas,
-      streams,
-      synth,
-    );
-  });
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Read the URL for parameter values to start with, and define a function for
-// writing the URL.
-
-// Hard-coded defaults.
+// Hard-coded default parameters.
 const DEFAULT_URLPARAMS = new Map();
 DEFAULT_URLPARAMS.set('originFreq', 261.626);
 DEFAULT_URLPARAMS.set('maxHarmNorm', 8.0);
@@ -75,14 +48,12 @@ DEFAULT_URLPARAMS.set(
   new Map([[genIntStrs[0], 0.0], [genIntStrs[1], 1.6], [genIntStrs[2], 1.7]]),
 );
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Global constants.
+const synth = new EqualLoudnessSynth();
 // scaleFig is a global object that essentially functions as a namespace.
 // Its fields are various global variables related to the SVG canvasses.
 const scaleFig = {};
-
-// Make the toggletips react to being clicked.
-setupToggletips();
-
-// Set up the SVG canvases.
 scaleFig.canvas = new SVG().addTo('#divCanvas').size('100%', '100%');
 scaleFig.keyCanvas = new SVG().addTo('#divKeyCanvas').size('100%', '100%');
 scaleFig.keyCanvas.attr('preserveAspectRatio', 'none');
@@ -92,171 +63,52 @@ scaleFig.svgGroups = {
   'pitchlines': scaleFig.canvas.group(),
   'tones': scaleFig.canvas.group(),
 };
-
 // A global constant that holds the values of various parameters at the very
-// start.  These values will be either hard-coded default values, or values
+// start. These values will be either hard-coded default values, or values
 // read from the URL query string.
 const startingParams = readURL(DEFAULT_URLPARAMS);
-
 // streams is a global object that works as a namespace for all globally
-// available streams.
+// available rxjs observables.
 const streams = setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig);
-
-// TODO What's the right place to have this bit?
+// allTones is a map that keeps track of all the tones currently in the
+// keyboard. Keys are string representations, values are JITones.
 const allTones = new Map();
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Make the toggletips react to being clicked.
+setupToggletips();
+
 // Create the root tone.
 new JITone(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
 
-// TODO Which file do addGenInt and removeGenInt go in?
-// Associate each prime to each it's streams, to make it possible to remove the
-// right ones with removeSource.
-const yShiftStreams = new Map();
-const harmDistStepStreams = new Map();
-
-// TODO add/remove axis access the global streams object. That's probably not
-// good, but more generally, I'm not sure where these functions should be
-// defined in the first place.
-function addGeneratingInterval(
-  genInt,
-  startingYyshift = 0.0,
-  startingHarmStep = streams.maxHarmNorm.getValue(),
-) {
-  const [num, denom] = toneToFraction(genInt);
-
-  if (denom == 0 || !Number.isInteger(denom) || !Number.isInteger(num)) {
-    window.alert(`Invalid generating interval: ${num} / ${denom}`);
-    return false;
-  }
-
-  const currentGenInts = streams.generatingIntervals.getValue();
-  if (!linearlyIndependent([genInt, ...currentGenInts.values()])) {
-    window.alert(
-      `The proposed generating interval is not independent of the others: \
-${num} / ${denom}`,
-    );
-    return false;
-  }
-
-  const genIntStr = toneToString(genInt);
-  const inNumYshift = document.createElement('input');
-  inNumYshift.id = `inNumYshift_${genIntStr}`;
-  inNumYshift.type = 'number';
-  inNumYshift.min = -10;
-  inNumYshift.max = 10;
-  inNumYshift.step = 0.01;
-  inNumYshift.style.width = '80px';
-
-  const inNumHarmdiststep = document.createElement('input');
-  inNumHarmdiststep.id = `inNumHarmdiststep_${genIntStr}`;
-  inNumHarmdiststep.type = 'number';
-  inNumHarmdiststep.min = -20;
-  inNumHarmdiststep.max = 20;
-  inNumHarmdiststep.step = 0.01;
-  inNumHarmdiststep.style.width = '80px';
-
-  const parYShift = document.createElement('p');
-  parYShift.innerHTML = 'y-shift: ';
-  parYShift.appendChild(inNumYshift);
-
-  const parHarmDistStep = document.createElement('p');
-  parHarmDistStep.innerHTML = 'Harmonic distance: ';
-  parHarmDistStep.appendChild(inNumHarmdiststep);
-
-  const removeButt = document.createElement('button');
-  removeButt.innerHTML = 'Remove';
-  removeButt.classList.add('genIntButton');
-
-  const divGenInt = document.createElement('div');
-  divGenInt.id = `divGenInt${genIntStr}`;
-  divGenInt.innerHTML = `Generating interval ${num}/${denom}`;
-  divGenInt.appendChild(removeButt);
-  divGenInt.appendChild(parYShift);
-  divGenInt.appendChild(parHarmDistStep);
-  divGenInt.classList.add('divGenInt');
-
-  document.getElementById('contentAxes').appendChild(divGenInt);
-
-  const yShiftStream = new rxjs.BehaviorSubject(
-    new Map([[genIntStr, startingYyshift]]),
+// Create the EDO keys.
+EDOTones.forEach((EDOTone) => {
+  new EDOKey(
+    EDOTone.frequency,
+    EDOTone.keytype,
+    scaleFig.keyCanvas,
+    streams,
+    synth,
   );
-  rxjs.fromEvent(inNumYshift, 'change').pipe(
-    operators.pluck('target', 'value'),
-    operators.map((value) => {
-      return new Map([[genIntStr, value]]);
-    }),
-  ).subscribe(yShiftStream);
-  yShiftStream.subscribe((m) => {
-    const value = m.get(genIntStr);
-    inNumYshift.value = value;
-  });
+});
 
-  const harmStepStream = new rxjs.BehaviorSubject(
-    new Map([[genIntStr, startingHarmStep]]),
-  );
-  rxjs.fromEvent(inNumHarmdiststep, 'change').pipe(
-    operators.pluck('target', 'value'),
-    operators.map((value) => {
-      return new Map([[genIntStr, value]]);
-    }),
-  ).subscribe(harmStepStream);
-  harmStepStream.subscribe((m) => {
-    const value = m.get(genIntStr);
-    inNumHarmdiststep.value = value;
-  });
-
-  streams.harmDistSteps.addSource(harmStepStream);
-  streams.yShifts.addSource(yShiftStream);
-  const genInts = streams.generatingIntervals.getValue();
-  genInts.set(genIntStr, genInt);
-  streams.generatingIntervals.next(genInts);
-  yShiftStreams.set(genIntStr, yShiftStream);
-  harmDistStepStreams.set(genIntStr, harmStepStream);
-
-  removeButt.onclick = function remove() {
-    removeGeneratingInterval(genIntStr);
-  };
-}
-
-function removeGeneratingInterval(genIntStr) {
-  const divGenInt = document.getElementById(`divGenInt${genIntStr}`);
-  document.getElementById('contentAxes').removeChild(divGenInt);
-  const yShiftStream = yShiftStreams.get(genIntStr);
-  const harmStepStream = harmDistStepStreams.get(genIntStr);
-  streams.yShifts.removeSource(yShiftStream);
-  streams.harmDistSteps.removeSource(harmStepStream);
-  yShiftStreams.delete(genIntStr);
-  harmDistStepStreams.delete(genIntStr);
-  const genInts = streams.generatingIntervals.getValue();
-  genInts.delete(genIntStr);
-  streams.generatingIntervals.next(genInts);
-}
-
-function readNewGeneratingInterval() {
-  const inNumerator = document.getElementById('inNewGenIntNumerator');
-  const inDenominator = document.getElementById('inNewGenIntDenominator');
-  const num = inNumerator.valueAsNumber;
-  const denom = inDenominator.valueAsNumber;
-  const genInt = primeDecompose(num, denom);
-  return genInt;
-}
-
+// Start listening to changes to the tone settings.
 document.getElementById('buttAddGeneratingInterval').onclick = () => {
   const genInt = readNewGeneratingInterval();
-  addGeneratingInterval(genInt);
+  addGeneratingInterval(genInt, streams);
 };
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-addEDOKeys();
-
+// Create the starting generating intervals (read from defaults or from the
+// URL).
 for (
   const [genIntStr, genInt] of startingParams['generatingIntervals'].entries()
 ) {
   const yShift = startingParams['yShifts'].get(genIntStr);
   const hds = startingParams['harmDistSteps'].get(genIntStr);
-  addGeneratingInterval(genInt, yShift, hds);
+  addGeneratingInterval(genInt, streams, yShift, hds);
 }
 
+// Show the starting pop-up.
 if (!streams.helpExpanded.getValue()) {
   const startPopUp = document.getElementById('startPopUp');
   startPopUp.style.display = 'block';
