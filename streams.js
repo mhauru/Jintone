@@ -67,68 +67,58 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     DEFAULT_URLPARAMS_STRS.set(key, JSON.stringify(value, JSONReplacer));
   }
 
-  const divPanMod = document.getElementById('divPanMod');
+  const divDroneMod = document.getElementById('divDroneMod');
   const divSustainMod = document.getElementById('divSustainMod');
+  const divPanMod = document.getElementById('divPanMod');
 
-  const trueOnPanDown = rxjs.merge(
-    rxjs.fromEvent(divPanMod, 'mousedown'),
-    rxjs.fromEvent(divPanMod, 'touchstart'),
-    rxjs.fromEvent(divPanMod, 'pointerdown').pipe(operators.map((ev) => {
+  const trueOnDroneDown = rxjs.merge(
+    rxjs.fromEvent(divDroneMod, 'pointerdown').pipe(
+      operators.filter((ev) => ev.buttons == 1),
+      operators.map((ev) => {
       // Allow pointer event target to jump between objects when pointer is
       // moved.
-      ev.target.releasePointerCapture(ev.pointerId);
-      return ev;
-    })),
+        ev.target.releasePointerCapture(ev.pointerId);
+        return ev;
+      }),
+    ),
     rxjs.fromEvent(window, 'keydown').pipe(
-      // TODO Define the keyCodes somewhere else.
-      operators.filter((ev) => ev.keyCode == 17),
+      operators.filter((ev) => ev.key == 'Alt'),
     ),
   ).pipe(operators.map((ev) => true));
 
-  const falseOnPanUp = rxjs.merge(
-    rxjs.fromEvent(divPanMod, 'mouseup'),
-    rxjs.fromEvent(divPanMod, 'mouseleave'),
-    rxjs.fromEvent(divPanMod, 'touchend'),
-    rxjs.fromEvent(divPanMod, 'touchcancel'),
-    rxjs.fromEvent(divPanMod, 'pointerup'),
-    rxjs.fromEvent(divPanMod, 'pointerleave'),
+  const falseOnDroneUp = rxjs.merge(
+    rxjs.fromEvent(divDroneMod, 'pointerup'),
+    rxjs.fromEvent(divDroneMod, 'pointerleave'),
     rxjs.fromEvent(window, 'keyup').pipe(
-      // TODO Define the keyCodes somewhere else.
-      operators.filter((ev) => ev.keyCode == 17),
+      operators.filter((ev) => ev.key == 'Alt'),
     ),
   ).pipe(operators.map((ev) => false));
 
-  streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
-    operators.startWith(false),
+  streams.droneDown = new rxjs.BehaviorSubject(false);
+  rxjs.merge(trueOnDroneDown, falseOnDroneUp).subscribe(
+    streams.droneDown,
   );
 
   const trueOnSustainDown = rxjs.merge(
-    rxjs.fromEvent(divSustainMod, 'mousedown'),
-    rxjs.fromEvent(divSustainMod, 'touchstart'),
-    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(operators.map(
+    rxjs.fromEvent(divSustainMod, 'pointerdown').pipe(
+      operators.filter((ev) => ev.buttons == 1),
+      operators.map((ev) => {
       // Allow pointer event target to jump between objects when pointer is
       // moved.
-      (ev) => {
         ev.target.releasePointerCapture(ev.pointerId);
         return ev;
-      },
-    )),
+      }),
+    ),
     rxjs.fromEvent(window, 'keydown').pipe(
-      // TODO Define the keyCodes somewhere else.
-      operators.filter((ev) => ev.keyCode == 16),
+      operators.filter((ev) => ev.key == 'Shift'),
     ),
   ).pipe(operators.map((ev) => true));
 
   const falseOnSustainUp = rxjs.merge(
-    rxjs.fromEvent(divSustainMod, 'mouseup'),
-    rxjs.fromEvent(divSustainMod, 'mouseleave'),
-    rxjs.fromEvent(divSustainMod, 'touchend'),
-    rxjs.fromEvent(divSustainMod, 'touchcancel'),
     rxjs.fromEvent(divSustainMod, 'pointerup'),
     rxjs.fromEvent(divSustainMod, 'pointerleave'),
-    // TODO Define the keyCodes somewhere else.
     rxjs.fromEvent(window, 'keyup').pipe(
-      operators.filter((ev) => ev.keyCode == 16),
+      operators.filter((ev) => ev.key == 'Shift'),
     ),
   ).pipe(operators.map((ev) => false));
 
@@ -137,21 +127,60 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     streams.sustainDown,
   );
 
-  // TODO Hard-coded color constants should be moved elsewhere. Maybe make it a
-  // CSS class whether they are up or down?
-  streams.panDown.subscribe((value) => {
+  const trueOnPanDown = rxjs.merge(
+    rxjs.fromEvent(divPanMod, 'pointerdown').pipe(
+      operators.filter((ev) => ev.buttons == 1),
+      operators.map((ev) => {
+      // Allow pointer event target to jump between objects when pointer is
+      // moved.
+        ev.target.releasePointerCapture(ev.pointerId);
+        return ev;
+      }),
+    ),
+    rxjs.fromEvent(window, 'keydown').pipe(
+      operators.filter((ev) => ev.key == 'Control'),
+    ),
+  ).pipe(operators.map((ev) => true));
+
+  const falseOnPanUp = rxjs.merge(
+    rxjs.fromEvent(divPanMod, 'pointerup'),
+    rxjs.fromEvent(divPanMod, 'pointerleave'),
+    rxjs.fromEvent(window, 'keyup').pipe(
+      operators.filter((ev) => ev.key == 'Control'),
+    ),
+  ).pipe(operators.map((ev) => false));
+
+  streams.panDown = rxjs.merge(trueOnPanDown, falseOnPanUp).pipe(
+    operators.startWith(false),
+  );
+
+  streams.droneDown.subscribe((value) => {
     if (value) {
-      divPanMod.style.background = '#FF3900';
+      divDroneMod.classList.remove('divDroneModOff');
+      divDroneMod.classList.add('divDroneModOn');
     } else {
-      divPanMod.style.background = '#FF9273';
+      divDroneMod.classList.remove('divDroneModOn');
+      divDroneMod.classList.add('divDroneModOff');
     }
   });
 
   streams.sustainDown.subscribe((value) => {
     if (value) {
-      divSustainMod.style.background = '#FFAA00';
+      divSustainMod.classList.remove('divSustainModOff');
+      divSustainMod.classList.add('divSustainModOn');
     } else {
-      divSustainMod.style.background = '#FFD073';
+      divSustainMod.classList.remove('divSustainModOn');
+      divSustainMod.classList.add('divSustainModOff');
+    }
+  });
+
+  streams.panDown.subscribe((value) => {
+    if (value) {
+      divPanMod.classList.remove('divPanModOff');
+      divPanMod.classList.add('divPanModOn');
+    } else {
+      divPanMod.classList.remove('divPanModOn');
+      divPanMod.classList.add('divPanModOff');
     }
   });
 

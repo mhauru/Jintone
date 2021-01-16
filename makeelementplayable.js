@@ -53,24 +53,30 @@ function makeElementPlayable(element, frequency, streams, synth) {
   // 0 = off
   // 1 = being clicked on
   // 2 = sustaining
-  // 3 = being click off
+  // 3 = droning
+  // 4 = being click off
   const state = new rxjs.BehaviorSubject(0);
   const sustainDown = streams.sustainDown;
+  const droneDown = streams.droneDown;
   subscriptions.push(isBeingClicked.pipe(
-    operators.withLatestFrom(state),
-  ).subscribe(([clickedOn, s]) => {
+    operators.withLatestFrom(state, droneDown),
+  ).subscribe(([clickedOn, s, drone]) => {
     if (clickedOn) {
       if (s == 0) {
         state.next(1);
       } else if (s == 2) {
-        state.next(3);
+        state.next(4);
+      } else if (s == 3 && drone) {
+        state.next(4);
       }
     } else {
       if (s == 1) {
-        if (!sustainDown.getValue()) {
-          state.next(0);
-        } else {
+        if (droneDown.getValue()) {
+          state.next(3);
+        } else if (sustainDown.getValue()) {
           state.next(2);
+          // Setup the listener that turns the tone off when sustain is
+          // released.
           rxjs.combineLatest(sustainDown, state).pipe(
             operators.takeWhile(([sus, s]) => (s == 2)),
             operators.filter(([sus, s]) => !sus),
@@ -78,8 +84,10 @@ function makeElementPlayable(element, frequency, streams, synth) {
           ).subscribe((x) => {
             state.next(0);
           });
+        } else {
+          state.next(0);
         }
-      } else if (s == 3) {
+      } else if (s == 4) {
         state.next(0);
       }
     }
