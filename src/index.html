@@ -2,8 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <link href="./jiboard.css" rel="stylesheet">
-    <title>JIBoard</title>
+    <link href="./jintone.css" rel="stylesheet">
+    <title>Jintone</title>
 </head>
 <body>
     <div id="startPopUp">
@@ -22,7 +22,7 @@
       </p>
       <p class="helpAnswer">
       It's a keyboard for playing music in an unusual tuning system, called just
-      intonation. I call it Jiboard.
+      intonation. I call it Jintone.
       </p>
       <p class="helpQuestion">
       Why would I want to play music in this "just intonation" tuning?
@@ -206,7 +206,7 @@
       with an interval of 2<sup>⁸⁄₁₂</sup> ≈ 1.59. That may be inaccurate in a sense, but
       from the point of view of building an actual instrument, it's quite a lot easier,
       when you don't have to build so many keys or frets (though this is something I hope
-      technology like Jiboard can overcome). It also allows for all kinds of harmonic
+      technology like Jintone can overcome). It also allows for all kinds of harmonic
       transitions and tricks, when you don't have to commit to saying whether the
       interval you are playing really is ⁸⁄₅ or ²⁵⁄₁₆, and can make use of this
       ambiguity.
@@ -344,23 +344,23 @@
       Who made this?
       </p>
       <p class="helpAnswer">
-      Jiboard was made by me, Markus Hauru. If you have any feedback, questions, or
+      Jintone was made by me, Markus Hauru. If you have any feedback, questions, or
       feature requests, feel free to email
       <a href=mailto:markus@mhauru.org>markus@mhauru.org</a>.
       </p>
       <p class="helpAnswer">
-      Inspiration for Jiboard came largely from talking to my friend Ismo Tähtinen, and
+      Inspiration for Jintone came largely from talking to my friend Ismo Tähtinen, and
       from the books of W. A. Mathieu, which Ismo got me to read. He, and another friend
       of mine, Henri Seijo, also provided some great feedback.
       </p>
       <p class="helpAnswer">
       The implementation is all in Javascript, and available, free, on GitHub:
-      <a href=https://github.com/mhauru/jiboard>github.com/mhauru/jiboard</a>.
+      <a href=https://github.com/mhauru/Jintone>github.com/mhauru/Jintone</a>.
       A special shout-out to the libraries
       <a href=https://rxjs.dev/>RxJS</a>,
       <a href=https://tonejs.github.io/>Tone.js</a>,
       and <a href=https://svgjs.com>SVG.js</a>,
-      which Jiboard makes heavy use of.
+      which Jintone makes heavy use of.
       </p>
     </div>
 
@@ -538,9 +538,9 @@
             </button>
             <span class="toggletipBubble">
               <span class=toggletipBubbleSubpar>
-              Jiboard draws the keyboard by starting from the root tone ¹⁄₁, and taking
+              Jintone draws the keyboard by starting from the root tone ¹⁄₁, and taking
               steps by what are called generating intervals. For instance, if an octave,
-              ²⁄₁, would be the only generating interval, then Jiboard would first
+              ²⁄₁, would be the only generating interval, then Jintone would first
               generate the tones ²⁄₁ and ½, since they are one octave jump away from the
               root, then ⁴⁄₁ and ¼, and so on. If you would then add a second generating
               interval, say ³⁄₂ aka perfect fifth, then all tones that can be reached
@@ -663,6 +663,6 @@
       </div>
     </div>
 
-    <script src="./jiboard.js"></script>
+    <script src="./jintone.js"></script>
 </body>
 </html>

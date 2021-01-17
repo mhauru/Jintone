@@ -1,16 +1,16 @@
 {
-  "name": "jiboard",
+  "name": "Jintone",
   "version": "0.1.0",
   "description": "Keyboard instrument for music in just intonation tuning",
   "scripts": {
-    "build": "./node_modules/.bin/parcel build src/jiboard.html --public-url='./'",
+    "build": "./node_modules/.bin/parcel build src/index.html --public-url='./'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Markus Hauru",
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mhauru/jiboard.git"
+    "url": "https://github.com/mhauru/Jintone.git"
   },
   "dependencies": {
     "@svgdotjs/svg.js": "^3.0.16",
