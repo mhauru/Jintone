@@ -24,13 +24,19 @@ function velocity(freq) {
   return v;
 }
 
+// Relative amplitudes of overtones. These define the timbre. The choice here
+// is only slightly different from sine.
+const partials = [];
+for (let i = 1; i < 6; i++) {
+  partials.push(Math.exp(2*(-i+1)));
+}
+
 class EqualLoudnessSynth {
   constructor() {
     this.synth = new PolySynth(Synth, {
       oscillator: {
-        type: 'sine',
-        // Relative amplitudes of overtones.
-        partials: [1, 0.3, 0.2, 0.05],
+        'type': 'custom',
+        'partials': partials,
       },
     }).toDestination();
   }
