@@ -478,7 +478,8 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
     ));
   });
 
-  // We do the toneLabel one manually, since it requires merging three streams.
+  // We do the toneLabel and timbre ones manually, since they requires merging
+  // several streams.
   streams.toneLabelTextStyle = new rxjs.BehaviorSubject(
     startingParams['toneLabelTextStyle'],
   );
@@ -508,6 +509,38 @@ function setupStreams(startingParams, DEFAULT_URLPARAMS, scaleFig) {
   });
   urlStreams.push(streams.toneLabelTextStyle.pipe(
     urlStringOperator('toneLabelTextStyle', DEFAULT_URLPARAMS_STRS),
+  ));
+
+  streams.timbre = new rxjs.BehaviorSubject(startingParams['timbre']);
+  const radioTimbreDefault = document.getElementById('radioTimbreDefault');
+  const radioTimbreSine = document.getElementById('radioTimbreSine');
+  const radioTimbreSawtooth = document.getElementById('radioTimbreSawtooth');
+  const radioTimbreSquare = document.getElementById('radioTimbreSquare');
+  const radioTimbreTriangle = document.getElementById('radioTimbreTriangle');
+  rxjs.merge(
+    rxjs.fromEvent(radioTimbreDefault, 'click'),
+    rxjs.fromEvent(radioTimbreSine, 'click'),
+    rxjs.fromEvent(radioTimbreSawtooth, 'click'),
+    rxjs.fromEvent(radioTimbreSquare, 'click'),
+    rxjs.fromEvent(radioTimbreTriangle, 'click'),
+  ).pipe(
+    operators.pluck('target', 'value'),
+  ).subscribe(streams.timbre);
+  streams.timbre.subscribe((value) => {
+    if (value == 'default') {
+      radioTimbreDefault.checked = true;
+    } else if (value == 'sine') {
+      radioTimbreSine.checked = true;
+    } else if (value == 'sawtooth') {
+      radioTimbreSawtooth.checked = true;
+    } else if (value == 'square') {
+      radioTimbreSquare.checked = true;
+    } else if (value == 'triangle') {
+      radioTimbreTriangle.checked = true;
+    }
+  });
+  urlStreams.push(streams.timbre.pipe(
+    urlStringOperator('timbre', DEFAULT_URLPARAMS_STRS),
   ));
 
   // Set up some extra subscriptions for a few parameters that have a global

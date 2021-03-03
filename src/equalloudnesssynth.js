@@ -26,19 +26,15 @@ function velocity(freq) {
 
 // Relative amplitudes of overtones. These define the timbre. The choice here
 // is only slightly different from sine.
-const partials = [];
+const defaultTimbrePartials = [];
 for (let i = 1; i < 6; i++) {
-  partials.push(Math.exp(2*(-i+1)));
+  defaultTimbrePartials.push(Math.exp(2*(-i+1)));
 }
 
 class EqualLoudnessSynth {
   constructor() {
-    this.synth = new PolySynth(Synth, {
-      oscillator: {
-        'type': 'custom',
-        'partials': partials,
-      },
-    }).toDestination();
+    this.synth = new PolySynth(Synth, {}).toDestination();
+    this.setTimbre('default');
   }
 
   startTone(freq) {
@@ -47,6 +43,29 @@ class EqualLoudnessSynth {
 
   stopTone(freq) {
     this.synth.triggerRelease(freq);
+  }
+
+  setTimbre(timbre) {
+    if (this.timbre != undefined && this.timbre == timbre) {
+      // Nothing to do, we are already using this timbre.
+      return;
+    }
+
+    let oscillator;
+    if (['sawtooth', 'sine', 'square', 'triangle'].includes(timbre)) {
+      oscillator = {'type': timbre};
+    } else {
+      // The custom default timbre.
+      oscillator = {
+        'type': 'custom',
+        'partials': defaultTimbrePartials,
+      };
+    }
+
+    this.synth.set({
+      oscillator: oscillator,
+    });
+    this.timbre = timbre;
   }
 }
 

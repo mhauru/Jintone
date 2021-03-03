@@ -16,6 +16,7 @@ import {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Hard-coded default parameters.
 const DEFAULT_URLPARAMS = new Map();
+DEFAULT_URLPARAMS.set('timbre', 'default');
 DEFAULT_URLPARAMS.set('originFreq', 261.626);
 DEFAULT_URLPARAMS.set('maxHarmNorm', 8.0);
 DEFAULT_URLPARAMS.set('pitchlineColor', '#c7c7c7');
@@ -77,6 +78,9 @@ const allTones = new Map();
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Make the toggletips react to being clicked.
 setupToggletips();
+
+// Make the synth timbre change when the setting is adjusted.
+streams.timbre.subscribe((value) => synth.setTimbre(value));
 
 // Create the root tone.
 new JITone(new Map(), true, scaleFig.svgGroups, streams, allTones, synth);
