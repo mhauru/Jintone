@@ -27,9 +27,29 @@ tonePresets.set('basic7Limit', [
   [new Map([[5, 1], [2, -2]]), 2.0, 1.7],
   [new Map([[7, 1], [2, -2]]), 1.75, 6.3],
 ]);
+tonePresets.set('basic23511', [
+  [new Map([[2, 1]]), 1.2, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.6, 1.6],
+  [new Map([[5, 1], [2, -2]]), 2.0, 1.7],
+  [new Map([[11, 1], [2, -3]]), 1.35, 6.3],
+]);
+tonePresets.set('basic23513', [
+  [new Map([[2, 1]]), 1.2, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.6, 1.6],
+  [new Map([[5, 1], [2, -2]]), 2.0, 1.7],
+  [new Map([[13, 1], [2, -3]]), -0.1, 6.3],
+]);
 tonePresets.set('pythagorean', [
   [new Map([[2, 1]]), 0.0, 0.0],
   [new Map([[3, 1], [2, -1]]), 0.15, 0.7],
+]);
+tonePresets.set('restricted13limit', [
+  [new Map([[2, 1]]), 1.2, 0.8],
+  [new Map([[3, 1]]), 1.9, 2.0],
+  [new Map([[5, 1]]), 2.25, 2.79],
+  [new Map([[7, 1]]), 1.96, 3.19],
+  [new Map([[11, 1]]), 1.85, 3.19],
+  [new Map([[13, 1]]), 2.0, 4.81],
 ]);
 tonePresets.set('alternative5Limit', [
   [new Map([[2, 1]]), 0.0, 0.0],
@@ -41,6 +61,18 @@ tonePresets.set('alternative7Limit', [
   [new Map([[3, 1], [2, -1]]), 0.1, 2.0],
   [new Map([[5, 1], [2, -2]]), 1.5, 2.2],
   [new Map([[7, 1], [2, -2]]), 0.87, 5.0],
+]);
+tonePresets.set('alternative23511', [
+  [new Map([[2, 1]]), 0.0, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.1, 2.0],
+  [new Map([[5, 1], [2, -2]]), 1.5, 2.2],
+  [new Map([[11, 1], [2, -3]]), -0.66, 4.5],
+]);
+tonePresets.set('alternative23513', [
+  [new Map([[2, 1]]), 0.0, 0.0],
+  [new Map([[3, 1], [2, -1]]), 0.1, 2.0],
+  [new Map([[5, 1], [2, -2]]), 1.5, 2.2],
+  [new Map([[13, 1], [2, -3]]), -0.92, 4.5],
 ]);
 
 // Associate each prime to each it's streams, to make it possible to remove the
